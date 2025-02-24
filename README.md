@@ -176,13 +176,13 @@ Now the user model will have access to the methods provided by the package. You 
 
 ### Polar Script
 
-Polar includes a JavaScript script that you can use to initialize the [Polar Embedded Checkout](https://docs.polar.sh/features/checkout/embed). If you going to use this functionality, you can use the `@polar` directive to include the script in your views inside the `<head>` tag.
+Polar includes a JavaScript script that you can use to initialize the [Polar Embedded Checkout](https://docs.polar.sh/features/checkout/embed). If you going to use this functionality, you can use the `@polarEmbedScript` directive to include the script in your views inside the `<head>` tag.
 
 ```blade
 <head>
     ...
 
-    @polar
+    @polarEmbedScript
 </head>
 ```
 
