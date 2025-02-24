@@ -24,7 +24,7 @@ class LaravelPolarServiceProvider extends PackageServiceProvider
             ->hasCommands(
                 ListProductsCommand::class,
             )
-            ->hasInstallCommand(function(InstallCommand $command) {
+            ->hasInstallCommand(function (InstallCommand $command) {
                 $command
                     ->publishConfigFile()
                     ->publishAssets()
