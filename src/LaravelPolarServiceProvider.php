@@ -44,7 +44,7 @@ class LaravelPolarServiceProvider extends PackageServiceProvider
 
     protected function bootDirectives(): void
     {
-        Blade::directive('polar', function () {
+        Blade::directive('polarEmbedScript', function () {
             return "<?php echo view('polar::js'); ?>";
         });
     }
