@@ -3,6 +3,7 @@
 namespace Danestves\LaravelPolar;
 
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Danestves\LaravelPolar\Exceptions\ReservedMetadataKeys;
 use DateTime;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\RedirectResponse;
@@ -100,11 +101,24 @@ class Checkout implements Responsable
      *
      * You can store up to **50 key-value pairs**.
      *
-     * @param  array<string, string|int|bool>  $customerMetadata
+     * @param  ?array<string, string|int|bool>  $customerMetadata
      */
-    public function withCustomerMetadata(array $customerMetadata): self
+    public function withCustomerMetadata(?array $customerMetadata): self
     {
         $this->customerMetadata = $customerMetadata;
+
+        if (
+            (array_key_exists('billable_id', $customerMetadata)) ||
+            (array_key_exists('billable_type', $customerMetadata)) ||
+            (array_key_exists('subscription_type', $customerMetadata))
+        ) {
+            throw ReservedMetadataKeys::overwriteAttempt();
+        }
+
+        $this->customerMetadata = collect(array_replace_recursive($this->customerMetadata, $customerMetadata))
+            ->map(fn($value) => is_string($value) ? trim($value) : $value)
+            ->filter(fn($value) => $value !== null)
+            ->toArray();
 
         return $this;
     }
@@ -250,7 +264,7 @@ class Checkout implements Responsable
 
         $checkout = LaravelPolar::createCheckoutSession($request);
 
-        if (! $checkout) {
+        if (!$checkout) {
             throw new PolarApiError('Failed to create checkout session');
         }
 

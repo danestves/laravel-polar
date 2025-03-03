@@ -43,12 +43,13 @@ it('can generate a checkout for a billable with metadata', function () {
         ->once()
         ->with(
             ['product_123'],
-            Mockery::any(), // options
-            ['batch_id' => '789'], // metadata
+            [],
+            [],
+            ['batch_id' => '789']
         )
         ->andReturn($checkout);
 
-    $result = $user->checkout(['product_123'], null, metadata: ['batch_id' => '789']);
+    $result = $user->checkout(['product_123'], [], [], ['batch_id' => '789']);
 
     expect($result->url())
         ->toBe($url);
@@ -66,12 +67,12 @@ it('can not overwrite the customer id and type or subscription id for a billable
         $user = Mockery::mock($user);
         $user->shouldReceive('checkout')
             ->once()
-            ->with(['product_123'], Mockery::any(), [$key => $value])
+            ->with(['product_123'], [], [$key => $value], [])
             ->andThrow(new \InvalidArgumentException(
                 'You cannot use "billable_id", "billable_type" or "subscription_type" as custom data keys because these are reserved keywords.',
             ));
 
-        expect(fn() => $user->checkout(['product_123'], metadata: [$key => $value]))
+        expect(fn() => $user->checkout(['product_123'], [], [$key => $value], []))
             ->toThrow(
                 \InvalidArgumentException::class,
                 'You cannot use "billable_id", "billable_type" or "subscription_type" as custom data keys because these are reserved keywords.',

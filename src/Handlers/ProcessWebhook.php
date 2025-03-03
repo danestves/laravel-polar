@@ -90,7 +90,7 @@ final class ProcessWebhook extends ProcessWebhookJob
     {
         $billable = $this->resolveBillable($payload);
 
-        if (! ($order = $this->findOrder($payload['id'])) instanceof LaravelPolar::$orderModel) {
+        if (!($order = $this->findOrder($payload['id'])) instanceof LaravelPolar::$orderModel) {
             return;
         }
 
@@ -113,11 +113,11 @@ final class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleSubscriptionCreated(array $payload): void
     {
-        $metadata = $payload['metadata'];
+        $customerMetadata = $payload['customer']['metadata'];
         $billable = $this->resolveBillable($payload);
 
         $subscription = $billable->subscriptions()->create([
-            'type' => $metadata['subscription_type'],
+            'type' => $customerMetadata['subscription_type'],
             'polar_id' => $payload['id'],
             'status' => $payload['status'],
             'product_id' => $payload['product_id'],
@@ -140,7 +140,7 @@ final class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleSubscriptionUpdated(array $payload): void
     {
-        if (! ($subscription = $this->findSubscription($payload['id'])) instanceof LaravelPolar::$subscriptionModel) {
+        if (!($subscription = $this->findSubscription($payload['id'])) instanceof LaravelPolar::$subscriptionModel) {
             return;
         }
 
@@ -156,7 +156,7 @@ final class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleSubscriptionActive(array $payload): void
     {
-        if (! ($subscription = $this->findSubscription($payload['id'])) instanceof LaravelPolar::$subscriptionModel) {
+        if (!($subscription = $this->findSubscription($payload['id'])) instanceof LaravelPolar::$subscriptionModel) {
             return;
         }
 
@@ -172,7 +172,7 @@ final class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleSubscriptionCanceled(array $payload): void
     {
-        if (! ($subscription = $this->findSubscription($payload['id'])) instanceof LaravelPolar::$subscriptionModel) {
+        if (!($subscription = $this->findSubscription($payload['id'])) instanceof LaravelPolar::$subscriptionModel) {
             return;
         }
 
@@ -188,7 +188,7 @@ final class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleSubscriptionRevoked(array $payload): void
     {
-        if (! ($subscription = $this->findSubscription($payload['id'])) instanceof LaravelPolar::$subscriptionModel) {
+        if (!($subscription = $this->findSubscription($payload['id'])) instanceof LaravelPolar::$subscriptionModel) {
             return;
         }
 
@@ -243,15 +243,15 @@ final class ProcessWebhook extends ProcessWebhookJob
      */
     private function resolveBillable(array $payload)
     {
-        $metadata = $payload['data']['metadata'] ?? null;
+        $customerMetadata = $payload['data']['customer']['metadata'] ?? null;
 
-        if (! isset($metadata) || ! is_array($metadata) || ! isset($metadata['billable_id'], $metadata['billable_type'])) {
+        if (!isset($customerMetadata) || !is_array($customerMetadata) || !isset($customerMetadata['billable_id'], $customerMetadata['billable_type'])) {
             throw new InvalidMetadataPayload();
         }
 
         return $this->findOrCreateCustomer(
-            $metadata['billable_id'],
-            (string) $metadata['billable_type'],
+            $customerMetadata['billable_id'],
+            (string) $customerMetadata['billable_type'],
             (string) $payload['data']['customer_id'],
         );
     }

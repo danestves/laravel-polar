@@ -3,7 +3,6 @@
 namespace Danestves\LaravelPolar\Concerns;
 
 use Danestves\LaravelPolar\Checkout;
-use Danestves\LaravelPolar\Exceptions\ReservedMetadataKeys;
 use Polar\Models\Components;
 
 trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts is used in Billable trait
@@ -13,22 +12,18 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
      *
      * @param  array<string>  $products
      * @param  array<string, string|int>|null  $options
+     * @param  array<string, string|int|bool>|null  $customerMetadata
      * @param  array<string, string|int|bool>|null  $metadata
      */
-    public function checkout(array $products, ?array $options = [], ?array $metadata = []): Checkout
+    public function checkout(array $products, ?array $options = [], ?array $customerMetadata = [], ?array $metadata = []): Checkout
     {
-        if (
-            (array_key_exists('billable_id', $metadata) && isset($metadata['billable_id'])) ||
-            (array_key_exists('billable_type', $metadata) && isset($metadata['billable_type'])) ||
-            (array_key_exists('subscription_type', $metadata) && isset($metadata['subscription_type']))
-        ) {
-            throw ReservedMetadataKeys::overwriteAttempt();
-        }
-
         /** @var string|int $key */
         $key = $this->getKey();
 
-        $metadata = array_merge($metadata, [
+        // We'll need a way to identify the user in any webhook we're catching so before
+        // we make an API request we'll attach the authentication identifier to this
+        // checkout so we can match it back to a user when handling Polar webhooks.
+        $customerMetadata = array_merge($customerMetadata, [
             'billable_id' => (string) $key,
             'billable_type' => $this->getMorphClass(),
         ]);
@@ -50,6 +45,7 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
             ->withCustomerName((string) ($options['customer_name'] ?? $this->polarName() ?? ''))
             ->withCustomerEmail((string) ($options['customer_email'] ?? $this->polarEmail() ?? ''))
             ->withCustomerBillingAddress($billingAddress)
+            ->withCustomerMetadata($customerMetadata)
             ->withMetadata($metadata);
 
         if (isset($options['tax_id'])) {
@@ -72,25 +68,27 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
      *
      * @param  array<string>  $products
      * @param  array<string, string|int>|null  $options
+     * @param  array<string, string|int|bool>|null  $customerMetadata
      * @param  array<string, string|int|bool>|null  $metadata
      */
-    public function charge(int $amount, array $products, ?array $options = [], ?array $metadata = []): Checkout
+    public function charge(int $amount, array $products, ?array $options = [], ?array $customerMetadata = [], ?array $metadata = []): Checkout
     {
         return $this->checkout($products, array_merge($options, [
             'amount' => $amount,
-        ]), $metadata);
+        ]), $customerMetadata, $metadata);
     }
 
     /**
      * Subscribe the customer to a new plan variant.
      *
      * @param  array<string, string|int>|null  $options
+     * @param  array<string, string|int|bool>|null  $customerMetadata
      * @param  array<string, string|int|bool>|null  $metadata
      */
-    public function subscribe(string $productId, string $type = "default", ?array $options = [], ?array $metadata = []): Checkout
+    public function subscribe(string $productId, string $type = "default", ?array $options = [], ?array $customerMetadata = [], ?array $metadata = []): Checkout
     {
-        return $this->checkout([$productId], $options, array_merge($metadata, [
+        return $this->checkout([$productId], $options, array_merge($customerMetadata, [
             'subscription_type' => $type,
-        ]));
+        ]), $metadata);
     }
 }

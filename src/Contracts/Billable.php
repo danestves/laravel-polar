@@ -19,18 +19,18 @@ interface Billable
      *
      * @param  array<string>  $products
      * @param  array<string, string|int>  $options
-     * @param  array<string, string|int|bool>  $metadata
+     * @param  array<string, string|int|bool>  $customerMetadata
      */
-    public function charge(int $amount, array $products, array $options = [], array $metadata = []): Checkout;
+    public function charge(int $amount, array $products, array $options = [], array $customerMetadata = []): Checkout;
 
     /**
      * Create a new checkout instance to sell a product.
      *
      * @param  array<string>  $products
      * @param  array<string, string|int>  $options
-     * @param  array<string, string|int|bool>  $metadata
+     * @param  array<string, string|int|bool>  $customerMetadata
      */
-    public function checkout(array $products, array $options = [], array $metadata = []): Checkout;
+    public function checkout(array $products, array $options = [], array $customerMetadata = []): Checkout;
 
     /**
      * Create a customer record for the billable model.
