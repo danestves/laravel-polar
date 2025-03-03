@@ -45,7 +45,7 @@ it('can generate a checkout for a billable with metadata', function () {
             ['product_123'],
             [],
             [],
-            ['batch_id' => '789']
+            ['batch_id' => '789'],
         )
         ->andReturn($checkout);
 
