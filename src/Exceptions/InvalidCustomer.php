@@ -5,7 +5,7 @@ namespace Danestves\LaravelPolar\Exceptions;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 
-final class InvalidCustomer extends Exception
+class InvalidCustomer extends Exception
 {
     public static function notYetCreated(Model $owner): self
     {

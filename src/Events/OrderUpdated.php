@@ -7,7 +7,7 @@ use Danestves\LaravelPolar\Order;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-final class OrderUpdated
+class OrderUpdated
 {
     use Dispatchable;
     use SerializesModels;

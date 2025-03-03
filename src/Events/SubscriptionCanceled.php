@@ -7,7 +7,7 @@ use Danestves\LaravelPolar\Subscription;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-final class SubscriptionCanceled
+class SubscriptionCanceled
 {
     use Dispatchable;
     use SerializesModels;

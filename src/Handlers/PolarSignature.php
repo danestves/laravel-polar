@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Spatie\WebhookClient\SignatureValidator\SignatureValidator;
 use Spatie\WebhookClient\WebhookConfig;
 
-final class PolarSignature implements SignatureValidator
+class PolarSignature implements SignatureValidator
 {
     public function isValid(Request $request, WebhookConfig $config): bool
     {

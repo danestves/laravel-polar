@@ -16,6 +16,7 @@ class LaravelPolarServiceProvider extends PackageServiceProvider
         $package
             ->name('laravel-polar')
             ->hasConfigFile("polar")
+            ->hasConfigFile("webhook-client")
             ->hasViews()
             ->hasViewComponent('polar', Button::class)
             ->hasMigrations()

@@ -6,7 +6,7 @@ use Danestves\LaravelPolar\Contracts\Billable;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-final class BenefitGrantRevoked
+class BenefitGrantRevoked
 {
     use Dispatchable;
     use SerializesModels;

@@ -7,7 +7,7 @@ use Danestves\LaravelPolar\Subscription;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-final class SubscriptionCreated
+class SubscriptionCreated
 {
     use Dispatchable;
     use SerializesModels;

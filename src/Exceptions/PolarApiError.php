@@ -4,7 +4,7 @@ namespace Danestves\LaravelPolar\Exceptions;
 
 use Exception;
 
-final class PolarApiError extends Exception
+class PolarApiError extends Exception
 {
     //
 }

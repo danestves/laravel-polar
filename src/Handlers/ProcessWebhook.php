@@ -23,7 +23,7 @@ use Danestves\LaravelPolar\Subscription;
 use Illuminate\Support\Facades\Log;
 use Spatie\WebhookClient\Jobs\ProcessWebhookJob;
 
-final class ProcessWebhook extends ProcessWebhookJob
+class ProcessWebhook extends ProcessWebhookJob
 {
     public function handle(): void
     {
