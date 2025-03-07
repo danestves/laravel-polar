@@ -10,8 +10,7 @@ class Button extends Component
     public function __construct(
         public string $href,
         public string $theme = 'light',
-    ) {
-    }
+    ) {}
 
     public function render(): View
     {
