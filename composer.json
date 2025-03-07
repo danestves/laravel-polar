@@ -20,7 +20,7 @@
         "php": "^8.3",
         "illuminate/contracts": "^10.0||^11.0||^12.0",
         "pinkary-project/type-guard": "0.1.0",
-        "polar-sh/sdk": "0.1.1",
+        "polar-sh/sdk": "0.2.0",
         "spatie/laravel-package-tools": "1.19.0",
         "spatie/laravel-webhook-client": "3.4.3",
         "standard-webhooks/standard-webhooks": "dev-main"

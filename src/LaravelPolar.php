@@ -85,7 +85,7 @@ class LaravelPolar
      *
      * @throws PolarApiError
      */
-    public static function createCustomerSession(Components\CustomerSessionCreate $request): ?Components\CustomerSession
+    public static function createCustomerSession(Components\CustomerSessionCustomerIDCreate $request): ?Components\CustomerSession
     {
         try {
             $responses = self::sdk()->customerSessions->create(request: $request);
