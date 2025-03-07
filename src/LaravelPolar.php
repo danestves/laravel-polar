@@ -3,7 +3,10 @@
 namespace Danestves\LaravelPolar;
 
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Exception;
+use Http;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Support\Facades\Response;
 use Polar\Models\Components;
 use Polar\Models\Errors;
 use Polar\Models\Operations;
@@ -11,6 +14,8 @@ use Polar\Polar;
 
 class LaravelPolar
 {
+    public const string VERSION = '0.3.2';
+
     /**
      * The customer model class name.
      */
@@ -88,7 +93,7 @@ class LaravelPolar
     public static function createCustomerSession(Components\CustomerSessionCustomerIDCreate $request): ?Components\CustomerSession
     {
         try {
-            $responses = self::sdk()->customerSessions->create(request: $request);
+            $responses = self::api("POST", "v1/checkouts");
 
             return $responses->customerSession;
         } catch (Errors\APIException $e) {
@@ -107,6 +112,35 @@ class LaravelPolar
             ->setSecurity(config('polar.access_token'))
             ->setServer(app()->environment('production') ? 'production' : 'sandbox')
             ->build();
+    }
+
+    /**
+     * Perform a Polar API call.
+     *
+     * @param array<string, mixed> $payload The payload to send to the API.
+     *
+     * @throws Exception
+     * @throws PolarApiError
+     */
+    public static function api(string $method, string $uri, array $payload = []): Response
+    {
+        if (empty($apiKey = config('polar.access_token'))) {
+            throw new Exception('Polar API key not set.');
+        }
+
+        $api = app()->environment('production') ? 'https://api.polar.sh' : 'https://sandbox-api.polar.sh';
+
+        $response = Http::withToken($apiKey)
+                    ->withUserAgent('Danestves\LaravelPolar/' . static::VERSION)
+                    ->accept('application/vnd.api+json')
+                    ->contentType('application/vnd.api+json')
+            ->$method("$api/$uri", $payload);
+
+        if ($response->failed()) {
+            throw new PolarApiError($response['errors'][0]['detail'], (int) $response['errors'][0]['status']);
+        }
+
+        return $response;
     }
 
     /**
