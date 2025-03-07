@@ -29,6 +29,8 @@ class Checkout implements Responsable
 
     private ?string $customerId = null;
 
+    private ?string $customerExternalId = null;
+
     private ?string $customerName = null;
 
     private ?string $customerEmail = null;
@@ -48,7 +50,9 @@ class Checkout implements Responsable
     /**
      * @param  array<string>  $products
      */
-    public function __construct(private readonly array $products) {}
+    public function __construct(private readonly array $products)
+    {
+    }
 
     /**
      * @param  array<string>  $products
@@ -163,6 +167,16 @@ class Checkout implements Responsable
         return $this;
     }
 
+    /**
+     * ID of the customer in your system. If a matching customer exists on Polar, the resulting order will be linked to this customer. Otherwise, a new customer will be created with this external ID set.
+     */
+    public function withCustomerExternalId(string $customerExternalId): self
+    {
+        $this->customerExternalId = $customerExternalId;
+
+        return $this;
+    }
+
     public function withCustomerName(string $customerName): self
     {
         $this->customerName = $customerName;
@@ -251,6 +265,7 @@ class Checkout implements Responsable
             discountId: $this->discountId,
             amount: $this->amount,
             customerId: $this->customerId,
+            customerExternalId: $this->customerExternalId,
             customerName: $this->customerName,
             customerEmail: $this->customerEmail,
             customerIpAddress: $this->customerIpAddress,
