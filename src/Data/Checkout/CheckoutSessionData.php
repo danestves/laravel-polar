@@ -217,6 +217,10 @@ class CheckoutSessionData extends Data
          */
         #[MapName('attached_custom_fields')]
         public readonly array $attachedCustomFields,
+        /** @var array<string, string|int|bool> */
+        public readonly array $customerMetadata,
+        /** @var array<string, string|int|bool|\DateTime|null> */
+        public readonly ?array $customFieldData,
     ) {
         //
     }
