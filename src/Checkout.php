@@ -49,9 +49,7 @@ class Checkout implements Responsable
     /**
      * @param  array<string>  $products
      */
-    public function __construct(private readonly array $products)
-    {
-    }
+    public function __construct(private readonly array $products) {}
 
     /**
      * @param  array<string>  $products
