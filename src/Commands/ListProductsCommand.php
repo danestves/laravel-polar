@@ -31,7 +31,7 @@ class ListProductsCommand extends Command
             return static::FAILURE;
         }
 
-        $isArchived = $this->argument('archived');
+        $isArchived = $this->option('archived');
 
         return $this->handleProducts($isArchived);
     }
