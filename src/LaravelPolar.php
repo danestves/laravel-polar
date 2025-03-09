@@ -15,7 +15,7 @@ use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionUpdateProductData;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use Exception;
 use Http;
-use Illuminate\Support\Facades\Response;
+use Illuminate\Http\Client\Response;
 
 class LaravelPolar
 {
