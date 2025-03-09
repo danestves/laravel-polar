@@ -42,17 +42,7 @@ class ListProductsCommand extends Command
             return static::FAILURE;
         }
 
-        $request = new ListProductsRequestData(
-            id: $this->option('id'),
-            organizationId: $this->option('organization-id'),
-            query: $this->option('query'),
-            isArchived: $this->option('archived'),
-            isRecurring: $this->option('recurring'),
-            benefitId: $this->option('benefit-id'),
-            page: (int) $this->option('page'),
-            limit: (int) $this->option('limit'),
-            sorting: $this->option('sorting'),
-        );
+        $request = ListProductsRequestData::from($this->options());
 
         return $this->handleProducts($request);
     }
