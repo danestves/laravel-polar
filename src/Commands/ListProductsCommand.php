@@ -19,7 +19,7 @@ class ListProductsCommand extends Command
      * @var string
      */
     protected $signature = 'polar:products
-                            {--archived : Show archived products. Defaults to false.}';
+                            {--archived=false : Show archived products. Defaults to false.}';
 
     /**
      * The console command description.
