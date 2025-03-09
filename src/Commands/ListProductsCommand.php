@@ -36,7 +36,7 @@ class ListProductsCommand extends Command
 
         $isArchived = $this->option('archived');
 
-        return $this->handleProducts($isArchived);
+        return $this->handleProducts((bool) $isArchived);
     }
 
     protected function validate(): bool
@@ -46,7 +46,7 @@ class ListProductsCommand extends Command
             ['archived' => $this->option('archived')],
         ], [
             'access_token' => 'required',
-            'arch   ived' => ['nullable', 'boolean'],
+            'archived' => ['nullable', 'boolean'],
         ], [
             'access_token.required' => 'Polar access token not set. You can add it to your .env file as POLAR_ACCESS_TOKEN.',
         ]);
