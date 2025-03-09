@@ -71,7 +71,7 @@ class ListProductsCommand extends Command
         $productsResponse = spin(
             fn() => LaravelPolar::listProducts(
                 ListProductsRequestData::from([
-                    $isArchived,
+                    'is_archived' => $isArchived,
                 ]),
             ),
             '⚪ Fetching products information...',
