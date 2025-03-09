@@ -68,8 +68,8 @@ class ProductData extends Data
         /**
          * List of media associated with the product.
          *
-         * @var array<ProductMediaData>
+         * @var array<ProductMediaData>|null
          */
-        public readonly array $media,
+        public readonly ?array $media,
     ) {}
 }
