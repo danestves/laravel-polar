@@ -7,10 +7,12 @@ use Danestves\LaravelPolar\Data\Products\ProductData;
 use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\spin;
 
+#[AsCommand(name: 'polar:products')]
 class ListProductsCommand extends Command
 {
     /**
@@ -42,6 +44,7 @@ class ListProductsCommand extends Command
             return static::FAILURE;
         }
 
+        dump($this->options());
         $request = ListProductsRequestData::from($this->options());
 
         return $this->handleProducts($request);
