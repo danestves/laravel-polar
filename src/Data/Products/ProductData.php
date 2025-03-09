@@ -54,6 +54,12 @@ class ProductData extends Data
         #[MapName('organization_id')]
         public readonly string $organizationId,
         /**
+         * List of prices for this product.
+         *
+         * @var array<LegacyRecurringProductPriceFixedData|LegacyRecurringProductPriceCustomData|LegacyRecurringProductPriceFreeData|ProductPriceFixedData|ProductPriceCustomData|ProductPriceFreeData>
+         */
+        public readonly array $prices,
+        /**
          * List of benefits granted by the product.
          *
          * @var array<BenefitsData>

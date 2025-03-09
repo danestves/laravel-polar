@@ -5,7 +5,7 @@ namespace Danestves\LaravelPolar\Data\Discounts;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Data;
 
-class CheckoutDiscountPercentageOnceForeverDuration extends Data
+class CheckoutDiscountPercentageOnceForeverDurationData extends Data
 {
     public function __construct(
         /**

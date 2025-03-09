@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Data\Checkout;
 
-use Danestves\LaravelPolar\Data\CustomerBillingAddressData;
+use Danestves\LaravelPolar\Data\Customers\CustomerBillingAddressData;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Data;
 use DateTime;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Danestves\LaravelPolar\Data;
+namespace Danestves\LaravelPolar\Data\Customers;
 
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Data;

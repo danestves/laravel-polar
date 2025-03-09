@@ -2,12 +2,18 @@
 
 namespace Danestves\LaravelPolar\Data\Checkout;
 
-use Danestves\LaravelPolar\Data\CustomerBillingAddressData;
+use Danestves\LaravelPolar\Data\Customers\CustomerBillingAddressData;
+use Danestves\LaravelPolar\Data\Discounts\CheckoutDiscountFixedOnceForeverDurationData;
+use Danestves\LaravelPolar\Data\Discounts\CheckoutDiscountFixedRepeatDurationData;
+use Danestves\LaravelPolar\Data\Discounts\CheckoutDiscountPercentageOnceForeverDurationData;
+use Danestves\LaravelPolar\Data\Discounts\CheckoutDiscountPercentageRepeatDurationData;
+use Danestves\LaravelPolar\Data\Products\LegacyRecurringProductPriceCustomData;
+use Danestves\LaravelPolar\Data\Products\LegacyRecurringProductPriceFixedData;
+use Danestves\LaravelPolar\Data\Products\LegacyRecurringProductPriceFreeData;
 use Danestves\LaravelPolar\Data\Products\ProductData;
-use Polar\Models\Components\CheckoutDiscountFixedOnceForeverDuration;
-use Polar\Models\Components\CheckoutDiscountFixedRepeatDuration;
-use Polar\Models\Components\CheckoutDiscountPercentageOnceForeverDuration;
-use Polar\Models\Components\CheckoutDiscountPercentageRepeatDuration;
+use Danestves\LaravelPolar\Data\Products\ProductPriceCustomData;
+use Danestves\LaravelPolar\Data\Products\ProductPriceFixedData;
+use Danestves\LaravelPolar\Data\Products\ProductPriceFreeData;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Data;
 
@@ -205,9 +211,13 @@ class CheckoutSessionData extends Data
          */
         public readonly ProductData $product,
         /**
+         * Price of the selected product.
+         */
+        public readonly LegacyRecurringProductPriceFixedData|LegacyRecurringProductPriceCustomData|LegacyRecurringProductPriceFreeData|ProductPriceFixedData|ProductPriceCustomData|ProductPriceFreeData $productPrice,
+        /**
          * Schema for a percentage discount that is applied once or forever.
          */
-        public readonly CheckoutDiscountFixedOnceForeverDuration|CheckoutDiscountFixedRepeatDuration|CheckoutDiscountPercentageOnceForeverDuration|CheckoutDiscountPercentageRepeatDuration|null $discount,
+        public readonly CheckoutDiscountFixedOnceForeverDurationData|CheckoutDiscountFixedRepeatDurationData|CheckoutDiscountPercentageOnceForeverDurationData|CheckoutDiscountPercentageRepeatDurationData|null $discount,
         #[MapName('subscription_id')]
         public readonly ?string $subscriptionId,
         /**

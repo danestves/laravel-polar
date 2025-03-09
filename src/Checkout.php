@@ -2,12 +2,13 @@
 
 namespace Danestves\LaravelPolar;
 
+use Danestves\LaravelPolar\Data\Checkout\CreateCheckoutSessionData;
+use Danestves\LaravelPolar\Data\Customers\CustomerBillingAddressData;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use DateTime;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
-use Polar\Models\Components;
 
 class Checkout implements Responsable
 {
@@ -36,7 +37,7 @@ class Checkout implements Responsable
 
     private ?string $customerIpAddress = null;
 
-    private ?Components\Address $customerBillingAddress = null;
+    private ?CustomerBillingAddressData $customerBillingAddress = null;
 
     private ?string $customerTaxId = null;
 
@@ -187,7 +188,7 @@ class Checkout implements Responsable
         return $this;
     }
 
-    public function withCustomerBillingAddress(?Components\Address $customerBillingAddress): self
+    public function withCustomerBillingAddress(?CustomerBillingAddressData $customerBillingAddress): self
     {
         $this->customerBillingAddress = $customerBillingAddress;
 
@@ -246,12 +247,12 @@ class Checkout implements Responsable
      */
     public function url(): string
     {
-        $request = new Components\CheckoutProductsCreate(
+        $request = new CreateCheckoutSessionData(
             products: $this->products,
             metadata: $this->metadata,
             customFieldData: $this->customFieldData,
-            customerMetadata: $this->customerMetadata,
             discountId: $this->discountId,
+            allowDiscountCodes: $this->allowDiscountCodes,
             amount: $this->amount,
             customerId: $this->customerId,
             customerExternalId: $this->customerExternalId,
@@ -260,10 +261,10 @@ class Checkout implements Responsable
             customerIpAddress: $this->customerIpAddress,
             customerBillingAddress: $this->customerBillingAddress,
             customerTaxId: $this->customerTaxId,
+            customerMetadata: $this->customerMetadata,
             subscriptionId: $this->subscriptionId,
             successUrl: $this->successUrl,
             embedOrigin: $this->embedOrigin,
-            allowDiscountCodes: $this->allowDiscountCodes,
         );
 
         $checkout = LaravelPolar::createCheckoutSession($request);

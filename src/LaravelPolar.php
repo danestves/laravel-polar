@@ -2,6 +2,11 @@
 
 namespace Danestves\LaravelPolar;
 
+use Danestves\LaravelPolar\Data\Checkout\CheckoutSessionData;
+use Danestves\LaravelPolar\Data\Checkout\CreateCheckoutSessionData;
+use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionCancelData;
+use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionData;
+use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionUpdateProductData;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use Exception;
 use Http;
@@ -36,12 +41,12 @@ class LaravelPolar
      *
      * @throws PolarApiError
      */
-    public static function createCheckoutSession(Components\CheckoutProductsCreate $request): ?Components\Checkout
+    public static function createCheckoutSession(CreateCheckoutSessionData $request): ?CheckoutSessionData
     {
         try {
-            $responses = self::sdk()->checkouts->create(request: $request);
+            $response = self::api("POST", "v1/checkouts", $request->toArray());
 
-            return $responses->checkout;
+            return CheckoutSessionData::from($response->json());
         } catch (Errors\APIException $e) {
             throw new PolarApiError($e->getMessage(), 400);
         }
@@ -52,12 +57,12 @@ class LaravelPolar
      *
      * @throws PolarApiError
      */
-    public static function updateSubscription(string $subscriptionId, Components\SubscriptionUpdateProduct|Components\SubscriptionCancel $request): ?Components\Subscription
+    public static function updateSubscription(string $subscriptionId, SubscriptionUpdateProductData|SubscriptionCancelData $request): SubscriptionData
     {
         try {
-            $responses = self::sdk()->subscriptions->update(id: $subscriptionId, subscriptionUpdate: $request);
+            $response = self::api("POST", "v1/subscriptions/$subscriptionId", $request->toArray());
 
-            return $responses->subscription;
+            return SubscriptionData::from($response->json());
         } catch (Errors\APIException $e) {
             throw new PolarApiError($e->getMessage(), 400);
         }
@@ -90,12 +95,12 @@ class LaravelPolar
      *
      * @throws PolarApiError
      */
-    public static function createCustomerSession(Components\CustomerSessionCustomerIDCreate $request): ?Components\CustomerSession
+    public static function createCustomerSession(Components\CustomerSessionCustomerIDCreate $request): null
     {
         try {
             $responses = self::api("POST", "v1/checkouts");
 
-            return $responses->customerSession;
+            return null;
         } catch (Errors\APIException $e) {
             throw new PolarApiError($e->getMessage(), 400);
         }
