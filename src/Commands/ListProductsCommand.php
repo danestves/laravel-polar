@@ -16,7 +16,9 @@ class ListProductsCommand extends Command
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'polar:products';
+    protected $signature = 'polar:products
+        {--archived? : Show archived products. Defaults to false.}
+    ';
 
     /**
      * The console command description.
@@ -29,7 +31,9 @@ class ListProductsCommand extends Command
             return static::FAILURE;
         }
 
-        return $this->handleProducts();
+        $isArchived = $this->argument('archived');
+
+        return $this->handleProducts($isArchived);
     }
 
     protected function validate(): bool
@@ -53,13 +57,15 @@ class ListProductsCommand extends Command
         return false;
     }
 
-    protected function handleProducts(): int
+    protected function handleProducts(bool $isArchived = false): int
     {
         $this->validate();
 
         $productsResponse = spin(
             fn() => LaravelPolar::listProducts(
-                ListProductsRequestData::from([]),
+                ListProductsRequestData::from([
+                    $isArchived,
+                ]),
             ),
             '⚪ Fetching products information...',
         );
