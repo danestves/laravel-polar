@@ -2,10 +2,11 @@
 
 namespace Danestves\LaravelPolar\Database\Factories;
 
+use Carbon\CarbonInterface;
 use Danestves\LaravelPolar\Customer;
+use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Subscription;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Polar\Models\Components;
 
 /** @extends Factory<Subscription> */
 class SubscriptionFactory extends Factory
@@ -25,10 +26,10 @@ class SubscriptionFactory extends Factory
      *     billable_type: string,
      *     type: string,
      *     polar_id: string,
-     *     status: \Polar\Models\Components\SubscriptionStatus,
+     *     status: SubscriptionStatus,
      *     product_id: string,
      *     price_id: string,
-     *     current_period_end: \Carbon\CarbonInterface
+     *     current_period_end: CarbonInterface
      * }
      */
     public function definition(): array
@@ -38,7 +39,7 @@ class SubscriptionFactory extends Factory
             'billable_type' => 'App\\Models\\User',
             'type' => 'default',
             'polar_id' => $this->faker->uuid,
-            'status' => Components\SubscriptionStatus::Active,
+            'status' => SubscriptionStatus::Active,
             'product_id' => $this->faker->uuid,
             'price_id' => $this->faker->uuid,
             'current_period_end' => now()->addDays(30),
@@ -64,7 +65,7 @@ class SubscriptionFactory extends Factory
     public function active(): self
     {
         return $this->state([
-            'status' => Components\SubscriptionStatus::Active,
+            'status' => SubscriptionStatus::Active,
         ]);
     }
 
@@ -74,7 +75,7 @@ class SubscriptionFactory extends Factory
     public function pastDue(): self
     {
         return $this->state([
-            'status' => Components\SubscriptionStatus::PastDue,
+            'status' => SubscriptionStatus::PastDue,
         ]);
     }
 
@@ -84,7 +85,7 @@ class SubscriptionFactory extends Factory
     public function unpaid(): self
     {
         return $this->state([
-            'status' => Components\SubscriptionStatus::Unpaid,
+            'status' => SubscriptionStatus::Unpaid,
         ]);
     }
 
@@ -94,7 +95,7 @@ class SubscriptionFactory extends Factory
     public function cancelled(): self
     {
         return $this->state([
-            'status' => Components\SubscriptionStatus::Canceled,
+            'status' => SubscriptionStatus::Canceled,
             'ends_at' => now(),
         ]);
     }
@@ -105,7 +106,7 @@ class SubscriptionFactory extends Factory
     public function incompleteExpired(): self
     {
         return $this->state([
-            'status' => Components\SubscriptionStatus::IncompleteExpired,
+            'status' => SubscriptionStatus::IncompleteExpired,
         ]);
     }
 }

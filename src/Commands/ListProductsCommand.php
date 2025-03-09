@@ -2,11 +2,11 @@
 
 namespace Danestves\LaravelPolar\Commands;
 
+use Danestves\LaravelPolar\Data\Products\ListProductsRequestData;
+use Danestves\LaravelPolar\Data\Products\ProductData;
 use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
-use Polar\Models\Components;
-use Polar\Models\Operations;
 
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\spin;
@@ -59,7 +59,7 @@ class ListProductsCommand extends Command
 
         $productsResponse = spin(
             fn() => LaravelPolar::listProducts(
-                new Operations\ProductsListRequest(),
+                ListProductsRequestData::from([]),
             ),
             '⚪ Fetching products information...',
         );
@@ -84,7 +84,7 @@ class ListProductsCommand extends Command
         $this->components->twoColumnDetail('<fg=gray>Product</>', '<fg=gray>ID</>');
     }
 
-    protected function displayProduct(Components\Product $product): void
+    protected function displayProduct(ProductData $product): void
     {
         $this->components->twoColumnDetail(
             sprintf('<fg=green;options=bold>%s</>', $product->name),

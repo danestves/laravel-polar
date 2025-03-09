@@ -2,13 +2,16 @@
 
 namespace Danestves\LaravelPolar;
 
+use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionCancelData;
+use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionUpdateProductData;
+use Danestves\LaravelPolar\Enums\ProrationBehavior;
+use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
-use Polar\Models\Components;
 
 /**
  * @property int $id
@@ -16,7 +19,7 @@ use Polar\Models\Components;
  * @property int $billable_id
  * @property string $type
  * @property string $polar_id
- * @property Components\SubscriptionStatus $status
+ * @property SubscriptionStatus $status
  * @property string $product_id
  * @property string $price_id
  * @property \Carbon\CarbonInterface|null $current_period_end
@@ -63,7 +66,7 @@ class Subscription extends Model
      */
     public function incomplete(): bool
     {
-        return $this->status === Components\SubscriptionStatus::Incomplete;
+        return $this->status === SubscriptionStatus::Incomplete;
     }
 
     /**
@@ -73,7 +76,7 @@ class Subscription extends Model
      */
     public function scopeIncomplete(Builder $query): void
     {
-        $query->where('status', Components\SubscriptionStatus::Incomplete);
+        $query->where('status', SubscriptionStatus::Incomplete);
     }
 
     /**
@@ -81,7 +84,7 @@ class Subscription extends Model
      */
     public function incompleteExpired(): bool
     {
-        return $this->status === Components\SubscriptionStatus::IncompleteExpired;
+        return $this->status === SubscriptionStatus::IncompleteExpired;
     }
 
     /**
@@ -91,7 +94,7 @@ class Subscription extends Model
      */
     public function scopeIncompleteExpired(Builder $query): void
     {
-        $query->where('status', Components\SubscriptionStatus::IncompleteExpired);
+        $query->where('status', SubscriptionStatus::IncompleteExpired);
     }
 
     /**
@@ -99,7 +102,7 @@ class Subscription extends Model
      */
     public function onTrial(): bool
     {
-        return $this->status === Components\SubscriptionStatus::Trialing;
+        return $this->status === SubscriptionStatus::Trialing;
     }
 
     /**
@@ -109,7 +112,7 @@ class Subscription extends Model
      */
     public function scopeOnTrial(Builder $query): void
     {
-        $query->where('status', Components\SubscriptionStatus::Trialing);
+        $query->where('status', SubscriptionStatus::Trialing);
     }
 
     /**
@@ -125,7 +128,7 @@ class Subscription extends Model
      */
     public function active(): bool
     {
-        return $this->status === Components\SubscriptionStatus::Active;
+        return $this->status === SubscriptionStatus::Active;
     }
 
     /**
@@ -135,7 +138,7 @@ class Subscription extends Model
      */
     public function scopeActive(Builder $query): void
     {
-        $query->where('status', Components\SubscriptionStatus::Active);
+        $query->where('status', SubscriptionStatus::Active);
     }
 
     /**
@@ -143,7 +146,7 @@ class Subscription extends Model
      */
     public function pastDue(): bool
     {
-        return $this->status === Components\SubscriptionStatus::PastDue;
+        return $this->status === SubscriptionStatus::PastDue;
     }
 
     /**
@@ -153,7 +156,7 @@ class Subscription extends Model
      */
     public function scopePastDue(Builder $query): void
     {
-        $query->where('status', Components\SubscriptionStatus::PastDue);
+        $query->where('status', SubscriptionStatus::PastDue);
     }
 
     /**
@@ -161,7 +164,7 @@ class Subscription extends Model
      */
     public function unpaid(): bool
     {
-        return $this->status === Components\SubscriptionStatus::Unpaid;
+        return $this->status === SubscriptionStatus::Unpaid;
     }
 
     /**
@@ -171,7 +174,7 @@ class Subscription extends Model
      */
     public function scopeUnpaid(Builder $query): void
     {
-        $query->where('status', Components\SubscriptionStatus::Unpaid);
+        $query->where('status', SubscriptionStatus::Unpaid);
     }
 
     /**
@@ -179,7 +182,7 @@ class Subscription extends Model
      */
     public function cancelled(): bool
     {
-        return $this->status === Components\SubscriptionStatus::Canceled;
+        return $this->status === SubscriptionStatus::Canceled;
     }
 
     /**
@@ -189,7 +192,7 @@ class Subscription extends Model
      */
     public function scopeCancelled(Builder $query): void
     {
-        $query->where('status', Components\SubscriptionStatus::Canceled);
+        $query->where('status', SubscriptionStatus::Canceled);
     }
 
     /**
@@ -219,11 +222,11 @@ class Subscription extends Model
     /**
      * Swap the subscription to a new product.
      */
-    public function swap(string $productId, ?Components\SubscriptionProrationBehavior $prorationBehavior = Components\SubscriptionProrationBehavior::Prorate): self
+    public function swap(string $productId, ?ProrationBehavior $prorationBehavior = ProrationBehavior::Prorate): self
     {
         $response = LaravelPolar::updateSubscription(
             subscriptionId: $this->polar_id,
-            request: new Components\SubscriptionUpdateProduct(
+            request: new SubscriptionUpdateProductData(
                 productId: $productId,
                 prorationBehavior: $prorationBehavior,
             ),
@@ -239,7 +242,7 @@ class Subscription extends Model
      */
     public function swapAndInvoice(string $productId): self
     {
-        return $this->swap($productId, Components\SubscriptionProrationBehavior::Invoice);
+        return $this->swap($productId, ProrationBehavior::Invoice);
     }
 
     /**
@@ -249,7 +252,7 @@ class Subscription extends Model
     {
         $response = LaravelPolar::updateSubscription(
             subscriptionId: $this->polar_id,
-            request: new Components\SubscriptionCancel(cancelAtPeriodEnd: true),
+            request: SubscriptionCancelData::from(['cancelAtPeriodEnd' => true]),
         );
 
         $this->sync((array) $response);
@@ -262,13 +265,13 @@ class Subscription extends Model
      */
     public function resume(): self
     {
-        if ($this->status === Components\SubscriptionStatus::IncompleteExpired) {
+        if ($this->status === SubscriptionStatus::IncompleteExpired) {
             throw new PolarApiError('Subscription is incomplete and expired.');
         }
 
         $response = LaravelPolar::updateSubscription(
             subscriptionId: $this->polar_id,
-            request: new Components\SubscriptionCancel(cancelAtPeriodEnd: false),
+            request: SubscriptionCancelData::from(['cancelAtPeriodEnd' => false]),
         );
 
         $this->sync((array) $response);
@@ -300,7 +303,7 @@ class Subscription extends Model
     protected function casts(): array
     {
         return [
-            'status' => Components\SubscriptionStatus::class,
+            'status' => SubscriptionStatus::class,
             'current_period_end' => 'datetime',
             'ends_at' => 'datetime',
         ];

@@ -3,7 +3,7 @@
 namespace Danestves\LaravelPolar\Concerns;
 
 use Danestves\LaravelPolar\Checkout;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data\Customers\CustomerBillingAddressData;
 
 trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts is used in Billable trait
 {
@@ -28,10 +28,10 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
             'billable_type' => $this->getMorphClass(),
         ]);
 
-        /** @var Components\Address|null */
+        /** @var CustomerBillingAddressData|null */
         $billingAddress = null;
         if (isset($options['country'])) {
-            $billingAddress = new Components\Address(
+            $billingAddress = new CustomerBillingAddressData(
                 country: (string) $options['country'],
                 line1: isset($options['line1']) ? (string) $options['line1'] : null,
                 line2: isset($options['line2']) ? (string) $options['line2'] : null,

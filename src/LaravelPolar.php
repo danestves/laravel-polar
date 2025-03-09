@@ -4,18 +4,18 @@ namespace Danestves\LaravelPolar;
 
 use Danestves\LaravelPolar\Data\Checkout\CheckoutSessionData;
 use Danestves\LaravelPolar\Data\Checkout\CreateCheckoutSessionData;
+use Danestves\LaravelPolar\Data\Products\ListProductsData;
+use Danestves\LaravelPolar\Data\Products\ListProductsRequestData;
+use Danestves\LaravelPolar\Data\Sessions\CustomerSessionCustomerExternalIDCreateData;
+use Danestves\LaravelPolar\Data\Sessions\CustomerSessionCustomerIDCreateData;
+use Danestves\LaravelPolar\Data\Sessions\CustomerSessionData;
 use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionCancelData;
 use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionData;
 use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionUpdateProductData;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use Exception;
 use Http;
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\Response;
-use Polar\Models\Components;
-use Polar\Models\Errors;
-use Polar\Models\Operations;
-use Polar\Polar;
 
 class LaravelPolar
 {
@@ -47,7 +47,7 @@ class LaravelPolar
             $response = self::api("POST", "v1/checkouts", $request->toArray());
 
             return CheckoutSessionData::from($response->json());
-        } catch (Errors\APIException $e) {
+        } catch (PolarApiError $e) {
             throw new PolarApiError($e->getMessage(), 400);
         }
     }
@@ -63,7 +63,7 @@ class LaravelPolar
             $response = self::api("POST", "v1/subscriptions/$subscriptionId", $request->toArray());
 
             return SubscriptionData::from($response->json());
-        } catch (Errors\APIException $e) {
+        } catch (PolarApiError $e) {
             throw new PolarApiError($e->getMessage(), 400);
         }
     }
@@ -73,19 +73,13 @@ class LaravelPolar
      *
      * @throws PolarApiError
      */
-    public static function listProducts(Operations\ProductsListRequest $request): ?Components\ListResourceProduct
+    public static function listProducts(?ListProductsRequestData $request): ListProductsData
     {
         try {
-            $responses = self::sdk()->products->list(request: $request);
+            $response = self::api("GET", "v1/products", $request->toArray());
 
-            foreach ($responses as $response) {
-                if ($response->statusCode === 200) {
-                    return $response->listResourceProduct;
-                }
-            }
-
-            return null;
-        } catch (Errors\APIException $e) {
+            return ListProductsData::from($response->json());
+        } catch (PolarApiError $e) {
             throw new PolarApiError($e->getMessage(), 400);
         }
     }
@@ -95,28 +89,15 @@ class LaravelPolar
      *
      * @throws PolarApiError
      */
-    public static function createCustomerSession(Components\CustomerSessionCustomerIDCreate $request): null
+    public static function createCustomerSession(CustomerSessionCustomerIDCreateData|CustomerSessionCustomerExternalIDCreateData $request): CustomerSessionData
     {
         try {
-            $responses = self::api("POST", "v1/checkouts");
+            $response = self::api("POST", "v1/customer-sessions", $request->toArray());
 
-            return null;
-        } catch (Errors\APIException $e) {
+            return CustomerSessionData::from($response->json());
+        } catch (PolarApiError $e) {
             throw new PolarApiError($e->getMessage(), 400);
         }
-    }
-
-    /**
-     * Get the Polar SDK instance.
-     *
-     * @throws BindingResolutionException
-     */
-    private static function sdk(): Polar
-    {
-        return Polar::builder()
-            ->setSecurity(config('polar.access_token'))
-            ->setServer(app()->environment('production') ? 'production' : 'sandbox')
-            ->build();
     }
 
     /**

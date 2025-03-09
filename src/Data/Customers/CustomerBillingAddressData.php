@@ -14,5 +14,6 @@ class CustomerBillingAddressData extends Data
         #[MapName('postal_code')]
         public readonly ?string $postalCode,
         public readonly ?string $city,
+        public readonly ?string $state,
     ) {}
 }
