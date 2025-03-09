@@ -21,12 +21,12 @@ class ListProductsCommand extends Command
     protected $signature = 'polar:products
                             {--id=* : Filter by a single product id or multiple product ids.}
                             {--organization-id=* : Filter by a single organization id or multiple organization ids.}
-                            {--query= : Filter by product name.}
-                            {--archived= : Filter on archived products..}
-                            {--recurring= : Filter on recurring products.}
+                            {--query? : Filter by product name.}
+                            {--archived? : Filter on archived products..}
+                            {--recurring? : Filter on recurring products.}
                             {--benefit-id=* : Filter by a single benefit id or multiple benefit ids.}
-                            {--page= : Page number, defaults to 1.}
-                            {--limit= : Size of a page, defaults to 10. Maximum is 100.}
+                            {--page? : Page number, defaults to 1.}
+                            {--limit? : Size of a page, defaults to 10. Maximum is 100.}
                             {--sorting=* : Sorting criterion. Several criteria can be used simultaneously and will be applied in order. Add a minus sign - before the criteria name to sort by descending order. Available options: created_at, -created_at, name, -name, price_amount_type, -price_amount_type, price_amount, -price_amount}';
 
     /**
