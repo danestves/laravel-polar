@@ -25,8 +25,8 @@ class ListProductsCommand extends Command
                             {--id=* : Filter by a single product id or multiple product ids.}
                             {--organization-id=* : Filter by a single organization id or multiple organization ids.}
                             {--query= : Filter by product name.}
-                            {--archived= : Filter on archived products.}
-                            {--recurring= : Filter on recurring products.}
+                            {--archived : Filter on archived products.}
+                            {--recurring : Filter on recurring products.}
                             {--benefit-id=*= : Filter by a single benefit id or multiple benefit ids.}
                             {--page= : Page number, defaults to 1.}
                             {--limit= : Size of a page, defaults to 10. Maximum is 100.}
