@@ -38,8 +38,12 @@ class ListProductsCommand extends Command
 
     protected function validate(): bool
     {
-        $validator = Validator::make(config('polar'), [
+        $validator = Validator::make([
+            ...config('polar'),
+            ['archived' => $this->option('archived')],
+        ], [
             'access_token' => 'required',
+            'archived' => ['nullable', 'boolean'],
         ], [
             'access_token.required' => 'Polar access token not set. You can add it to your .env file as POLAR_ACCESS_TOKEN.',
         ]);
