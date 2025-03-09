@@ -4,11 +4,9 @@ namespace Danestves\LaravelPolar\Commands;
 
 use Danestves\LaravelPolar\Data\Products\ListProductsRequestData;
 use Danestves\LaravelPolar\Data\Products\ProductData;
-use Danestves\LaravelPolar\Enums\ListProductsSorting;
 use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\spin;
@@ -63,26 +61,8 @@ class ListProductsCommand extends Command
     {
         $validator = Validator::make([
             ...config('polar'),
-            'id' => $this->option('id'),
-            'organization_id' => $this->option('organization-id'),
-            'query' => $this->option('query'),
-            'archived' => $this->option('archived'),
-            'recurring' => $this->option('recurring'),
-            'benefit_id' => $this->option('benefit-id'),
-            'page' => $this->option('page'),
-            'limit' => $this->option('limit'),
-            'sorting' => $this->option('sorting'),
         ], [
             'access_token' => 'required',
-            'id' => ['sometimes', 'nullable', 'string', 'array'],
-            'organization_id' => ['sometimes', 'nullable', 'string', 'array'],
-            'query' => ['sometimes', 'nullable', 'string'],
-            'archived' => ['sometimes', 'nullable', 'boolean'],
-            'recurring' => ['sometimes', 'nullable', 'boolean'],
-            'benefit_id' => ['sometimes', 'nullable', 'string', 'array'],
-            'page' => ['sometimes', 'nullable', 'integer', 'min:1'],
-            'limit' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100'],
-            'sorting' => ['sometimes', 'nullable', 'array', Rule::enum(ListProductsSorting::class)],
         ], [
             'access_token.required' => 'Polar access token not set. You can add it to your .env file as POLAR_ACCESS_TOKEN.',
         ]);
