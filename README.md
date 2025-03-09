@@ -217,6 +217,8 @@ This package includes a list of commands that you can use to retrieve informatio
 | Command | Description |
 |---------|-------------|
 | `php artisan polar:products` | List all available products with their ids |
+| `php artisan polar:products --id=123` | List a specific product by id |
+| `php artisan polar:products --id=123 --id=321` | List a specific products by ids |
 
 ### Checkouts
 
