@@ -15,13 +15,16 @@ class ListProductsCommand extends Command
 {
     /**
      * The name and signature of the console command.
+     *
+     * @var string
      */
     protected $signature = 'polar:products
-        {--archived? : Show archived products. Defaults to false.}
-    ';
+                            {--archived : Show archived products. Defaults to false.}';
 
     /**
      * The console command description.
+     *
+     * @var string
      */
     protected $description = 'Lists all products';
 
@@ -43,7 +46,7 @@ class ListProductsCommand extends Command
             ['archived' => $this->option('archived')],
         ], [
             'access_token' => 'required',
-            'archived' => ['nullable', 'boolean'],
+            'arch   ived' => ['nullable', 'boolean'],
         ], [
             'access_token.required' => 'Polar access token not set. You can add it to your .env file as POLAR_ACCESS_TOKEN.',
         ]);
