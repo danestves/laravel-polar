@@ -123,7 +123,7 @@ class LaravelPolar
             ->$method("$api/$uri", $payload);
 
         if ($response->failed()) {
-            throw new PolarApiError($response['detail'][0]['msg'], 422);
+            throw new PolarApiError($response['detail'][0]['type'] . $response['detail'][0]['msg'], 422);
         }
 
         return $response;
