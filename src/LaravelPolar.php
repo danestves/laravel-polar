@@ -114,6 +114,10 @@ class LaravelPolar
             throw new Exception('Polar API key not set.');
         }
 
+        $payload = collect($payload)
+            ->filter(fn($value) => $value !== null && $value !== '' && $value !== [])
+            ->toArray();
+
         $api = app()->environment('production') ? 'https://api.polar.sh' : 'https://sandbox-api.polar.sh';
 
         $response = Http::withToken($apiKey)

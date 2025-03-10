@@ -266,9 +266,6 @@ class Checkout implements Responsable
             'successUrl' => $this->successUrl,
             'embedOrigin' => $this->embedOrigin,
         ];
-        $data = collect($data)
-            ->filter(fn($value) => $value !== null && $value !== '' && $value !== [])
-            ->toArray();
 
         $request = CreateCheckoutSessionData::from($data);
 
