@@ -29,6 +29,8 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $decoded = json_decode($this->webhookCall, true);
         $payload = $decoded['payload'];
+        dump("decoded:", $decoded);
+        dump("payload:", $payload);
         $type = $payload['type'];
         $data = $payload['data'];
 
