@@ -243,7 +243,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function resolveBillable(array $payload)
     {
-        $customerMetadata = $payload['data']['customer']['metadata'] ?? null;
+        $customerMetadata = $payload['customer']['metadata'] ?? null;
 
         if (!isset($customerMetadata) || !is_array($customerMetadata) || !isset($customerMetadata['billable_id'], $customerMetadata['billable_type'])) {
             throw new InvalidMetadataPayload();
