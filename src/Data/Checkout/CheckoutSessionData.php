@@ -130,7 +130,7 @@ class CheckoutSessionData extends Data
          * Whether the product price is free, regardless of discounts.
          */
         #[MapName('is_product_price_free')]
-        public readonly bool $isProductPriceFree,
+        public readonly ?bool $isProductPriceFree,
         /**
          * Whether the checkout requires payment, e.g. in case of free products or discounts that cover the total amount.
          */
@@ -213,7 +213,8 @@ class CheckoutSessionData extends Data
         /**
          * Price of the selected product.
          */
-        public readonly LegacyRecurringProductPriceFixedData|LegacyRecurringProductPriceCustomData|LegacyRecurringProductPriceFreeData|ProductPriceFixedData|ProductPriceCustomData|ProductPriceFreeData $productPrice,
+        #[MapName('product_price')]
+        public readonly LegacyRecurringProductPriceFixedData|LegacyRecurringProductPriceCustomData|LegacyRecurringProductPriceFreeData|ProductPriceFixedData|ProductPriceCustomData|ProductPriceFreeData|null $productPrice,
         /**
          * Schema for a percentage discount that is applied once or forever.
          */
@@ -228,8 +229,10 @@ class CheckoutSessionData extends Data
         #[MapName('attached_custom_fields')]
         public readonly array $attachedCustomFields,
         /** @var array<string, string|int|bool> */
+        #[MapName('customer_metadata')]
         public readonly array $customerMetadata,
         /** @var array<string, string|int|bool|\DateTime|null> */
+        #[MapName('custom_field_data')]
         public readonly ?array $customFieldData,
     ) {
         //
