@@ -252,7 +252,7 @@ class ProcessWebhook extends ProcessWebhookJob
         return $this->findOrCreateCustomer(
             $customerMetadata['billable_id'],
             (string) $customerMetadata['billable_type'],
-            (string) $payload['data']['customer_id'],
+            (string) $payload['customer_id'],
         );
     }
 
