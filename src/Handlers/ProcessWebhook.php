@@ -29,8 +29,6 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $decoded = json_decode($this->webhookCall, true);
         $payload = $decoded['payload'];
-        dump("decoded:", $decoded);
-        dump("payload:", $payload);
         $type = $payload['type'];
         $data = $payload['data'];
 
@@ -47,7 +45,7 @@ class ProcessWebhook extends ProcessWebhookJob
             'benefit_grant.created' => $this->handleBenefitGrantCreated($data),
             'benefit_grant.updated' => $this->handleBenefitGrantUpdated($data),
             'benefit_grant.revoked' => $this->handleBenefitGrantRevoked($data),
-            default => Log::info($data['type']),
+            default => Log::info("Unknown event type: $type"),
         };
 
         WebhookHandled::dispatch($payload);
