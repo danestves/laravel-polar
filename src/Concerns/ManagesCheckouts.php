@@ -31,14 +31,14 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
         /** @var CustomerBillingAddressData|null */
         $billingAddress = null;
         if (isset($options['country'])) {
-            $billingAddress = new CustomerBillingAddressData(
-                country: (string) $options['country'],
-                line1: isset($options['line1']) ? (string) $options['line1'] : null,
-                line2: isset($options['line2']) ? (string) $options['line2'] : null,
-                postalCode: isset($options['zip']) ? (string) $options['zip'] : null,
-                city: isset($options['city']) ? (string) $options['city'] : null,
-                state: isset($options['state']) ? (string) $options['state'] : null,
-            );
+            $billingAddress = CustomerBillingAddressData::from([
+                'country' => (string) $options['country'],
+                'line1' => isset($options['line1']) ? (string) $options['line1'] : null,
+                'line2' => isset($options['line2']) ? (string) $options['line2'] : null,
+                'postalCode' => isset($options['zip']) ? (string) $options['zip'] : null,
+                'city' => isset($options['city']) ? (string) $options['city'] : null,
+                'state' => isset($options['state']) ? (string) $options['state'] : null,
+            ]);
         }
 
         $checkout = Checkout::make($products)

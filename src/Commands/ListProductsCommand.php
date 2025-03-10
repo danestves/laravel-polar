@@ -45,7 +45,6 @@ class ListProductsCommand extends Command
             return static::FAILURE;
         }
 
-        dump($this->options());
         $request = ListProductsRequestData::from($this->options());
 
         return $this->handleProducts($request);

@@ -247,25 +247,38 @@ class Checkout implements Responsable
      */
     public function url(): string
     {
-        $request = new CreateCheckoutSessionData(
-            products: $this->products,
-            metadata: $this->metadata,
-            customFieldData: $this->customFieldData,
-            discountId: $this->discountId,
-            allowDiscountCodes: $this->allowDiscountCodes,
-            amount: $this->amount,
-            customerId: $this->customerId,
-            customerExternalId: $this->customerExternalId,
-            customerName: $this->customerName,
-            customerEmail: $this->customerEmail,
-            customerIpAddress: $this->customerIpAddress,
-            customerBillingAddress: $this->customerBillingAddress,
-            customerTaxId: $this->customerTaxId,
-            customerMetadata: $this->customerMetadata,
-            subscriptionId: $this->subscriptionId,
-            successUrl: $this->successUrl,
-            embedOrigin: $this->embedOrigin,
-        );
+        $data = [
+            'products' => $this->products,
+            'metadata' => $this->metadata,
+            'customFieldData' => $this->customFieldData,
+            'discountId' => $this->discountId,
+            'allowDiscountCodes' => $this->allowDiscountCodes,
+            'amount' => $this->amount,
+            'customerId' => $this->customerId,
+            'customerExternalId' => $this->customerExternalId,
+            'customerName' => $this->customerName,
+            'customerEmail' => $this->customerEmail,
+            'customerIpAddress' => $this->customerIpAddress,
+            'customerBillingAddress' => $this->customerBillingAddress,
+            'customerTaxId' => $this->customerTaxId,
+            'customerMetadata' => $this->customerMetadata,
+            'subscriptionId' => $this->subscriptionId,
+            'successUrl' => $this->successUrl,
+            'embedOrigin' => $this->embedOrigin,
+        ];
+        $data = array_filter($data, function ($value) {
+            if ($value === null) {
+                return false;
+            }
+
+            if (is_array($value) && empty($value)) {
+                return false;
+            }
+
+            return true;
+        });
+
+        $request = CreateCheckoutSessionData::from($data);
 
         $checkout = LaravelPolar::createCheckoutSession($request);
 

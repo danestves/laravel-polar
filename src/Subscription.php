@@ -226,10 +226,10 @@ class Subscription extends Model
     {
         $response = LaravelPolar::updateSubscription(
             subscriptionId: $this->polar_id,
-            request: new SubscriptionUpdateProductData(
-                productId: $productId,
-                prorationBehavior: $prorationBehavior,
-            ),
+            request: SubscriptionUpdateProductData::from([
+                'productId' => $productId,
+                'prorationBehavior' => $prorationBehavior,
+            ]),
         );
 
         $this->sync((array) $response);
