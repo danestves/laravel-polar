@@ -129,8 +129,8 @@ class CheckoutSessionData extends Data
         /**
          * Whether the product price is free, regardless of discounts.
          */
-        #[MapName('is_product_price_free')]
-        public readonly ?bool $isProductPriceFree,
+        #[MapName('is_free_product_price')]
+        public readonly ?bool $isFreeProductPrice,
         /**
          * Whether the checkout requires payment, e.g. in case of free products or discounts that cover the total amount.
          */
