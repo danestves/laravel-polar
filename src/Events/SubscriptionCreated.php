@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Danestves\LaravelPolar\Contracts\Billable;
+use Danestves\LaravelPolar\Billable;
 use Danestves\LaravelPolar\Subscription;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -19,7 +19,7 @@ class SubscriptionCreated
         /**
          * The billable entity.
          */
-        public Billable $billable,
+        public Billable $billable, // @phpstan-ignore-line parameter.trait, property.trait - Billable is used in the user final code
         /**
          * The order entity.
          */

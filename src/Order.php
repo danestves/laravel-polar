@@ -27,11 +27,11 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property \Carbon\CarbonInterface $ordered_at
  * @property \Carbon\CarbonInterface|null $created_at
  * @property \Carbon\CarbonInterface|null $updated_at
- * @property \Danestves\LaravelPolar\Contracts\Billable $billable
+ * @property \Danestves\LaravelPolar\Billable $billable
  *
  * @mixin \Eloquent
  */
-class Order extends Model
+class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable is used in the user final code
 {
     /** @use HasFactory<\Danestves\LaravelPolar\Database\Factories\OrderFactory> */
     use HasFactory;

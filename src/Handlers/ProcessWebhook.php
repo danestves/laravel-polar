@@ -63,7 +63,7 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $billable = $this->resolveBillable($payload);
 
-        $order = $billable->orders()->create([
+        $order = $billable->orders()->create([ // @phpstan-ignore-line class.notFound - the property is found in the billable model
             'polar_id' => $payload['id'],
             'status' => $payload['status'],
             'amount' => $payload['amount'],
@@ -116,7 +116,7 @@ class ProcessWebhook extends ProcessWebhookJob
         $customerMetadata = $payload['customer']['metadata'];
         $billable = $this->resolveBillable($payload);
 
-        $subscription = $billable->subscriptions()->create([
+        $subscription = $billable->subscriptions()->create([ // @phpstan-ignore-line class.notFound - the property is found in the billable model
             'type' => $customerMetadata['subscription_type'],
             'polar_id' => $payload['id'],
             'status' => $payload['status'],
@@ -237,11 +237,11 @@ class ProcessWebhook extends ProcessWebhookJob
      * Resolve the billable from the payload.
      *
      * @param  array<string, mixed>  $payload
-     * @return \Danestves\LaravelPolar\Contracts\Billable
+     * @return \Danestves\LaravelPolar\Billable
      *
      * @throws InvalidMetadataPayload
      */
-    private function resolveBillable(array $payload)
+    private function resolveBillable(array $payload) // @phpstan-ignore-line return.trait - Billable is used in the user final code
     {
         $customerMetadata = $payload['customer']['metadata'] ?? null;
 
@@ -259,9 +259,9 @@ class ProcessWebhook extends ProcessWebhookJob
     /**
      * Find or create a customer.
      *
-     * @return \Danestves\LaravelPolar\Contracts\Billable
+     * @return \Danestves\LaravelPolar\Billable
      */
-    private function findOrCreateCustomer(int|string $billableId, string $billableType, string $customerId)
+    private function findOrCreateCustomer(int|string $billableId, string $billableType, string $customerId) // @phpstan-ignore-line return.trait - Billable is used in the user final code
     {
         return LaravelPolar::$customerModel::firstOrCreate([
             'billable_id' => $billableId,
