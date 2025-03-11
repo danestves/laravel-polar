@@ -2,8 +2,8 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Danestves\LaravelPolar\Billable;
 use Danestves\LaravelPolar\Order;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -19,7 +19,7 @@ class OrderUpdated
         /**
          * The billable entity.
          */
-        public Billable $billable, // @phpstan-ignore-line parameter.trait, property.trait - Billable is used in the user final code
+        public Model $billable,
         /**
          * The order entity.
          */

@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Danestves\LaravelPolar\Billable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -18,7 +18,7 @@ class BenefitGrantRevoked
         /**
          * The billable entity.
          */
-        public Billable $billable, // @phpstan-ignore-line parameter.trait, property.trait - Billable is used in the user final code
+        public Model $billable,
         /**
          * The payload array.
          *
