@@ -41,6 +41,11 @@ class Subscription extends Model
      */
     protected $table = 'polar_subscriptions';
 
+    /**
+    * The attributes that are not mass assignable.
+    *
+    * @var array<string>|bool
+    */
     protected $guarded = [];
 
     /**

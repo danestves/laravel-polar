@@ -41,6 +41,11 @@ class Order extends Model
      */
     protected $table = 'polar_orders';
 
+    /**
+    * The attributes that are not mass assignable.
+    *
+    * @var array<string>|bool
+    */
     protected $guarded = [];
 
     /**

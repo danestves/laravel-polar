@@ -29,6 +29,13 @@ class Customer extends Model
     protected $table = 'polar_customers';
 
     /**
+    * The attributes that are not mass assignable.
+    *
+    * @var array<string>|bool
+    */
+    protected $guarded = [];
+
+    /**
      * Get the billable model related to the customer.
      *
      * @return MorphTo<Model, covariant $this>
