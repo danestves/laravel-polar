@@ -105,11 +105,6 @@ class SubscriptionData extends Data
         #[MapName('product_id')]
         public readonly string $productId,
         /**
-         * The ID of the subscribed price.
-         */
-        #[MapName('price_id')]
-        public readonly string $priceId,
-        /**
          * The ID of the applied discount, if any.
          */
         #[MapName('discount_id')]

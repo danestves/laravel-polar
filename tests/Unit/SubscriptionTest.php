@@ -44,10 +44,3 @@ it('can determine if the subscription is on a specific product', function () {
     expect($subscription->hasProduct('45067'))->toBeTrue();
     expect($subscription->hasProduct('93048'))->toBeFalse();
 });
-
-it('can determine if the subscription is on a specific price', function () {
-    $subscription = new Subscription(['price_id' => '45067']);
-
-    expect($subscription->hasPrice('45067'))->toBeTrue();
-    expect($subscription->hasPrice('93048'))->toBeFalse();
-});

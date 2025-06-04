@@ -21,7 +21,6 @@ use Illuminate\Support\Carbon;
  * @property string $polar_id
  * @property SubscriptionStatus $status
  * @property string $product_id
- * @property string $price_id
  * @property \Carbon\CarbonInterface|null $current_period_end
  * @property \Carbon\CarbonInterface|null $trial_ends_at
  * @property \Carbon\CarbonInterface|null $ends_at
@@ -217,14 +216,6 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     }
 
     /**
-     * Determine if the subscription is on a specific price.
-     */
-    public function hasPrice(string $priceId): bool
-    {
-        return $this->price_id === $priceId;
-    }
-
-    /**
      * Swap the subscription to a new product.
      */
     public function swap(string $productId, ?ProrationBehavior $prorationBehavior = ProrationBehavior::Prorate): self
@@ -294,7 +285,6 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
         $this->update([
             'status' => $attributes['status'],
             'product_id' => $attributes['product_id'],
-            'price_id' => $attributes['price_id'],
             'current_period_end' => isset($attributes['current_period_end']) ? Carbon::make($attributes['current_period_end']) : null,
             'ends_at' => isset($attributes['ends_at']) ? Carbon::make($attributes['ends_at']) : null,
         ]);

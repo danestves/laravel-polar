@@ -511,18 +511,10 @@ if ($user->subscription()->hasProduct('product_id_123')) {
 }
 ```
 
-Or for a certain price:
+If you wish to check if a subscription is on a specific product while being valid, you can use:
 
 ```php
-if ($user->subscription()->hasPrice('price_id_123')) {
-    // ...
-}
-```
-
-If you wish to check if a subscription is on a specific price while being valid, you can use:
-
-```php
-if ($user->subscribedToPrice('price_id_123')) {
+if ($user->subscribedToProduct('product_id_123')) {
     // ...
 }
 ```
@@ -534,7 +526,7 @@ if ($user->subscribed('swimming')) {
     // ...
 }
 
-if ($user->subscribedToPrice('price_id_123', 'swimming')) {
+if ($user->subscribedToProduct('product_id_123', 'swimming')) {
     // ...
 }
 ```

@@ -28,7 +28,6 @@ class SubscriptionFactory extends Factory
      *     polar_id: string,
      *     status: SubscriptionStatus,
      *     product_id: string,
-     *     price_id: string,
      *     current_period_end: CarbonInterface
      * }
      */
@@ -41,7 +40,6 @@ class SubscriptionFactory extends Factory
             'polar_id' => $this->faker->uuid,
             'status' => SubscriptionStatus::Active,
             'product_id' => $this->faker->uuid,
-            'price_id' => $this->faker->uuid,
             'current_period_end' => now()->addDays(30),
         ];
     }
