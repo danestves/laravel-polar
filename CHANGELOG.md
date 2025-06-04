@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v1.2.1 - 2025-06-04
+
+### What's Changed
+
+* fix: undefined subscription type by @danestves in https://github.com/danestves/laravel-polar/pull/30
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v1.2.0...v1.2.1
+
 ## v1.2.0 - 2025-06-04
 
 ### What's Changed
