@@ -22,7 +22,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $billing_reason
  * @property string $customer_id
  * @property string $product_id
- * @property string $product_price_id
  * @property \Carbon\CarbonInterface|null $refunded_at
  * @property \Carbon\CarbonInterface $ordered_at
  * @property \Carbon\CarbonInterface|null $created_at
@@ -121,14 +120,6 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     }
 
     /**
-     * Determine if the order is for a specific price.
-     */
-    public function hasPrice(string $productPriceId): bool
-    {
-        return $this->product_price_id === $productPriceId;
-    }
-
-    /**
      * Sync the order with the given attributes.
      *
      * @param  array<string, mixed>  $attributes
@@ -146,7 +137,6 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
             'billing_reason' => $attributes['billing_reason'],
             'customer_id' => $attributes['customer_id'],
             'product_id' => $attributes['product_id'],
-            'product_price_id' => $attributes['product_price_id'],
             'refunded_at' => $attributes['refunded_at'],
             'ordered_at' => $attributes['ordered_at'],
         ]);

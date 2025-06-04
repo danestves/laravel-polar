@@ -26,12 +26,4 @@ trait ManagesOrders // @phpstan-ignore-line trait.unused - ManagesOrders is used
     {
         return $this->orders()->where('product_id', $productId)->where('status', OrderStatus::Paid)->exists();
     }
-
-    /**
-     * Determine if the billable has purchased a specific price of a product.
-     */
-    public function hasPurchasedPrice(string $productPriceId): bool
-    {
-        return $this->orders()->where('product_price_id', $productPriceId)->where('status', OrderStatus::Paid)->exists();
-    }
 }

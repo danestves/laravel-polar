@@ -104,11 +104,6 @@ class CheckoutSessionData extends Data
         #[MapName('product_id')]
         public readonly ?string $productId,
         /**
-         * ID of the product price to checkout.
-         */
-        #[MapName('product_price_id')]
-        public readonly ?string $productPriceId,
-        /**
          * ID of the discount applied to the checkout.
          */
         #[MapName('discount_id')]

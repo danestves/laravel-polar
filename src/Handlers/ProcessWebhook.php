@@ -74,7 +74,6 @@ class ProcessWebhook extends ProcessWebhookJob
             'billing_reason' => $payload['billing_reason'],
             'customer_id' => $payload['customer_id'],
             'product_id' => $payload['product_id'],
-            'product_price_id' => $payload['product_price_id'],
             'ordered_at' => Carbon::make($payload['created_at']),
         ]);
 
@@ -121,7 +120,6 @@ class ProcessWebhook extends ProcessWebhookJob
             'polar_id' => $payload['id'],
             'status' => $payload['status'],
             'product_id' => $payload['product_id'],
-            'price_id' => $payload['price_id'],
             'current_period_end' => $payload['current_period_end'] ? Carbon::make($payload['current_period_end']) : null,
             'ends_at' => $payload['ends_at'] ? Carbon::make($payload['ends_at']) : null,
         ]);

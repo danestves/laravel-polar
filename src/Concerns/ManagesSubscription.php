@@ -29,7 +29,7 @@ trait ManagesSubscription // @phpstan-ignore-line trait.unused - ManagesSubscrip
     /**
      * Determine if the billable has a valid subscription.
      */
-    public function subscribed(string $type = 'default', ?string $priceId = null): bool
+    public function subscribed(string $type = 'default', ?string $productId = null): bool
     {
         $subscription = $this->subscription($type);
 
@@ -37,13 +37,13 @@ trait ManagesSubscription // @phpstan-ignore-line trait.unused - ManagesSubscrip
             return false;
         }
 
-        return $priceId !== null && $priceId !== '' && $priceId !== '0' ? $subscription->hasPrice($priceId) : true;
+        return $productId !== null && $productId !== '' && $productId !== '0' ? $subscription->hasProduct($productId) : true;
     }
 
     /**
      * Determine if the billable has a valid subscription for the given variant.
      */
-    public function subscribedToPrice(string $priceId, string $type = 'default'): bool
+    public function subscribedToProduct(string $productId, string $type = 'default'): bool
     {
         $subscription = $this->subscription($type);
 
@@ -51,6 +51,6 @@ trait ManagesSubscription // @phpstan-ignore-line trait.unused - ManagesSubscrip
             return false;
         }
 
-        return $subscription->hasPrice($priceId);
+        return $subscription->hasProduct($productId);
     }
 }
