@@ -2,6 +2,20 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v1.2.0 - 2025-06-04
+
+### What's Changed
+
+* chore(deps): bump dependabot/fetch-metadata from 2.3.0 to 2.4.0 by @dependabot in https://github.com/danestves/laravel-polar/pull/27
+* feat: latest polar schema by @danestves in https://github.com/danestves/laravel-polar/pull/28
+* chore: update dependencies by @danestves in https://github.com/danestves/laravel-polar/pull/29
+
+### New Contributors
+
+* @dependabot made their first contribution in https://github.com/danestves/laravel-polar/pull/27
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v1.1.2...v1.2.0
+
 ## v1.1.2 - 2025-04-10
 
 ### What's Changed
