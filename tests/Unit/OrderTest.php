@@ -43,13 +43,6 @@ it('can determine if the order is for a specific product', function () {
     expect($order->hasProduct('93048'))->toBeFalse();
 });
 
-it('can determine if the order is for a specific price', function () {
-    $order = new Order(['product_price_id' => '45067']);
-
-    expect($order->hasPrice('45067'))->toBeTrue();
-    expect($order->hasPrice('93048'))->toBeFalse();
-});
-
 class Order extends PolarOrder
 {
     /**

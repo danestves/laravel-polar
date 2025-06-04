@@ -439,26 +439,10 @@ if ($order->hasProduct('product_id_123')) {
 }
 ```
 
-Or for an specific price:
-
-```php
-if ($order->hasPrice('price_id_123')) {
-    // ...
-}
-```
-
 Furthermore, you can check if a consumer has purchased a specific product:
 
 ```php
 if ($user->hasPurchasedProduct('product_id_123')) {
-    // ...
-}
-```
-
-Or for an specific price:
-
-```php
-if ($user->hasPurchasedPrice('price_id_123')) {
     // ...
 }
 ```

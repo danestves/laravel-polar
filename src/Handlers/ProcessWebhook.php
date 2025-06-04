@@ -74,7 +74,6 @@ class ProcessWebhook extends ProcessWebhookJob
             'billing_reason' => $payload['billing_reason'],
             'customer_id' => $payload['customer_id'],
             'product_id' => $payload['product_id'],
-            'product_price_id' => $payload['product_price_id'],
             'ordered_at' => Carbon::make($payload['created_at']),
         ]);
 

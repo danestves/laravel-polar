@@ -33,7 +33,6 @@ class OrderFactory extends Factory
      *     billing_reason: string,
      *     customer_id: string,
      *     product_id: string,
-     *     product_price_id: string,
      *     refunded_at: \Illuminate\Support\Carbon|null,
      *     ordered_at: \Illuminate\Support\Carbon,
      * }
@@ -53,7 +52,6 @@ class OrderFactory extends Factory
             'billing_reason' => $this->faker->randomElement(['purchase', 'subscription_create', 'subscription_cycle', 'subscription_update']),
             'customer_id' => $this->faker->uuid,
             'product_id' => $this->faker->uuid,
-            'product_price_id' => $this->faker->uuid,
             'refunded_at' => null,
             'ordered_at' => now(),
         ];
