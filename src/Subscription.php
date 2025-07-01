@@ -228,7 +228,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             ]),
         );
 
-        $this->sync((array) $response);
+        $this->sync($response->toArray());
 
         return $this;
     }
@@ -251,7 +251,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             request: SubscriptionCancelData::from(['cancelAtPeriodEnd' => true]),
         );
 
-        $this->sync((array) $response);
+        $this->sync($response->toArray());
 
         return $this;
     }
@@ -270,7 +270,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             request: SubscriptionCancelData::from(['cancelAtPeriodEnd' => false]),
         );
 
-        $this->sync((array) $response);
+        $this->sync($response->toArray());
 
         return $this;
     }
