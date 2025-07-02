@@ -224,7 +224,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             SubscriptionUpdateProductData::from([
                 'productId' => $productId,
                 'prorationBehavior' => $prorationBehavior,
-            ])
+            ]),
         );
     }
 
@@ -242,7 +242,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     public function cancel(): self
     {
         return $this->updateAndSync(
-            SubscriptionCancelData::from(['cancelAtPeriodEnd' => true])
+            SubscriptionCancelData::from(['cancelAtPeriodEnd' => true]),
         );
     }
 
@@ -256,7 +256,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
         }
 
         return $this->updateAndSync(
-            SubscriptionCancelData::from(['cancelAtPeriodEnd' => false])
+            SubscriptionCancelData::from(['cancelAtPeriodEnd' => false]),
         );
     }
 
