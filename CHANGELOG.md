@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v1.2.2 - 2025-07-02
+
+### What's Changed
+
+* fix: correctly transform data to array on subscription by @danestves in https://github.com/danestves/laravel-polar/pull/33
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v1.2.1...v1.2.2
+
 ## v1.2.1 - 2025-06-04
 
 ### What's Changed
