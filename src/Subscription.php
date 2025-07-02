@@ -220,17 +220,12 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function swap(string $productId, ?ProrationBehavior $prorationBehavior = ProrationBehavior::Prorate): self
     {
-        $response = LaravelPolar::updateSubscription(
-            subscriptionId: $this->polar_id,
-            request: SubscriptionUpdateProductData::from([
+        return $this->updateAndSync(
+            SubscriptionUpdateProductData::from([
                 'productId' => $productId,
                 'prorationBehavior' => $prorationBehavior,
-            ]),
+            ])
         );
-
-        $this->sync($response->toArray());
-
-        return $this;
     }
 
     /**
@@ -246,14 +241,9 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function cancel(): self
     {
-        $response = LaravelPolar::updateSubscription(
-            subscriptionId: $this->polar_id,
-            request: SubscriptionCancelData::from(['cancelAtPeriodEnd' => true]),
+        return $this->updateAndSync(
+            SubscriptionCancelData::from(['cancelAtPeriodEnd' => true])
         );
-
-        $this->sync($response->toArray());
-
-        return $this;
     }
 
     /**
@@ -265,9 +255,19 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             throw new PolarApiError('Subscription is incomplete and expired.');
         }
 
+        return $this->updateAndSync(
+            SubscriptionCancelData::from(['cancelAtPeriodEnd' => false])
+        );
+    }
+
+    /**
+     * Update the subscription and sync the changes.
+     */
+    private function updateAndSync($request): self
+    {
         $response = LaravelPolar::updateSubscription(
             subscriptionId: $this->polar_id,
-            request: SubscriptionCancelData::from(['cancelAtPeriodEnd' => false]),
+            request: $request,
         );
 
         $this->sync($response->toArray());
