@@ -2,6 +2,18 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v1.2.3 - 2025-07-23
+
+### What's Changed
+
+* fix: ordered_at value by @jmaekki in https://github.com/danestves/laravel-polar/pull/36
+
+### New Contributors
+
+* @jmaekki made their first contribution in https://github.com/danestves/laravel-polar/pull/36
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v1.2.2...v1.2.3
+
 ## v1.2.2 - 2025-07-02
 
 ### What's Changed
