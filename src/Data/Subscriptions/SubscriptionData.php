@@ -14,7 +14,6 @@ use Danestves\LaravelPolar\Data\Products\ProductData;
 use Danestves\LaravelPolar\Data\Products\ProductPriceCustomData;
 use Danestves\LaravelPolar\Data\Products\ProductPriceFixedData;
 use Danestves\LaravelPolar\Data\Products\ProductPriceFreeData;
-use Danestves\LaravelPolar\Data\Users\UserData;
 use Danestves\LaravelPolar\Enums\CustomerCancellationReason;
 use Danestves\LaravelPolar\Enums\RecurringInterval;
 use Danestves\LaravelPolar\Enums\SubscriptionStatus;
