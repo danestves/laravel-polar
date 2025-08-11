@@ -60,7 +60,7 @@ class LaravelPolar
     public static function updateSubscription(string $subscriptionId, SubscriptionUpdateProductData|SubscriptionCancelData $request): SubscriptionData
     {
         try {
-            $response = self::api("POST", "v1/subscriptions/$subscriptionId", $request->toArray());
+            $response = self::api("PATCH", "v1/subscriptions/$subscriptionId", $request->toArray());
 
             return SubscriptionData::from($response->json());
         } catch (PolarApiError $e) {
