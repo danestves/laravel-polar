@@ -2,6 +2,18 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v.1.2.4 - 2025-08-11
+
+### What's Changed
+
+* Update subscription API method and subscriptionData to match Polar API by @jbardnz in https://github.com/danestves/laravel-polar/pull/38
+
+### New Contributors
+
+* @jbardnz made their first contribution in https://github.com/danestves/laravel-polar/pull/38
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v1.2.3...v.1.2.4
+
 ## v1.2.3 - 2025-07-23
 
 ### What's Changed
