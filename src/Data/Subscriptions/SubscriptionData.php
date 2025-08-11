@@ -121,9 +121,6 @@ class SubscriptionData extends Data
         /** @var array<string, string|int|bool> */
         public readonly array $metadata,
         public readonly CustomerData $customer,
-        /** @deprecated */
-        public readonly string $userId,
-        public readonly UserData $user,
         /**
          * A product.
          */
