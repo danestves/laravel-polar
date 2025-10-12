@@ -99,6 +99,7 @@ class ProcessWebhook extends ProcessWebhookJob
         $order->sync([
             ...$payload,
             'status' => $status,
+            'ordered_at' => Carbon::make($payload['created_at']),
             'refunded_at' => $isRefunded ? Carbon::make($payload['refunded_at']) : null,
         ]);
 
