@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v1.2.4 - 2025-10-17
+
+### What's Changed
+
+* chore(deps): bump aglipanci/laravel-pint-action from 2.5 to 2.6 by @dependabot[bot] in https://github.com/danestves/laravel-polar/pull/40
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v.1.2.4...v1.2.4
+
 ## v.1.2.4 - 2025-08-11
 
 ### What's Changed
