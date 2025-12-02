@@ -2,8 +2,6 @@
 
 namespace Danestves\LaravelPolar;
 
-use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionCancelData;
-use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionUpdateProductData;
 use Danestves\LaravelPolar\Enums\ProrationBehavior;
 use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
@@ -12,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Polar\Models\Components;
 
 /**
  * @property int $id
@@ -43,7 +42,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
     * The attributes that are not mass assignable.
     *
-    * @var array<string>|bool
+    * @var array<string>
     */
     protected $guarded = [];
 
@@ -220,12 +219,16 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function swap(string $productId, ?ProrationBehavior $prorationBehavior = ProrationBehavior::Prorate): self
     {
-        return $this->updateAndSync(
-            SubscriptionUpdateProductData::from([
-                'productId' => $productId,
-                'prorationBehavior' => $prorationBehavior,
-            ]),
+        $sdkProrationBehavior = $prorationBehavior === ProrationBehavior::Invoice
+            ? Components\SubscriptionProrationBehavior::Invoice
+            : Components\SubscriptionProrationBehavior::Prorate;
+
+        $request = new Components\SubscriptionUpdateProduct(
+            productId: $productId,
+            prorationBehavior: $sdkProrationBehavior,
         );
+
+        return $this->updateAndSync($request);
     }
 
     /**
@@ -241,9 +244,9 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function cancel(): self
     {
-        return $this->updateAndSync(
-            SubscriptionCancelData::from(['cancelAtPeriodEnd' => true]),
-        );
+        $request = new Components\SubscriptionCancel(cancelAtPeriodEnd: true);
+
+        return $this->updateAndSync($request);
     }
 
     /**
@@ -255,22 +258,41 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             throw new PolarApiError('Subscription is incomplete and expired.');
         }
 
-        return $this->updateAndSync(
-            SubscriptionCancelData::from(['cancelAtPeriodEnd' => false]),
-        );
+        $request = new Components\SubscriptionCancel(cancelAtPeriodEnd: false);
+
+        return $this->updateAndSync($request);
     }
 
     /**
      * Update the subscription and sync the changes.
+     *
+     * @param Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request
      */
-    private function updateAndSync($request): self
+    private function updateAndSync(Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request): self
     {
         $response = LaravelPolar::updateSubscription(
             subscriptionId: $this->polar_id,
             request: $request,
         );
 
-        $this->sync($response->toArray());
+        $this->syncFromSdkComponent($response);
+
+        return $this;
+    }
+
+    /**
+     * Sync the subscription from SDK component.
+     */
+    private function syncFromSdkComponent(Components\Subscription $subscription): self
+    {
+        $status = $this->mapSubscriptionStatus($subscription->status);
+
+        $this->update([
+            'status' => $status,
+            'product_id' => $subscription->productId,
+            'current_period_end' => $subscription->currentPeriodEnd ? Carbon::make($subscription->currentPeriodEnd) : null,
+            'ends_at' => $subscription->endedAt ? Carbon::make($subscription->endedAt) : null,
+        ]);
 
         return $this;
     }
@@ -290,6 +312,22 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
         ]);
 
         return $this;
+    }
+
+    /**
+     * Map SDK SubscriptionStatus to local SubscriptionStatus enum.
+     */
+    private function mapSubscriptionStatus(Components\SubscriptionStatus $sdkStatus): SubscriptionStatus
+    {
+        return match ($sdkStatus) {
+            Components\SubscriptionStatus::Active => SubscriptionStatus::Active,
+            Components\SubscriptionStatus::Canceled => SubscriptionStatus::Canceled,
+            Components\SubscriptionStatus::Incomplete => SubscriptionStatus::Incomplete,
+            Components\SubscriptionStatus::IncompleteExpired => SubscriptionStatus::IncompleteExpired,
+            Components\SubscriptionStatus::PastDue => SubscriptionStatus::PastDue,
+            Components\SubscriptionStatus::Trialing => SubscriptionStatus::Trialing,
+            Components\SubscriptionStatus::Unpaid => SubscriptionStatus::Unpaid,
+        };
     }
 
     /**

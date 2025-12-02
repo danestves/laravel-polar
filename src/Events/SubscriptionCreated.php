@@ -6,6 +6,7 @@ use Danestves\LaravelPolar\Subscription;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Polar\Models\Components\WebhookSubscriptionCreatedPayload;
 
 class SubscriptionCreated
 {
@@ -21,12 +22,12 @@ class SubscriptionCreated
          */
         public Model $billable,
         /**
-         * The order entity.
+         * The subscription entity.
          */
         public Subscription $subscription,
         /**
-         * The payload array.
+         * The webhook payload.
          */
-        public array $payload,
+        public WebhookSubscriptionCreatedPayload $payload,
     ) {}
 }

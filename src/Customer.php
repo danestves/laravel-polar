@@ -31,7 +31,7 @@ class Customer extends Model // @phpstan-ignore-line propertyTag.trait - Billabl
     /**
     * The attributes that are not mass assignable.
     *
-    * @var array<string>|bool
+    * @var array<string>
     */
     protected $guarded = [];
 

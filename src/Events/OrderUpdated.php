@@ -6,6 +6,7 @@ use Danestves\LaravelPolar\Order;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Polar\Models\Components\WebhookOrderUpdatedPayload;
 
 class OrderUpdated
 {
@@ -25,9 +26,9 @@ class OrderUpdated
          */
         public Order $order,
         /**
-         * The payload array.
+         * The webhook payload.
          */
-        public array $payload,
+        public WebhookOrderUpdatedPayload $payload,
         /**
          * Whether the order is refunded.
          */

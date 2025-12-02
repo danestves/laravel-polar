@@ -34,6 +34,20 @@ class TestCase extends Orchestra
         config()->set('app.key', 'base64:EWcFBKBT8lGDNE8nQhTHY+wg19QlfmbhtO9Qnn3NfcA=');
         config()->set('database.default', 'testing');
 
+        $schema = $app['db']->connection()->getSchemaBuilder();
+
+        if (!$schema->hasTable('users')) {
+            $schema->create('users', function ($table) {
+                $table->id();
+                $table->string('name')->nullable();
+                $table->string('email')->unique();
+                $table->timestamp('email_verified_at')->nullable();
+                $table->string('password');
+                $table->rememberToken();
+                $table->timestamps();
+            });
+        }
+
         $migrations = require __DIR__ . '/../database/migrations/create_polar_customers_table.php.stub';
         $migrations->up();
 

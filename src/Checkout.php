@@ -2,13 +2,12 @@
 
 namespace Danestves\LaravelPolar;
 
-use Danestves\LaravelPolar\Data\Checkout\CreateCheckoutSessionData;
-use Danestves\LaravelPolar\Data\Customers\CustomerBillingAddressData;
-use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use DateTime;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
+use Polar\Models\Components;
+use Polar\Models\Errors;
 
 class Checkout implements Responsable
 {
@@ -37,7 +36,7 @@ class Checkout implements Responsable
 
     private ?string $customerIpAddress = null;
 
-    private ?CustomerBillingAddressData $customerBillingAddress = null;
+    private ?Components\AddressInput $customerBillingAddress = null;
 
     private ?string $customerTaxId = null;
 
@@ -188,7 +187,7 @@ class Checkout implements Responsable
         return $this;
     }
 
-    public function withCustomerBillingAddress(?CustomerBillingAddressData $customerBillingAddress): self
+    public function withCustomerBillingAddress(?Components\AddressInput $customerBillingAddress): self
     {
         $this->customerBillingAddress = $customerBillingAddress;
 
@@ -244,35 +243,38 @@ class Checkout implements Responsable
 
     /**
      * URL where the customer can access the checkout session.
+     *
+     * @throws Errors\APIException
+     * @throws Errors\HTTPValidationErrorThrowable
      */
     public function url(): string
     {
-        $data = [
-            'products' => $this->products,
-            'metadata' => $this->metadata,
-            'customFieldData' => $this->customFieldData,
-            'discountId' => $this->discountId,
-            'allowDiscountCodes' => $this->allowDiscountCodes,
-            'amount' => $this->amount,
-            'customerId' => $this->customerId,
-            'customerExternalId' => $this->customerExternalId,
-            'customerName' => $this->customerName,
-            'customerEmail' => $this->customerEmail,
-            'customerIpAddress' => $this->customerIpAddress,
-            'customerBillingAddress' => $this->customerBillingAddress,
-            'customerTaxId' => $this->customerTaxId,
-            'customerMetadata' => $this->customerMetadata,
-            'subscriptionId' => $this->subscriptionId,
-            'successUrl' => $this->successUrl,
-            'embedOrigin' => $this->embedOrigin,
-        ];
+        $billingAddress = $this->customerBillingAddress;
 
-        $request = CreateCheckoutSessionData::from($data);
+        $request = new Components\CheckoutCreate(
+            products: $this->products,
+            metadata: $this->metadata,
+            customFieldData: $this->customFieldData,
+            discountId: $this->discountId,
+            allowDiscountCodes: $this->allowDiscountCodes,
+            amount: $this->amount,
+            customerId: $this->customerId,
+            externalCustomerId: $this->customerExternalId,
+            customerName: $this->customerName,
+            customerEmail: $this->customerEmail,
+            customerIpAddress: $this->customerIpAddress,
+            customerBillingAddress: $billingAddress,
+            customerTaxId: $this->customerTaxId,
+            customerMetadata: $this->customerMetadata,
+            subscriptionId: $this->subscriptionId,
+            successUrl: $this->successUrl,
+            embedOrigin: $this->embedOrigin,
+        );
 
         $checkout = LaravelPolar::createCheckoutSession($request);
 
-        if (!$checkout) {
-            throw new PolarApiError('Failed to create checkout session');
+        if (!$checkout || !$checkout->url) {
+            throw new Errors\APIException('Failed to create checkout session', 500, '', null);
         }
 
         return $checkout->url;

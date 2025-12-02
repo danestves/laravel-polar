@@ -6,6 +6,7 @@ use Danestves\LaravelPolar\Subscription;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Polar\Models\Components\WebhookSubscriptionCanceledPayload;
 
 class SubscriptionCanceled
 {
@@ -25,10 +26,8 @@ class SubscriptionCanceled
          */
         public Subscription $subscription,
         /**
-         * The payload array.
-         *
-         * @var array<string, mixed>
+         * The webhook payload.
          */
-        public array $payload,
+        public WebhookSubscriptionCanceledPayload $payload,
     ) {}
 }

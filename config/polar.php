@@ -15,6 +15,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Polar Server
+    |--------------------------------------------------------------------------
+    |
+    | The Polar server environment to use for API requests.
+    | Available options: "production" or "sandbox"
+    |
+    | - production: https://api.polar.sh (Production environment)
+    | - sandbox: https://sandbox-api.polar.sh (Sandbox environment)
+    |
+    */
+    'server' => env('POLAR_SERVER', 'sandbox'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Polar Webhook Secret
     |--------------------------------------------------------------------------
     |

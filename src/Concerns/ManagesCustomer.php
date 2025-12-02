@@ -3,12 +3,13 @@
 namespace Danestves\LaravelPolar\Concerns;
 
 use Danestves\LaravelPolar\Customer;
-use Danestves\LaravelPolar\Data\Sessions\CustomerSessionCustomerIDCreateData;
 use Danestves\LaravelPolar\Exceptions\InvalidCustomer;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Http\RedirectResponse;
+use Polar\Models\Components;
+use Polar\Models\Errors;
 
 trait ManagesCustomer // @phpstan-ignore-line trait.unused - ManagesCustomer is used in Billable trait
 {
@@ -61,6 +62,8 @@ trait ManagesCustomer // @phpstan-ignore-line trait.unused - ManagesCustomer is 
      *
      * @throws PolarApiError
      * @throws InvalidCustomer
+     * @throws Errors\APIException
+     * @throws Errors\HTTPValidationError
      */
     public function customerPortalUrl(): string
     {
@@ -68,13 +71,11 @@ trait ManagesCustomer // @phpstan-ignore-line trait.unused - ManagesCustomer is 
             throw InvalidCustomer::notYetCreated($this);
         }
 
-        $response = LaravelPolar::createCustomerSession(new CustomerSessionCustomerIDCreateData(
+        $request = new Components\CustomerSessionCustomerIDCreate(
             customerId: $this->customer->polar_id,
-        ));
+        );
 
-        if (!$response) {
-            throw new PolarApiError('Failed to create customer session');
-        }
+        $response = LaravelPolar::createCustomerSession($request);
 
         return $response->customerPortalUrl;
     }
