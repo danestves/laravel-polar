@@ -202,15 +202,7 @@ This package includes a webhook handler that will handle the webhooks from Polar
 
 #### Webhooks & CSRF Protection
 
-Incoming webhooks should not be affected by [CSRF protection](https://laravel.com/docs/csrf). To prevent this, add your webhook path to the except list of your `App\Http\Middleware\VerifyCsrfToken` middleware:
-
-```php
-protected $except = [
-    'polar/*',
-];
-```
-
-Or if you're using Laravel v11 and up, you should exclude `polar/*` in your application's `bootstrap/app.php` file:
+Incoming webhooks should not be affected by [CSRF protection](https://laravel.com/docs/csrf). To prevent this, exclude `polar/*` in your application's `bootstrap/app.php` file:
 
 ```php
 ->withMiddleware(function (Middleware $middleware) {
@@ -870,7 +862,7 @@ class PolarEventListener
 
 The [Polar documentation](https://docs.polar.sh/integrate/webhooks/events) includes an example payload.
 
-Laravel v11 and up will automatically discover the listener. If you're using Laravel v10 or lower, you should configure it in your app's `EventServiceProvider`:
+Laravel v11 and v12 will automatically discover the listener. If you need to manually configure it, you can do so in your app's `EventServiceProvider`:
 
 ```php
 <?php

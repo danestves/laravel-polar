@@ -22,9 +22,8 @@ php -v
 
 ### Laravel Version
 
-Laravel Polar v2 supports Laravel 10.x, 11.x, and 12.x:
+Laravel Polar v2 supports Laravel 11.x and 12.x:
 
-- Laravel 10.0 or higher
 - Laravel 11.0 or higher
 - Laravel 12.0 or higher
 
@@ -110,17 +109,9 @@ Laravel Polar v2 updates several dependencies:
 
 **Impact:** Low
 
-Laravel Polar v2 uses the new `casts()` method introduced in Laravel 11. If you're using Laravel 10, this is backward compatible. However, if you've extended any models, ensure your custom casts are compatible.
+Laravel Polar v2 uses the new `casts()` method introduced in Laravel 11. If you've extended any models, ensure your custom casts are compatible.
 
-**Before (Laravel 10):**
-```php
-protected $casts = [
-    'status' => OrderStatus::class,
-    'ordered_at' => 'datetime',
-];
-```
-
-**After (Laravel 11+):**
+**Laravel 11+ (Required):**
 ```php
 protected function casts(): array
 {
@@ -231,15 +222,7 @@ POLAR_CURRENCY_LOCALE=en
 
 Ensure your CSRF protection excludes the Polar webhook path:
 
-**Laravel 10:**
-```php
-// app/Http/Middleware/VerifyCsrfToken.php
-protected $except = [
-    'polar/*',
-];
-```
-
-**Laravel 11+:**
+**Laravel 11 and 12:**
 ```php
 // bootstrap/app.php
 ->withMiddleware(function (Middleware $middleware) {
@@ -379,7 +362,7 @@ If you encounter any issues during migration:
 ## Summary Checklist
 
 - [ ] PHP 8.3+ installed and verified
-- [ ] Laravel 10.x, 11.x, or 12.x confirmed
+- [ ] Laravel 11.x or 12.x confirmed
 - [ ] Updated `composer.json` to require `^2.0`
 - [ ] Ran `composer update`
 - [ ] Republished configuration files
