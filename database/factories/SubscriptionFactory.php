@@ -4,8 +4,8 @@ namespace Danestves\LaravelPolar\Database\Factories;
 
 use Carbon\CarbonInterface;
 use Danestves\LaravelPolar\Customer;
-use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Subscription;
+use Polar\Models\Components\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Subscription> */

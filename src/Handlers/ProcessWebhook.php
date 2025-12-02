@@ -3,8 +3,8 @@
 namespace Danestves\LaravelPolar\Handlers;
 
 use Carbon\Carbon;
-use Danestves\LaravelPolar\Enums\OrderStatus;
 use Danestves\LaravelPolar\Events\BenefitCreated;
+use Polar\Models\Components\OrderStatus;
 use Danestves\LaravelPolar\Events\BenefitGrantCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantRevoked;
 use Danestves\LaravelPolar\Events\BenefitGrantUpdated;

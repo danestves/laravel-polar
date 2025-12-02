@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use Danestves\LaravelPolar\Customer;
-use Danestves\LaravelPolar\Enums\OrderStatus;
-use Danestves\LaravelPolar\Enums\SubscriptionStatus;
+use Polar\Models\Components\OrderStatus;
+use Polar\Models\Components\SubscriptionStatus;
 use Danestves\LaravelPolar\Events\BenefitCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantRevoked;

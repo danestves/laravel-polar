@@ -3,8 +3,8 @@
 namespace Danestves\LaravelPolar\Database\Factories;
 
 use Danestves\LaravelPolar\Customer;
-use Danestves\LaravelPolar\Enums\OrderStatus;
 use Danestves\LaravelPolar\Order;
+use Polar\Models\Components\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Order> */

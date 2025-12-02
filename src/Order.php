@@ -2,8 +2,8 @@
 
 namespace Danestves\LaravelPolar;
 
-use Danestves\LaravelPolar\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Builder;
+use Polar\Models\Components\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;

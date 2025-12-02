@@ -1,7 +1,7 @@
 <?php
 
-use Danestves\LaravelPolar\Enums\OrderStatus;
 use Danestves\LaravelPolar\Order as PolarOrder;
+use Polar\Models\Components\OrderStatus;
 use Danestves\LaravelPolar\Tests\Fixtures\User;
 
 beforeEach(function () {

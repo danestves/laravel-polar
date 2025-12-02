@@ -1,7 +1,7 @@
 <?php
 
-use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Polar\Models\Components\SubscriptionStatus;
 use Danestves\LaravelPolar\Subscription;
 use Illuminate\Support\Facades\Config;
 

@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use Danestves\LaravelPolar\Customer;
-use Danestves\LaravelPolar\Enums\OrderStatus;
-use Danestves\LaravelPolar\Enums\SubscriptionStatus;
+use Polar\Models\Components\OrderStatus;
+use Polar\Models\Components\SubscriptionStatus;
 use Danestves\LaravelPolar\Order;
 use Danestves\LaravelPolar\Subscription;
 use Danestves\LaravelPolar\Tests\Fixtures\User;

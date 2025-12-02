@@ -2,15 +2,15 @@
 
 namespace Danestves\LaravelPolar;
 
-use Danestves\LaravelPolar\Enums\ProrationBehavior;
-use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Polar\Models\Components\SubscriptionProrationBehavior;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use Polar\Models\Components;
+use Polar\Models\Components\SubscriptionStatus;
 
 /**
  * @property int $id
@@ -217,11 +217,9 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
      * Swap the subscription to a new product.
      */
-    public function swap(string $productId, ?ProrationBehavior $prorationBehavior = ProrationBehavior::Prorate): self
+    public function swap(string $productId, ?SubscriptionProrationBehavior $prorationBehavior = SubscriptionProrationBehavior::Prorate): self
     {
-        $sdkProrationBehavior = $prorationBehavior === ProrationBehavior::Invoice
-            ? Components\SubscriptionProrationBehavior::Invoice
-            : Components\SubscriptionProrationBehavior::Prorate;
+        $sdkProrationBehavior = $prorationBehavior ?? SubscriptionProrationBehavior::Prorate;
 
         $request = new Components\SubscriptionUpdateProduct(
             productId: $productId,
@@ -236,7 +234,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function swapAndInvoice(string $productId): self
     {
-        return $this->swap($productId, ProrationBehavior::Invoice);
+        return $this->swap($productId, SubscriptionProrationBehavior::Invoice);
     }
 
     /**
@@ -285,10 +283,8 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     private function syncFromSdkComponent(Components\Subscription $subscription): self
     {
-        $status = $this->mapSubscriptionStatus($subscription->status);
-
         $this->update([
-            'status' => $status,
+            'status' => $subscription->status,
             'product_id' => $subscription->productId,
             'current_period_end' => $subscription->currentPeriodEnd ? Carbon::make($subscription->currentPeriodEnd) : null,
             'ends_at' => $subscription->endedAt ? Carbon::make($subscription->endedAt) : null,
@@ -314,21 +310,6 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
         return $this;
     }
 
-    /**
-     * Map SDK SubscriptionStatus to local SubscriptionStatus enum.
-     */
-    private function mapSubscriptionStatus(Components\SubscriptionStatus $sdkStatus): SubscriptionStatus
-    {
-        return match ($sdkStatus) {
-            Components\SubscriptionStatus::Active => SubscriptionStatus::Active,
-            Components\SubscriptionStatus::Canceled => SubscriptionStatus::Canceled,
-            Components\SubscriptionStatus::Incomplete => SubscriptionStatus::Incomplete,
-            Components\SubscriptionStatus::IncompleteExpired => SubscriptionStatus::IncompleteExpired,
-            Components\SubscriptionStatus::PastDue => SubscriptionStatus::PastDue,
-            Components\SubscriptionStatus::Trialing => SubscriptionStatus::Trialing,
-            Components\SubscriptionStatus::Unpaid => SubscriptionStatus::Unpaid,
-        };
-    }
 
     /**
      * The attributes that should be cast.
