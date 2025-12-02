@@ -91,7 +91,7 @@ it('can track order lifecycle from paid to refunded', function () {
     expect($order->refunded())->toBeFalse();
 
     $order->update([
-        'status' => OrderStatus::PartiallyRefunded,
+        'status' => OrderStatus::PartiallyRefunded->value,
         'refunded_amount' => 500,
         'refunded_at' => now(),
     ]);
@@ -102,7 +102,7 @@ it('can track order lifecycle from paid to refunded', function () {
     expect($order->refunded_amount)->toBe(500);
 
     $order->update([
-        'status' => OrderStatus::Refunded,
+        'status' => OrderStatus::Refunded->value,
         'refunded_amount' => 1000,
     ]);
 

@@ -5,10 +5,15 @@ namespace Tests\Feature;
 use Danestves\LaravelPolar\Checkout;
 use Danestves\LaravelPolar\Customer;
 use Danestves\LaravelPolar\Tests\Fixtures\User;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Config;
 use Mockery;
 
 beforeEach(function () {
+    Relation::morphMap([
+        'users' => User::class,
+    ]);
+
     Config::set('polar.access_token', 'test-token');
     Config::set('polar.server', 'sandbox');
 });

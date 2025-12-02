@@ -51,6 +51,14 @@ function createMockedSdkWithBenefits(): array
     return ['sdk' => $sdk, 'benefits' => $benefits];
 }
 
+function setLaravelPolarSdk(\Polar\Polar $sdk): void
+{
+    $reflection = new \ReflectionClass(LaravelPolar::class);
+    $sdkProperty = $reflection->getProperty('sdkInstance');
+    $sdkProperty->setAccessible(true);
+    $sdkProperty->setValue(null, $sdk);
+}
+
 it('can list benefits for an organization', function () {
     $user = User::factory()->create();
     $organizationId = 'org_123';

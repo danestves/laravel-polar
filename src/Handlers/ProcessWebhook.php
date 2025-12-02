@@ -43,7 +43,7 @@ class ProcessWebhook extends ProcessWebhookJob
         $payload = $decoded['payload'];
         $type = $payload['type'];
         $data = $payload['data'];
-        $timestamp = isset($payload['timestamp']) ? new \DateTime($payload['timestamp']) : new \DateTime();
+        $timestamp = $this->parseTimestamp($payload['timestamp'] ?? null);
 
         WebhookReceived::dispatch($payload);
 
@@ -310,6 +310,46 @@ class ProcessWebhook extends ProcessWebhookJob
     private function findOrder(string $orderId): ?EloquentOrder
     {
         return LaravelPolar::$orderModel::firstWhere('polar_id', $orderId);
+    }
+
+    /**
+     * Safely parse timestamp from payload, falling back to current time on failure.
+     *
+     * @param  mixed  $timestampValue
+     */
+    private function parseTimestamp($timestampValue): \DateTime
+    {
+        if ($timestampValue === null) {
+            return new \DateTime();
+        }
+
+        $parsed = \DateTime::createFromFormat(\DateTime::ATOM, $timestampValue);
+        if ($parsed !== false) {
+            return $parsed;
+        }
+
+        $parsed = \DateTime::createFromFormat('Y-m-d\TH:i:s.u\Z', $timestampValue);
+        if ($parsed !== false) {
+            return $parsed;
+        }
+
+        $timestamp = strtotime($timestampValue);
+        if ($timestamp !== false) {
+            $dateTime = new \DateTime();
+            $dateTime->setTimestamp($timestamp);
+            return $dateTime;
+        }
+
+        try {
+            return new \DateTime($timestampValue);
+        } catch (\Exception $e) {
+            Log::warning('Failed to parse webhook timestamp', [
+                'timestamp' => $timestampValue,
+                'error' => $e->getMessage(),
+            ]);
+
+            return new \DateTime();
+        }
     }
 
     /**
