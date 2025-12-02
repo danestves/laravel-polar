@@ -1,7 +1,12 @@
 <?php
 
 use Danestves\LaravelPolar\Checkout;
+use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Support\Facades\Config;
+use Mockery;
+use Polar\Models\Errors;
+use Polar\Models\Operations;
+use Psr\Http\Message\ResponseInterface;
 
 beforeEach(function () {
     Config::set('polar.access_token', 'test-token');
@@ -9,8 +14,47 @@ beforeEach(function () {
 });
 
 afterEach(function () {
+    // Reset SDK instance after each test
+    $reflection = new \ReflectionClass(LaravelPolar::class);
+    $sdkProperty = $reflection->getProperty('sdkInstance');
+    $sdkProperty->setAccessible(true);
+    $sdkProperty->setValue(null, null);
+
     Mockery::close();
 });
+
+function createMockedSdkWithCheckouts(): array
+{
+    $sdkConfig = Mockery::mock(\Polar\SDKConfiguration::class);
+    $sdkConfig->shouldReceive('getTemplatedServerUrl')->andReturn('https://sandbox-api.polar.sh');
+    $hooks = Mockery::mock(\Polar\Hooks\SDKHooks::class);
+    $mockClient = Mockery::mock(\GuzzleHttp\ClientInterface::class);
+    $sdkRequestContext = new \Polar\Hooks\SDKRequestContext('https://sandbox-api.polar.sh', $mockClient);
+    $hooks->shouldReceive('sdkInit')->andReturn($sdkRequestContext);
+    $reflectionConfig = new \ReflectionClass($sdkConfig);
+    $hooksProperty = $reflectionConfig->getProperty('hooks');
+    $hooksProperty->setAccessible(true);
+    $hooksProperty->setValue($sdkConfig, $hooks);
+    $clientProperty = $reflectionConfig->getProperty('client');
+    $clientProperty->setAccessible(true);
+    $clientProperty->setValue($sdkConfig, $mockClient);
+    $sdk = new \Polar\Polar($sdkConfig);
+    $checkouts = Mockery::mock(\Polar\Checkouts::class);
+    $reflectionSdk = new \ReflectionClass($sdk);
+    $checkoutsProperty = $reflectionSdk->getProperty('checkouts');
+    $checkoutsProperty->setAccessible(true);
+    $checkoutsProperty->setValue($sdk, $checkouts);
+
+    return ['sdk' => $sdk, 'checkouts' => $checkouts];
+}
+
+function setLaravelPolarSdk(\Polar\Polar $sdk): void
+{
+    $reflection = new \ReflectionClass(LaravelPolar::class);
+    $sdkProperty = $reflection->getProperty('sdkInstance');
+    $sdkProperty->setAccessible(true);
+    $sdkProperty->setValue(null, $sdk);
+}
 
 it('can initiate a new checkout', function () {
     $checkout = Checkout::make(['product_123']);
@@ -25,10 +69,24 @@ it('can initiate a new checkout', function () {
 });
 
 it('can be redirected', function () {
+    $mocked = createMockedSdkWithCheckouts();
+    $sdk = $mocked['sdk'];
+    $checkouts = $mocked['checkouts'];
+    $mockRawResponse = Mockery::mock(ResponseInterface::class);
+    $response = new Operations\CheckoutsCreateResponse(
+        contentType: 'application/json',
+        statusCode: 500,
+        rawResponse: $mockRawResponse,
+        checkout: null,
+    );
+    $checkouts->shouldReceive('create')->andReturn($response);
+
+    setLaravelPolarSdk($sdk);
+
     $checkout = Checkout::make(['product_123']);
 
     expect(fn() => $checkout->redirect())
-        ->toThrow(\Polar\Models\Errors\APIException::class);
+        ->toThrow(Errors\APIException::class);
 });
 
 it('can set prefilled fields with dedicated methods', function () {
@@ -75,17 +133,45 @@ it('can include prefilled fields and metadata', function () {
 });
 
 it('can generate checkout URL', function () {
+    $mocked = createMockedSdkWithCheckouts();
+    $sdk = $mocked['sdk'];
+    $checkouts = $mocked['checkouts'];
+    $mockRawResponse = Mockery::mock(ResponseInterface::class);
+    $response = new Operations\CheckoutsCreateResponse(
+        contentType: 'application/json',
+        statusCode: 500,
+        rawResponse: $mockRawResponse,
+        checkout: null,
+    );
+    $checkouts->shouldReceive('create')->andReturn($response);
+
+    setLaravelPolarSdk($sdk);
+
     $checkout = Checkout::make(['product_123']);
 
     expect(fn() => $checkout->url())
-        ->toThrow(\Polar\Models\Errors\APIException::class);
+        ->toThrow(Errors\APIException::class);
 });
 
 it('implements Responsable contract', function () {
+    $mocked = createMockedSdkWithCheckouts();
+    $sdk = $mocked['sdk'];
+    $checkouts = $mocked['checkouts'];
+    $mockRawResponse = Mockery::mock(ResponseInterface::class);
+    $response = new Operations\CheckoutsCreateResponse(
+        contentType: 'application/json',
+        statusCode: 500,
+        rawResponse: $mockRawResponse,
+        checkout: null,
+    );
+    $checkouts->shouldReceive('create')->andReturn($response);
+
+    setLaravelPolarSdk($sdk);
+
     $checkout = Checkout::make(['product_123']);
 
     expect(fn() => $checkout->toResponse(request()))
-        ->toThrow(\Polar\Models\Errors\APIException::class);
+        ->toThrow(Errors\APIException::class);
 });
 
 it('can set all checkout options', function () {

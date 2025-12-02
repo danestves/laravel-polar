@@ -4,11 +4,21 @@ namespace Danestves\LaravelPolar\Handlers;
 
 use Carbon\Carbon;
 use Danestves\LaravelPolar\Enums\OrderStatus;
+use Danestves\LaravelPolar\Events\BenefitCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantRevoked;
 use Danestves\LaravelPolar\Events\BenefitGrantUpdated;
+use Danestves\LaravelPolar\Events\BenefitUpdated;
+use Danestves\LaravelPolar\Events\CheckoutCreated;
+use Danestves\LaravelPolar\Events\CheckoutUpdated;
+use Danestves\LaravelPolar\Events\CustomerCreated;
+use Danestves\LaravelPolar\Events\CustomerDeleted;
+use Danestves\LaravelPolar\Events\CustomerStateChanged;
+use Danestves\LaravelPolar\Events\CustomerUpdated;
 use Danestves\LaravelPolar\Events\OrderCreated;
 use Danestves\LaravelPolar\Events\OrderUpdated;
+use Danestves\LaravelPolar\Events\ProductCreated;
+use Danestves\LaravelPolar\Events\ProductUpdated;
 use Danestves\LaravelPolar\Events\SubscriptionActive;
 use Danestves\LaravelPolar\Events\SubscriptionCanceled;
 use Danestves\LaravelPolar\Events\SubscriptionCreated;
@@ -47,6 +57,16 @@ class ProcessWebhook extends ProcessWebhookJob
             'benefit_grant.created' => $this->handleBenefitGrantCreated($data, $timestamp, $type),
             'benefit_grant.updated' => $this->handleBenefitGrantUpdated($data, $timestamp, $type),
             'benefit_grant.revoked' => $this->handleBenefitGrantRevoked($data, $timestamp, $type),
+            'checkout.created' => $this->handleCheckoutCreated($data, $timestamp, $type),
+            'checkout.updated' => $this->handleCheckoutUpdated($data, $timestamp, $type),
+            'customer.created' => $this->handleCustomerCreated($data, $timestamp, $type),
+            'customer.updated' => $this->handleCustomerUpdated($data, $timestamp, $type),
+            'customer.deleted' => $this->handleCustomerDeleted($data, $timestamp, $type),
+            'customer.state_changed' => $this->handleCustomerStateChanged($data, $timestamp, $type),
+            'product.created' => $this->handleProductCreated($data, $timestamp, $type),
+            'product.updated' => $this->handleProductUpdated($data, $timestamp, $type),
+            'benefit.created' => $this->handleBenefitCreated($data, $timestamp, $type),
+            'benefit.updated' => $this->handleBenefitUpdated($data, $timestamp, $type),
             default => Log::info("Unknown event type: $type"),
         };
 
@@ -418,6 +438,266 @@ class ProcessWebhook extends ProcessWebhookJob
             'license_keys' => $serializer->deserialize($json, Components\BenefitGrantLicenseKeysWebhook::class, 'json'),
             'meter_credit' => $serializer->deserialize($json, Components\BenefitGrantMeterCreditWebhook::class, 'json'),
             default => $serializer->deserialize($json, Components\BenefitGrantCustomWebhook::class, 'json'),
+        };
+    }
+
+    /**
+     * Handle the checkout created event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleCheckoutCreated(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createCheckoutCreatedPayload($data, $timestamp, $type);
+        CheckoutCreated::dispatch($payload);
+    }
+
+    /**
+     * Handle the checkout updated event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleCheckoutUpdated(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createCheckoutUpdatedPayload($data, $timestamp, $type);
+        CheckoutUpdated::dispatch($payload);
+    }
+
+    /**
+     * Handle the customer created event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleCustomerCreated(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createCustomerCreatedPayload($data, $timestamp, $type);
+        CustomerCreated::dispatch($payload);
+    }
+
+    /**
+     * Handle the customer updated event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleCustomerUpdated(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createCustomerUpdatedPayload($data, $timestamp, $type);
+        CustomerUpdated::dispatch($payload);
+    }
+
+    /**
+     * Handle the customer deleted event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleCustomerDeleted(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createCustomerDeletedPayload($data, $timestamp, $type);
+        CustomerDeleted::dispatch($payload);
+    }
+
+    /**
+     * Handle the customer state changed event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleCustomerStateChanged(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createCustomerStateChangedPayload($data, $timestamp, $type);
+        CustomerStateChanged::dispatch($payload);
+    }
+
+    /**
+     * Handle the product created event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleProductCreated(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createProductCreatedPayload($data, $timestamp, $type);
+        ProductCreated::dispatch($payload);
+    }
+
+    /**
+     * Handle the product updated event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleProductUpdated(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createProductUpdatedPayload($data, $timestamp, $type);
+        ProductUpdated::dispatch($payload);
+    }
+
+    /**
+     * Handle the benefit created event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleBenefitCreated(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createBenefitCreatedPayload($data, $timestamp, $type);
+        BenefitCreated::dispatch($payload);
+    }
+
+    /**
+     * Handle the benefit updated event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleBenefitUpdated(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createBenefitUpdatedPayload($data, $timestamp, $type);
+        BenefitUpdated::dispatch($payload);
+    }
+
+    /**
+     * Create WebhookCheckoutCreatedPayload from array data.
+     */
+    private function createCheckoutCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCheckoutCreatedPayload
+    {
+        $checkout = $this->arrayToCheckout($data);
+        return new Components\WebhookCheckoutCreatedPayload($timestamp, $checkout, $type);
+    }
+
+    /**
+     * Create WebhookCheckoutUpdatedPayload from array data.
+     */
+    private function createCheckoutUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCheckoutUpdatedPayload
+    {
+        $checkout = $this->arrayToCheckout($data);
+        return new Components\WebhookCheckoutUpdatedPayload($timestamp, $checkout, $type);
+    }
+
+    /**
+     * Create WebhookCustomerCreatedPayload from array data.
+     */
+    private function createCustomerCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCustomerCreatedPayload
+    {
+        $customer = $this->arrayToCustomer($data);
+        return new Components\WebhookCustomerCreatedPayload($timestamp, $customer, $type);
+    }
+
+    /**
+     * Create WebhookCustomerUpdatedPayload from array data.
+     */
+    private function createCustomerUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCustomerUpdatedPayload
+    {
+        $customer = $this->arrayToCustomer($data);
+        return new Components\WebhookCustomerUpdatedPayload($timestamp, $customer, $type);
+    }
+
+    /**
+     * Create WebhookCustomerDeletedPayload from array data.
+     */
+    private function createCustomerDeletedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCustomerDeletedPayload
+    {
+        $customer = $this->arrayToCustomer($data);
+        return new Components\WebhookCustomerDeletedPayload($timestamp, $customer, $type);
+    }
+
+    /**
+     * Create WebhookCustomerStateChangedPayload from array data.
+     */
+    private function createCustomerStateChangedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCustomerStateChangedPayload
+    {
+        $customerState = $this->arrayToCustomerState($data);
+        return new Components\WebhookCustomerStateChangedPayload($timestamp, $customerState, $type);
+    }
+
+    /**
+     * Create WebhookProductCreatedPayload from array data.
+     */
+    private function createProductCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookProductCreatedPayload
+    {
+        $product = $this->arrayToProduct($data);
+        return new Components\WebhookProductCreatedPayload($timestamp, $product, $type);
+    }
+
+    /**
+     * Create WebhookProductUpdatedPayload from array data.
+     */
+    private function createProductUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookProductUpdatedPayload
+    {
+        $product = $this->arrayToProduct($data);
+        return new Components\WebhookProductUpdatedPayload($timestamp, $product, $type);
+    }
+
+    /**
+     * Create WebhookBenefitCreatedPayload from array data.
+     */
+    private function createBenefitCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookBenefitCreatedPayload
+    {
+        $benefit = $this->arrayToBenefit($data);
+        return new Components\WebhookBenefitCreatedPayload($timestamp, $benefit, $type);
+    }
+
+    /**
+     * Create WebhookBenefitUpdatedPayload from array data.
+     */
+    private function createBenefitUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookBenefitUpdatedPayload
+    {
+        $benefit = $this->arrayToBenefit($data);
+        return new Components\WebhookBenefitUpdatedPayload($timestamp, $benefit, $type);
+    }
+
+    /**
+     * Convert array to SDK Checkout object using SDK's JSON serializer.
+     */
+    private function arrayToCheckout(array $data): Components\Checkout
+    {
+        $serializer = \Polar\Utils\JSON::createSerializer();
+        $json = json_encode($data);
+        return $serializer->deserialize($json, Components\Checkout::class, 'json');
+    }
+
+    /**
+     * Convert array to SDK Customer object using SDK's JSON serializer.
+     */
+    private function arrayToCustomer(array $data): Components\Customer
+    {
+        $serializer = \Polar\Utils\JSON::createSerializer();
+        $json = json_encode($data);
+        return $serializer->deserialize($json, Components\Customer::class, 'json');
+    }
+
+    /**
+     * Convert array to SDK CustomerState object using SDK's JSON serializer.
+     */
+    private function arrayToCustomerState(array $data): Components\CustomerState
+    {
+        $serializer = \Polar\Utils\JSON::createSerializer();
+        $json = json_encode($data);
+        return $serializer->deserialize($json, Components\CustomerState::class, 'json');
+    }
+
+    /**
+     * Convert array to SDK Product object using SDK's JSON serializer.
+     */
+    private function arrayToProduct(array $data): Components\Product
+    {
+        $serializer = \Polar\Utils\JSON::createSerializer();
+        $json = json_encode($data);
+        return $serializer->deserialize($json, Components\Product::class, 'json');
+    }
+
+    /**
+     * Convert array to SDK Benefit object (union type) using SDK's JSON serializer.
+     */
+    private function arrayToBenefit(array $data): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
+    {
+        $type = $data['type'] ?? 'custom';
+        $serializer = \Polar\Utils\JSON::createSerializer();
+        $json = json_encode($data);
+
+        return match ($type) {
+            'discord' => $serializer->deserialize($json, Components\BenefitDiscord::class, 'json'),
+            'custom' => $serializer->deserialize($json, Components\BenefitCustom::class, 'json'),
+            'github_repository' => $serializer->deserialize($json, Components\BenefitGitHubRepository::class, 'json'),
+            'downloadables' => $serializer->deserialize($json, Components\BenefitDownloadables::class, 'json'),
+            'license_keys' => $serializer->deserialize($json, Components\BenefitLicenseKeys::class, 'json'),
+            'meter_credit' => $serializer->deserialize($json, Components\BenefitMeterCredit::class, 'json'),
+            default => $serializer->deserialize($json, Components\BenefitCustom::class, 'json'),
         };
     }
 }

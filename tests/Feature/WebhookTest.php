@@ -5,11 +5,21 @@ namespace Tests\Feature;
 use Danestves\LaravelPolar\Customer;
 use Danestves\LaravelPolar\Enums\OrderStatus;
 use Danestves\LaravelPolar\Enums\SubscriptionStatus;
+use Danestves\LaravelPolar\Events\BenefitCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantRevoked;
 use Danestves\LaravelPolar\Events\BenefitGrantUpdated;
+use Danestves\LaravelPolar\Events\BenefitUpdated;
+use Danestves\LaravelPolar\Events\CheckoutCreated;
+use Danestves\LaravelPolar\Events\CheckoutUpdated;
+use Danestves\LaravelPolar\Events\CustomerCreated;
+use Danestves\LaravelPolar\Events\CustomerDeleted;
+use Danestves\LaravelPolar\Events\CustomerStateChanged;
+use Danestves\LaravelPolar\Events\CustomerUpdated;
 use Danestves\LaravelPolar\Events\OrderCreated;
 use Danestves\LaravelPolar\Events\OrderUpdated;
+use Danestves\LaravelPolar\Events\ProductCreated;
+use Danestves\LaravelPolar\Events\ProductUpdated;
 use Danestves\LaravelPolar\Events\SubscriptionActive;
 use Danestves\LaravelPolar\Events\SubscriptionCanceled;
 use Danestves\LaravelPolar\Events\SubscriptionCreated;
@@ -58,6 +68,16 @@ class TestProcessWebhook extends ProcessWebhook
             'benefit_grant.created' => $reflection->getMethod('handleBenefitGrantCreated')->invoke($this, $data, $timestamp, $type),
             'benefit_grant.updated' => $reflection->getMethod('handleBenefitGrantUpdated')->invoke($this, $data, $timestamp, $type),
             'benefit_grant.revoked' => $reflection->getMethod('handleBenefitGrantRevoked')->invoke($this, $data, $timestamp, $type),
+            'checkout.created' => $reflection->getMethod('handleCheckoutCreated')->invoke($this, $data, $timestamp, $type),
+            'checkout.updated' => $reflection->getMethod('handleCheckoutUpdated')->invoke($this, $data, $timestamp, $type),
+            'customer.created' => $reflection->getMethod('handleCustomerCreated')->invoke($this, $data, $timestamp, $type),
+            'customer.updated' => $reflection->getMethod('handleCustomerUpdated')->invoke($this, $data, $timestamp, $type),
+            'customer.deleted' => $reflection->getMethod('handleCustomerDeleted')->invoke($this, $data, $timestamp, $type),
+            'customer.state_changed' => $reflection->getMethod('handleCustomerStateChanged')->invoke($this, $data, $timestamp, $type),
+            'product.created' => $reflection->getMethod('handleProductCreated')->invoke($this, $data, $timestamp, $type),
+            'product.updated' => $reflection->getMethod('handleProductUpdated')->invoke($this, $data, $timestamp, $type),
+            'benefit.created' => $reflection->getMethod('handleBenefitCreated')->invoke($this, $data, $timestamp, $type),
+            'benefit.updated' => $reflection->getMethod('handleBenefitUpdated')->invoke($this, $data, $timestamp, $type),
             default => \Illuminate\Support\Facades\Log::info("Unknown event type: $type"),
         };
 
@@ -507,4 +527,207 @@ it('handles subscription.updated when subscription does not exist', function () 
 
     expect(Subscription::where('polar_id', 'nonexistent_subscription')->exists())->toBeFalse();
     Event::assertNotDispatched(SubscriptionUpdated::class);
+});
+
+it('handles checkout.created webhook', function () {
+    $payload = [
+        'type' => 'checkout.created',
+        'data' => [
+            'id' => 'checkout_123',
+            'url' => 'https://polar.sh/checkout/checkout_123',
+            'product_id' => 'product_123',
+            'status' => 'open',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(CheckoutCreated::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles checkout.updated webhook', function () {
+    $payload = [
+        'type' => 'checkout.updated',
+        'data' => [
+            'id' => 'checkout_123',
+            'url' => 'https://polar.sh/checkout/checkout_123',
+            'product_id' => 'product_123',
+            'status' => 'completed',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(CheckoutUpdated::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles customer.created webhook', function () {
+    $payload = [
+        'type' => 'customer.created',
+        'data' => [
+            'id' => 'customer_123',
+            'email' => 'test@example.com',
+            'name' => 'Test User',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(CustomerCreated::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles customer.updated webhook', function () {
+    $payload = [
+        'type' => 'customer.updated',
+        'data' => [
+            'id' => 'customer_123',
+            'email' => 'updated@example.com',
+            'name' => 'Updated User',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(CustomerUpdated::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles customer.deleted webhook', function () {
+    $payload = [
+        'type' => 'customer.deleted',
+        'data' => [
+            'id' => 'customer_123',
+            'email' => 'test@example.com',
+            'name' => 'Test User',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(CustomerDeleted::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles customer.state_changed webhook', function () {
+    $payload = [
+        'type' => 'customer.state_changed',
+        'data' => [
+            'id' => 'customer_123',
+            'email' => 'test@example.com',
+            'name' => 'Test User',
+            'active_subscriptions' => [],
+            'granted_benefits' => [],
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(CustomerStateChanged::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles product.created webhook', function () {
+    $payload = [
+        'type' => 'product.created',
+        'data' => [
+            'id' => 'product_123',
+            'name' => 'Test Product',
+            'description' => 'A test product',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(ProductCreated::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles product.updated webhook', function () {
+    $payload = [
+        'type' => 'product.updated',
+        'data' => [
+            'id' => 'product_123',
+            'name' => 'Updated Product',
+            'description' => 'An updated test product',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(ProductUpdated::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles benefit.created webhook', function () {
+    $payload = [
+        'type' => 'benefit.created',
+        'data' => [
+            'id' => 'benefit_123',
+            'type' => 'custom',
+            'description' => 'Test Benefit',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(BenefitCreated::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
+});
+
+it('handles benefit.updated webhook', function () {
+    $payload = [
+        'type' => 'benefit.updated',
+        'data' => [
+            'id' => 'benefit_123',
+            'type' => 'custom',
+            'description' => 'Updated Test Benefit',
+            'created_at' => now()->toIso8601String(),
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    Event::assertDispatched(BenefitUpdated::class);
+    Event::assertDispatched(WebhookReceived::class);
+    Event::assertDispatched(WebhookHandled::class);
 });

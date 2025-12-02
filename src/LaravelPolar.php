@@ -122,6 +122,183 @@ class LaravelPolar
     }
 
     /**
+     * Create a benefit.
+     *
+     * @param Components\BenefitCustomCreate|Components\BenefitDiscordCreate|Components\BenefitGitHubRepositoryCreate|Components\BenefitDownloadablesCreate|Components\BenefitLicenseKeysCreate|Components\BenefitMeterCreditCreate $request
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function createBenefit(Components\BenefitCustomCreate|Components\BenefitDiscordCreate|Components\BenefitGitHubRepositoryCreate|Components\BenefitDownloadablesCreate|Components\BenefitLicenseKeysCreate|Components\BenefitMeterCreditCreate $request): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->benefits->create(request: $request);
+
+        if ($response->statusCode === 201 && $response->benefit !== null) {
+            return $response->benefit;
+        }
+
+        throw new Errors\APIException('Failed to create benefit', 500, '', null);
+    }
+
+    /**
+     * Update a benefit.
+     *
+     * @param Components\BenefitCustomUpdate|Components\BenefitDiscordUpdate|Components\BenefitGitHubRepositoryUpdate|Components\BenefitDownloadablesUpdate|Components\BenefitLicenseKeysUpdate|Components\BenefitMeterCreditUpdate $request
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function updateBenefit(string $benefitId, Components\BenefitCustomUpdate|Components\BenefitDiscordUpdate|Components\BenefitGitHubRepositoryUpdate|Components\BenefitDownloadablesUpdate|Components\BenefitLicenseKeysUpdate|Components\BenefitMeterCreditUpdate $request): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->benefits->update(id: $benefitId, requestBody: $request);
+
+        if ($response->statusCode === 200 && $response->benefit !== null) {
+            return $response->benefit;
+        }
+
+        throw new Errors\APIException('Failed to update benefit', 500, '', null);
+    }
+
+    /**
+     * Delete a benefit.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function deleteBenefit(string $benefitId): void
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->benefits->delete(id: $benefitId);
+
+        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
+            throw new Errors\APIException('Failed to delete benefit', 500, '', null);
+        }
+    }
+
+    /**
+     * List all benefits.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listBenefits(Operations\BenefitsListRequest $request): Operations\BenefitsListResponse
+    {
+        $sdk = self::sdk();
+
+        $generator = $sdk->benefits->list(request: $request);
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list benefits', 500, '', null);
+    }
+
+    /**
+     * Get a specific benefit by ID.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function getBenefit(string $benefitId): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->benefits->get(id: $benefitId);
+
+        if ($response->statusCode === 200 && $response->benefit !== null) {
+            return $response->benefit;
+        }
+
+        throw new Errors\APIException('Failed to get benefit', 500, '', null);
+    }
+
+    /**
+     * List all grants for a specific benefit.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listBenefitGrants(Operations\BenefitsGrantsRequest $request): Operations\BenefitsGrantsResponse
+    {
+        $sdk = self::sdk();
+
+        $generator = $sdk->benefits->grants(request: $request);
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list benefit grants', 500, '', null);
+    }
+
+    /**
+     * Ingest usage events for metered billing.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function ingestEvents(Components\EventsIngest $request): void
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->events->ingest(request: $request);
+
+        if ($response->statusCode !== 202) {
+            throw new Errors\APIException('Failed to ingest events', 500, '', null);
+        }
+    }
+
+    /**
+     * List customer meters.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listCustomerMeters(Operations\CustomerMetersListRequest $request): Operations\CustomerMetersListResponse
+    {
+        $sdk = self::sdk();
+
+        $generator = $sdk->customerMeters->list(request: $request);
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list customer meters', 500, '', null);
+    }
+
+    /**
+     * Get a specific customer meter by ID.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function getCustomerMeter(string $meterId): Components\CustomerMeter
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customerMeters->get(id: $meterId);
+
+        if ($response->statusCode === 200 && $response->customerMeter !== null) {
+            return $response->customerMeter;
+        }
+
+        throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    }
+
+    /**
      * Get or create a cached Polar SDK instance.
      *
      * @throws Exception
