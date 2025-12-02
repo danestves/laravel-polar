@@ -2,6 +2,18 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.0.1 - 2025-12-02
+
+### What's Changed
+
+* refactor: convert empty arrays to null in metadata handling methods by @adiologydev in https://github.com/danestves/laravel-polar/pull/48
+
+### New Contributors
+
+* @adiologydev made their first contribution in https://github.com/danestves/laravel-polar/pull/48
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.0.0...v2.0.1
+
 ## v2.0.0 - 2025-12-02
 
 ### What's Changed
@@ -82,6 +94,7 @@ To upgrade to v2.0.0:
 ```bash
 composer require danestves/laravel-polar:^2.0
 
+
 ```
 After installation:
 
@@ -90,11 +103,13 @@ After installation:
    ```bash
    php artisan vendor:publish --tag="polar-config" --force
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    ```
 
