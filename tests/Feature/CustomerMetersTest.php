@@ -77,14 +77,6 @@ function createMockedSdkWithCustomerMeters(): array
     return ['sdk' => $sdk, 'customerMeters' => $customerMeters];
 }
 
-function setLaravelPolarSdk(\Polar\Polar $sdk): void
-{
-    $reflection = new \ReflectionClass(LaravelPolar::class);
-    $sdkProperty = $reflection->getProperty('sdkInstance');
-    $sdkProperty->setAccessible(true);
-    $sdkProperty->setValue(null, $sdk);
-}
-
 it('can ingest a single usage event', function () {
     $user = User::factory()->create();
     $customer = Customer::factory()->create([

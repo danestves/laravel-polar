@@ -47,14 +47,6 @@ function createMockedSdkWithCheckouts(): array
     return ['sdk' => $sdk, 'checkouts' => $checkouts];
 }
 
-function setLaravelPolarSdk(\Polar\Polar $sdk): void
-{
-    $reflection = new \ReflectionClass(LaravelPolar::class);
-    $sdkProperty = $reflection->getProperty('sdkInstance');
-    $sdkProperty->setAccessible(true);
-    $sdkProperty->setValue(null, $sdk);
-}
-
 it('can initiate a new checkout', function () {
     $checkout = Checkout::make(['product_123']);
 
