@@ -326,7 +326,7 @@ export function Button() {
 }
 ```
 
-At the end is just a normal link but ysin an special attribute for the script to render the embedded checkout.
+At the end is just a normal link but using an special attribute for the script to render the embedded checkout.
 
 > [!NOTE]
 > Remember that you can use the theme attribute too to change the color system in the checkout
