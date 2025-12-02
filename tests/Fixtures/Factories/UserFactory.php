@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\Fixtures\Factories;
+namespace Danestves\LaravelPolar\Tests\Fixtures\Factories;
 
+use Danestves\LaravelPolar\Tests\Fixtures\User;
 use Orchestra\Testbench\Factories\UserFactory as OrchestraUserFactory;
-use Tests\Fixtures\User;
 
 class UserFactory extends OrchestraUserFactory
 {

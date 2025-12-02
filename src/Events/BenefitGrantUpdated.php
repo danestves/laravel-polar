@@ -5,6 +5,7 @@ namespace Danestves\LaravelPolar\Events;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Polar\Models\Components\WebhookBenefitGrantUpdatedPayload;
 
 class BenefitGrantUpdated
 {
@@ -20,10 +21,8 @@ class BenefitGrantUpdated
          */
         public Model $billable,
         /**
-         * The payload array.
-         *
-         * @var array<string, mixed>
+         * The webhook payload.
          */
-        public array $payload,
+        public WebhookBenefitGrantUpdatedPayload $payload,
     ) {}
 }

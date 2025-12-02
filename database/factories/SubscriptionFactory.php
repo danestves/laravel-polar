@@ -4,8 +4,8 @@ namespace Danestves\LaravelPolar\Database\Factories;
 
 use Carbon\CarbonInterface;
 use Danestves\LaravelPolar\Customer;
-use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Subscription;
+use Polar\Models\Components\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Subscription> */
@@ -95,6 +95,26 @@ class SubscriptionFactory extends Factory
         return $this->state([
             'status' => SubscriptionStatus::Canceled,
             'ends_at' => now(),
+        ]);
+    }
+
+    /**
+     * Mark the subscription as trialing.
+     */
+    public function trialing(): self
+    {
+        return $this->state([
+            'status' => SubscriptionStatus::Trialing,
+        ]);
+    }
+
+    /**
+     * Mark the subscription as incomplete.
+     */
+    public function incomplete(): self
+    {
+        return $this->state([
+            'status' => SubscriptionStatus::Incomplete,
         ]);
     }
 

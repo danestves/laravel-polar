@@ -3,8 +3,8 @@
 namespace Danestves\LaravelPolar\Database\Factories;
 
 use Danestves\LaravelPolar\Customer;
-use Danestves\LaravelPolar\Enums\OrderStatus;
 use Danestves\LaravelPolar\Order;
+use Polar\Models\Components\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Order> */
@@ -62,10 +62,10 @@ class OrderFactory extends Factory
      */
     public function configure(): self
     {
-        return $this->afterCreating(function ($subscription) {
+        return $this->afterCreating(function ($order) {
             Customer::factory()->create([
-                'billable_id' => $subscription->billable_id,
-                'billable_type' => $subscription->billable_type,
+                'billable_id' => $order->billable_id,
+                'billable_type' => $order->billable_type,
             ]);
         });
     }

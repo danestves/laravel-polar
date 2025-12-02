@@ -3,7 +3,8 @@
 namespace Danestves\LaravelPolar\Concerns;
 
 use Danestves\LaravelPolar\Checkout;
-use Danestves\LaravelPolar\Data\Customers\CustomerBillingAddressData;
+use Illuminate\Support\Facades\Log;
+use Polar\Models\Components;
 
 trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts is used in Billable trait
 {
@@ -23,22 +24,30 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
         // We'll need a way to identify the user in any webhook we're catching so before
         // we make an API request we'll attach the authentication identifier to this
         // checkout so we can match it back to a user when handling Polar webhooks.
-        $customerMetadata = array_merge($customerMetadata, [
-            'billable_id' => (string) $key,
-            'billable_type' => $this->getMorphClass(),
-        ]);
+        $customerMetadata = [...$customerMetadata, 'billable_id' => (string) $key,
+            'billable_type' => $this->getMorphClass()];
 
-        /** @var CustomerBillingAddressData|null */
         $billingAddress = null;
         if (isset($options['country'])) {
-            $billingAddress = CustomerBillingAddressData::from([
-                'country' => (string) $options['country'],
-                'line1' => isset($options['line1']) ? (string) $options['line1'] : null,
-                'line2' => isset($options['line2']) ? (string) $options['line2'] : null,
-                'postalCode' => isset($options['zip']) ? (string) $options['zip'] : null,
-                'city' => isset($options['city']) ? (string) $options['city'] : null,
-                'state' => isset($options['state']) ? (string) $options['state'] : null,
-            ]);
+            $countryCode = (string) $options['country'];
+            $upperCode = strtoupper($countryCode);
+            if ($upperCode === 'UK') {
+                $upperCode = 'GB';
+            }
+            $country = Components\CountryAlpha2Input::tryFrom($upperCode);
+            if ($country === null) {
+                Log::warning("Invalid country code '{$upperCode}' provided, defaulting to US");
+                $country = Components\CountryAlpha2Input::Us;
+            }
+
+            $billingAddress = new Components\AddressInput(
+                country: $country,
+                line1: isset($options['line1']) ? (string) $options['line1'] : null,
+                line2: isset($options['line2']) ? (string) $options['line2'] : null,
+                postalCode: isset($options['zip']) ? (string) $options['zip'] : null,
+                city: isset($options['city']) ? (string) $options['city'] : null,
+                state: isset($options['state']) ? (string) $options['state'] : null,
+            );
         }
 
         $checkout = Checkout::make($products)
@@ -73,9 +82,7 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
      */
     public function charge(int $amount, array $products, ?array $options = [], ?array $customerMetadata = [], ?array $metadata = []): Checkout
     {
-        return $this->checkout($products, array_merge($options, [
-            'amount' => $amount,
-        ]), $customerMetadata, $metadata);
+        return $this->checkout($products, [...$options, 'amount' => $amount], $customerMetadata, $metadata);
     }
 
     /**
@@ -87,8 +94,6 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
      */
     public function subscribe(string $productId, string $type = "default", ?array $options = [], ?array $customerMetadata = [], ?array $metadata = []): Checkout
     {
-        return $this->checkout([$productId], $options, array_merge($customerMetadata, [
-            'subscription_type' => $type,
-        ]), $metadata);
+        return $this->checkout([$productId], $options, [...$customerMetadata, 'subscription_type' => $type], $metadata);
     }
 }

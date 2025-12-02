@@ -6,6 +6,7 @@ use Danestves\LaravelPolar\Order;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Polar\Models\Components\WebhookOrderCreatedPayload;
 
 class OrderCreated
 {
@@ -25,8 +26,8 @@ class OrderCreated
          */
         public Order $order,
         /**
-         * The payload array.
+         * The webhook payload.
          */
-        public array $payload,
+        public WebhookOrderCreatedPayload $payload,
     ) {}
 }

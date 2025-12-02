@@ -2,8 +2,8 @@
 
 namespace Danestves\LaravelPolar;
 
-use Danestves\LaravelPolar\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Builder;
+use Polar\Models\Components\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -43,7 +43,7 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     /**
     * The attributes that are not mass assignable.
     *
-    * @var array<string>|bool
+    * @var array<string>
     */
     protected $guarded = [];
 
@@ -128,7 +128,7 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     {
         $this->update([
             'polar_id' => $attributes['id'],
-            'status' => $attributes['status'],
+            'status' => \is_string($attributes['status']) ? OrderStatus::from($attributes['status']) : $attributes['status'],
             'amount' => $attributes['amount'],
             'tax_amount' => $attributes['tax_amount'],
             'refunded_amount' => $attributes['refunded_amount'],

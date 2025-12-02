@@ -23,7 +23,7 @@ trait ManagesSubscription // @phpstan-ignore-line trait.unused - ManagesSubscrip
      */
     public function subscription(string $type = 'default'): ?Subscription
     {
-        return $this->subscriptions->where('type', $type)->first();
+        return $this->subscriptions()->where('type', $type)->first();
     }
 
     /**

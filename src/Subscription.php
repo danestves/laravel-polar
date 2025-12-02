@@ -2,16 +2,15 @@
 
 namespace Danestves\LaravelPolar;
 
-use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionCancelData;
-use Danestves\LaravelPolar\Data\Subscriptions\SubscriptionUpdateProductData;
-use Danestves\LaravelPolar\Enums\ProrationBehavior;
-use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Polar\Models\Components\SubscriptionProrationBehavior;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Polar\Models\Components;
+use Polar\Models\Components\SubscriptionStatus;
 
 /**
  * @property int $id
@@ -43,7 +42,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
     * The attributes that are not mass assignable.
     *
-    * @var array<string>|bool
+    * @var array<string>
     */
     protected $guarded = [];
 
@@ -218,14 +217,14 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
      * Swap the subscription to a new product.
      */
-    public function swap(string $productId, ?ProrationBehavior $prorationBehavior = ProrationBehavior::Prorate): self
+    public function swap(string $productId, ?SubscriptionProrationBehavior $prorationBehavior = SubscriptionProrationBehavior::Prorate): self
     {
-        return $this->updateAndSync(
-            SubscriptionUpdateProductData::from([
-                'productId' => $productId,
-                'prorationBehavior' => $prorationBehavior,
-            ]),
+        $request = new Components\SubscriptionUpdateProduct(
+            productId: $productId,
+            prorationBehavior: $prorationBehavior ?? SubscriptionProrationBehavior::Prorate,
         );
+
+        return $this->updateAndSync($request);
     }
 
     /**
@@ -233,7 +232,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function swapAndInvoice(string $productId): self
     {
-        return $this->swap($productId, ProrationBehavior::Invoice);
+        return $this->swap($productId, SubscriptionProrationBehavior::Invoice);
     }
 
     /**
@@ -241,9 +240,9 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function cancel(): self
     {
-        return $this->updateAndSync(
-            SubscriptionCancelData::from(['cancelAtPeriodEnd' => true]),
-        );
+        $request = new Components\SubscriptionCancel(cancelAtPeriodEnd: true);
+
+        return $this->updateAndSync($request);
     }
 
     /**
@@ -255,22 +254,39 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             throw new PolarApiError('Subscription is incomplete and expired.');
         }
 
-        return $this->updateAndSync(
-            SubscriptionCancelData::from(['cancelAtPeriodEnd' => false]),
-        );
+        $request = new Components\SubscriptionCancel(cancelAtPeriodEnd: false);
+
+        return $this->updateAndSync($request);
     }
 
     /**
      * Update the subscription and sync the changes.
+     *
+     * @param Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request
      */
-    private function updateAndSync($request): self
+    private function updateAndSync(Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request): self
     {
         $response = LaravelPolar::updateSubscription(
             subscriptionId: $this->polar_id,
             request: $request,
         );
 
-        $this->sync($response->toArray());
+        $this->syncFromSdkComponent($response);
+
+        return $this;
+    }
+
+    /**
+     * Sync the subscription from SDK component.
+     */
+    private function syncFromSdkComponent(Components\Subscription $subscription): self
+    {
+        $this->update([
+            'status' => $subscription->status,
+            'product_id' => $subscription->productId,
+            'current_period_end' => $subscription->currentPeriodEnd ? Carbon::make($subscription->currentPeriodEnd) : null,
+            'ends_at' => $subscription->endedAt ? Carbon::make($subscription->endedAt) : null,
+        ]);
 
         return $this;
     }
@@ -283,7 +299,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     public function sync(array $attributes): self
     {
         $this->update([
-            'status' => $attributes['status'],
+            'status' => \is_string($attributes['status']) ? SubscriptionStatus::from($attributes['status']) : $attributes['status'],
             'product_id' => $attributes['product_id'],
             'current_period_end' => isset($attributes['current_period_end']) ? Carbon::make($attributes['current_period_end']) : null,
             'ends_at' => isset($attributes['ends_at']) ? Carbon::make($attributes['ends_at']) : null,
@@ -291,6 +307,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
 
         return $this;
     }
+
 
     /**
      * The attributes that should be cast.

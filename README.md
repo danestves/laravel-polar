@@ -68,6 +68,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Polar Server
+    |--------------------------------------------------------------------------
+    |
+    | The Polar server environment to use for API requests.
+    | Available options: "production" or "sandbox"
+    |
+    | - production: https://api.polar.sh (Production environment)
+    | - sandbox: https://sandbox-api.polar.sh (Sandbox environment)
+    |
+    */
+    'server' => env('POLAR_SERVER', 'sandbox'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Polar Webhook Secret
     |--------------------------------------------------------------------------
     |
@@ -140,7 +154,7 @@ Configure your webhook secret. Create a new webhook in the Polar Dashboard > Set
 - https://sandbox.polar.sh/dashboard/<org_slug>/settings/webhooks (Sandbox)
 - https://polar.sh/dashboard/<org_slug>/settings/webhooks (Production)
 
-Configure the webhook for the following events that this pacckage supports:
+Configure the webhook for the following events that this package supports:
 
 - `order.created`
 - `order.updated`
@@ -152,6 +166,16 @@ Configure the webhook for the following events that this pacckage supports:
 - `benefit_grant.created`
 - `benefit_grant.updated`
 - `benefit_grant.revoked`
+- `checkout.created`
+- `checkout.updated`
+- `customer.created`
+- `customer.updated`
+- `customer.deleted`
+- `customer.state_changed`
+- `product.created`
+- `product.updated`
+- `benefit.created`
+- `benefit.updated`
 
 ```bash
 POLAR_WEBHOOK_SECRET="<your_webhook_secret>"
@@ -192,15 +216,7 @@ This package includes a webhook handler that will handle the webhooks from Polar
 
 #### Webhooks & CSRF Protection
 
-Incoming webhooks should not be affected by [CSRF protection](https://laravel.com/docs/csrf). To prevent this, add your webhook path to the except list of your `App\Http\Middleware\VerifyCsrfToken` middleware:
-
-```php
-protected $except = [
-    'polar/*',
-];
-```
-
-Or if you're using Laravel v11 and up, you should exclude `polar/*` in your application's `bootstrap/app.php` file:
+Incoming webhooks should not be affected by [CSRF protection](https://laravel.com/docs/csrf). To prevent this, exclude `polar/*` in your application's `bootstrap/app.php` file:
 
 ```php
 ->withMiddleware(function (Middleware $middleware) {
@@ -310,7 +326,7 @@ export function Button() {
 }
 ```
 
-At the end is just a normal link but ysin an special attribute for the script to render the embedded checkout.
+At the end is just a normal link but using an special attribute for the script to render the embedded checkout.
 
 > [!NOTE]
 > Remember that you can use the theme attribute too to change the color system in the checkout
@@ -645,51 +661,356 @@ When a cancelled subscription approaches the end of its grace period, it becomes
 > [!NOTE]
 > Coming soon.
 
+### Benefits
+
+Benefits are automated features that are granted to customers when they purchase your products. You can manage benefits using both the `LaravelPolar` facade (for create/update/delete operations) and methods on your billable model (for listing and retrieving benefits).
+
+#### Creating Benefits
+
+Create benefits programmatically using the `LaravelPolar` facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+
+$benefit = LaravelPolar::createBenefit(
+    new Components\BenefitCustomCreate(
+        description: 'Premium Support',
+        organizationId: 'your-org-id',
+        properties: new Components\BenefitCustomCreateProperties(),
+    )
+);
+```
+
+#### Listing Benefits
+
+List all benefits for an organization using your billable model:
+
+```php
+$benefits = $user->listBenefits('your-org-id');
+```
+
+#### Getting a Specific Benefit
+
+Retrieve a specific benefit by ID using your billable model:
+
+```php
+$benefit = $user->getBenefit('benefit-id-123');
+```
+
+#### Listing Benefit Grants
+
+Get all grants for a specific benefit using your billable model:
+
+```php
+$grants = $user->listBenefitGrants('benefit-id-123');
+```
+
+#### Updating Benefits
+
+Update an existing benefit using the `LaravelPolar` facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+
+$benefit = LaravelPolar::updateBenefit(
+    'benefit-id-123',
+    new Components\BenefitCustomUpdate(
+        description: 'Updated Premium Support',
+        properties: new Components\BenefitCustomUpdateProperties(),
+    )
+);
+```
+
+#### Deleting Benefits
+
+Delete a benefit using the `LaravelPolar` facade:
+
+```php
+LaravelPolar::deleteBenefit('benefit-id-123');
+```
+
+### Usage-Based Billing
+
+Track customer usage events for metered billing. This allows you to charge customers based on their actual usage of your service.
+
+#### Tracking Usage Events
+
+Track a single usage event for a customer:
+
+```php
+$user->ingestUsageEvent('api_request', [
+    'endpoint' => '/api/v1/data',
+    'method' => 'GET',
+    'duration_ms' => 145,
+]);
+```
+
+#### Batch Event Ingestion
+
+For usage-based billing, you can track multiple events at once:
+
+```php
+$user->ingestUsageEvents([
+    [
+        'eventName' => 'api_request',
+        'properties' => [
+            'endpoint' => '/api/v1/data',
+            'method' => 'GET',
+        ],
+    ],
+    [
+        'eventName' => 'storage_used',
+        'properties' => [
+            'bytes' => 1048576,
+        ],
+        'timestamp' => time(),
+    ],
+]);
+```
+
+#### Listing Customer Meters
+
+List all meters for a customer:
+
+```php
+$meters = $user->listCustomerMeters();
+```
+
+#### Getting a Specific Customer Meter
+
+Retrieve a specific customer meter by ID using the `LaravelPolar` facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+
+$meter = LaravelPolar::getCustomerMeter('meter-id-123');
+```
+
+> [!NOTE]
+> Usage events are sent to Polar for processing. They are not stored locally in your database. Use Polar's dashboard or API to view processed usage data.
+
 ### Handling Webhooks
 
 Polar can send webhooks to your app, allowing you to react. By default, this package handles the majority of the work for you. If you have properly configured webhooks, it will listen for incoming events and update your database accordingly. We recommend activating all event kinds so you may easily upgrade in the future.
 
 #### Webhook Events
 
+The package dispatches the following webhook events:
+
+**Order Events:**
+- `Danestves\LaravelPolar\Events\OrderCreated`
+- `Danestves\LaravelPolar\Events\OrderUpdated`
+
+**Subscription Events:**
+- `Danestves\LaravelPolar\Events\SubscriptionCreated`
+- `Danestves\LaravelPolar\Events\SubscriptionUpdated`
+- `Danestves\LaravelPolar\Events\SubscriptionActive`
+- `Danestves\LaravelPolar\Events\SubscriptionCanceled`
+- `Danestves\LaravelPolar\Events\SubscriptionRevoked`
+
+**Benefit Grant Events:**
 - `Danestves\LaravelPolar\Events\BenefitGrantCreated`
 - `Danestves\LaravelPolar\Events\BenefitGrantUpdated`
 - `Danestves\LaravelPolar\Events\BenefitGrantRevoked`
-- `Danestves\LaravelPolar\Events\OrderCreated`
-- `Danestves\LaravelPolar\Events\OrderRefunded`
-- `Danestves\LaravelPolar\Events\SubscriptionActive`
-- `Danestves\LaravelPolar\Events\SubscriptionCanceled`
-- `Danestves\LaravelPolar\Events\SubscriptionCreated`
-- `Danestves\LaravelPolar\Events\SubscriptionRevoked`
-- `Danestves\LaravelPolar\Events\SubscriptionUpdated`
 
-Each of these events has a billable `$model` object and an event `$payload`. The subscription events also include the `$subscription` object. These can be accessed via the public properties.
+**Checkout Events:**
+- `Danestves\LaravelPolar\Events\CheckoutCreated`
+- `Danestves\LaravelPolar\Events\CheckoutUpdated`
 
-If you wish to respond to these events, you must establish listeners for them.  For example, you may wish to react when a subscription is updated.
+**Customer Events:**
+- `Danestves\LaravelPolar\Events\CustomerCreated`
+- `Danestves\LaravelPolar\Events\CustomerUpdated`
+- `Danestves\LaravelPolar\Events\CustomerDeleted`
+- `Danestves\LaravelPolar\Events\CustomerStateChanged`
+
+**Product Events:**
+- `Danestves\LaravelPolar\Events\ProductCreated`
+- `Danestves\LaravelPolar\Events\ProductUpdated`
+
+**Benefit Events:**
+- `Danestves\LaravelPolar\Events\BenefitCreated`
+- `Danestves\LaravelPolar\Events\BenefitUpdated`
+
+Each of these events has a `$payload` property containing the webhook payload. Some events also expose convenience properties for direct access to related models:
+
+**Events with Convenience Properties:**
+
+| Event | Convenience Properties |
+|-------|----------------------|
+| `OrderCreated`, `OrderUpdated` | `$billable`, `$order` |
+| `SubscriptionCreated`, `SubscriptionUpdated`, `SubscriptionActive`, `SubscriptionCanceled`, `SubscriptionRevoked` | `$billable`, `$subscription` |
+| `BenefitGrantCreated`, `BenefitGrantUpdated`, `BenefitGrantRevoked` | `$billable` |
+
+**Events with Only `$payload`:**
+
+| Event | Access Pattern |
+|-------|----------------|
+| `CheckoutCreated`, `CheckoutUpdated` | `$event->payload->checkout` |
+| `CustomerCreated`, `CustomerUpdated`, `CustomerDeleted`, `CustomerStateChanged` | `$event->payload->customer` |
+| `ProductCreated`, `ProductUpdated` | `$event->payload->product` |
+| `BenefitCreated`, `BenefitUpdated` | `$event->payload->benefit` |
+
+**Example Usage:**
+
+```php
+// Events with convenience properties
+public function handle(OrderCreated $event): void
+{
+    $order = $event->order; // Direct access
+    $billable = $event->billable; // Direct access
+}
+
+// Events with only payload
+public function handle(CheckoutCreated $event): void
+{
+    $checkout = $event->payload->checkout; // Access via payload
+}
+```
+
+If you wish to respond to these events, you must establish listeners for them. You can create separate listener classes for each event type, or use a single listener class with multiple methods.
+
+#### Using Separate Listener Classes
+
+Create individual listener classes for each event:
 
 ```php
 <?php
 
 namespace App\Listeners;
 
+use Danestves\LaravelPolar\Events\CheckoutCreated;
+
+class HandleCheckoutCreated
+{
+    public function handle(CheckoutCreated $event): void
+    {
+        $checkout = $event->payload->checkout;
+        // Handle checkout creation...
+    }
+}
+```
+
+```php
+<?php
+
+namespace App\Listeners;
+
+use Danestves\LaravelPolar\Events\SubscriptionUpdated;
+
+class HandleSubscriptionUpdated
+{
+    public function handle(SubscriptionUpdated $event): void
+    {
+        $subscription = $event->subscription;
+        // Handle subscription update...
+    }
+}
+```
+
+#### Using a Single Listener Class
+
+Alternatively, you can use a single listener class with multiple methods. For this approach, you'll need to register the listener as an event subscriber:
+
+```php
+<?php
+
+namespace App\Listeners;
+
+use Danestves\LaravelPolar\Events\CheckoutCreated;
+use Danestves\LaravelPolar\Events\SubscriptionUpdated;
 use Danestves\LaravelPolar\Events\WebhookHandled;
+use Illuminate\Events\Dispatcher;
 
 class PolarEventListener
 {
     /**
      * Handle received Polar webhooks.
      */
-    public function handle(WebhookHandled $event): void
+    public function handleWebhookHandled(WebhookHandled $event): void
     {
         if ($event->payload['type'] === 'subscription.updated') {
             // Handle the incoming event...
         }
+    }
+
+    /**
+     * Handle checkout created events.
+     */
+    public function handleCheckoutCreated(CheckoutCreated $event): void
+    {
+        $checkout = $event->payload->checkout;
+        // Handle checkout creation...
+    }
+
+    /**
+     * Handle subscription updated events.
+     */
+    public function handleSubscriptionUpdated(SubscriptionUpdated $event): void
+    {
+        $subscription = $event->subscription;
+        // Handle subscription update...
+    }
+
+    /**
+     * Register the listeners for the subscriber.
+     */
+    public function subscribe(Dispatcher $events): void
+    {
+        $events->listen(
+            WebhookHandled::class,
+            [self::class, 'handleWebhookHandled']
+        );
+
+        $events->listen(
+            CheckoutCreated::class,
+            [self::class, 'handleCheckoutCreated']
+        );
+
+        $events->listen(
+            SubscriptionUpdated::class,
+            [self::class, 'handleSubscriptionUpdated']
+        );
     }
 }
 ```
 
 The [Polar documentation](https://docs.polar.sh/integrate/webhooks/events) includes an example payload.
 
-Laravel v11 and up will automatically discover the listener. If you're using Laravel v10 or lower, you should configure it in your app's `EventServiceProvider`:
+#### Registering Listeners
+
+**For separate listener classes**, register them in your `EventServiceProvider`:
+
+```php
+<?php
+
+namespace App\Providers;
+
+use App\Listeners\HandleCheckoutCreated;
+use App\Listeners\HandleSubscriptionUpdated;
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Danestves\LaravelPolar\Events\CheckoutCreated;
+use Danestves\LaravelPolar\Events\SubscriptionUpdated;
+use Danestves\LaravelPolar\Events\WebhookHandled;
+
+class EventServiceProvider extends ServiceProvider
+{
+    protected $listen = [
+        WebhookHandled::class => [
+            // Add your listeners here
+        ],
+        CheckoutCreated::class => [
+            HandleCheckoutCreated::class,
+        ],
+        SubscriptionUpdated::class => [
+            HandleSubscriptionUpdated::class,
+        ],
+    ];
+}
+```
+
+**For event subscribers**, register the subscriber in your `EventServiceProvider`:
 
 ```php
 <?php
@@ -698,17 +1019,16 @@ namespace App\Providers;
 
 use App\Listeners\PolarEventListener;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Danestves\LaravelPolar\Events\WebhookHandled;
 
 class EventServiceProvider extends ServiceProvider
 {
-    protected $listen = [
-        WebhookHandled::class => [
-            PolarEventListener::class,
-        ],
+    protected $subscribe = [
+        PolarEventListener::class,
     ];
 }
 ```
+
+Laravel v11 and v12 will automatically discover listeners and subscribers if they follow Laravel's naming conventions.
 
 ## Roadmap
 
