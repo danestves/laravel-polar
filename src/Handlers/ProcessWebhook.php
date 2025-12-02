@@ -5,6 +5,7 @@ namespace Danestves\LaravelPolar\Handlers;
 use Carbon\Carbon;
 use Danestves\LaravelPolar\Events\BenefitCreated;
 use Polar\Models\Components\OrderStatus;
+use Polar\Models\Components\SubscriptionStatus;
 use Danestves\LaravelPolar\Events\BenefitGrantCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantRevoked;
 use Danestves\LaravelPolar\Events\BenefitGrantUpdated;
@@ -87,7 +88,7 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $order = $billable->orders()->create([ // @phpstan-ignore-line class.notFound - the property is found in the billable model
             'polar_id' => $data['id'],
-            'status' => $data['status'],
+            'status' => \is_string($data['status']) ? OrderStatus::from($data['status']) : $data['status'],
             'amount' => $data['amount'],
             'tax_amount' => $data['tax_amount'],
             'refunded_amount' => $data['refunded_amount'],
@@ -142,7 +143,7 @@ class ProcessWebhook extends ProcessWebhookJob
         $subscription = $billable->subscriptions()->create([ // @phpstan-ignore-line class.notFound - the property is found in the billable model
             'type' => $customerMetadata['subscription_type'] ?? 'default',
             'polar_id' => $data['id'],
-            'status' => $data['status'],
+            'status' => \is_string($data['status']) ? SubscriptionStatus::from($data['status']) : $data['status'],
             'product_id' => $data['product_id'],
             'current_period_end' => $data['current_period_end'] ? Carbon::make($data['current_period_end']) : null,
             'ends_at' => $data['ends_at'] ? Carbon::make($data['ends_at']) : null,

@@ -128,7 +128,7 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     {
         $this->update([
             'polar_id' => $attributes['id'],
-            'status' => $attributes['status'],
+            'status' => \is_string($attributes['status']) ? OrderStatus::from($attributes['status']) : $attributes['status'],
             'amount' => $attributes['amount'],
             'tax_amount' => $attributes['tax_amount'],
             'refunded_amount' => $attributes['refunded_amount'],

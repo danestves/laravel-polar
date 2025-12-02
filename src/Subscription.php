@@ -301,7 +301,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     public function sync(array $attributes): self
     {
         $this->update([
-            'status' => $attributes['status'],
+            'status' => \is_string($attributes['status']) ? SubscriptionStatus::from($attributes['status']) : $attributes['status'],
             'product_id' => $attributes['product_id'],
             'current_period_end' => isset($attributes['current_period_end']) ? Carbon::make($attributes['current_period_end']) : null,
             'ends_at' => isset($attributes['ends_at']) ? Carbon::make($attributes['ends_at']) : null,
