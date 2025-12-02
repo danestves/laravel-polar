@@ -1,7 +1,6 @@
 <?php
 
 use Danestves\LaravelPolar\Checkout;
-use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Support\Facades\Config;
 use Polar\Models\Errors;
 use Polar\Models\Operations;
@@ -13,27 +12,16 @@ beforeEach(function () {
 });
 
 afterEach(function () {
-    LaravelPolar::resetSdk();
+    resetLaravelPolarSdk();
 
     Mockery::close();
 });
 
 function createMockedSdkWithCheckouts(): array
 {
-    $sdkConfig = Mockery::mock(\Polar\SDKConfiguration::class);
-    $sdkConfig->shouldReceive('getTemplatedServerUrl')->andReturn('https://sandbox-api.polar.sh');
-    $hooks = Mockery::mock(\Polar\Hooks\SDKHooks::class);
-    $mockClient = Mockery::mock(\GuzzleHttp\ClientInterface::class);
-    $sdkRequestContext = new \Polar\Hooks\SDKRequestContext('https://sandbox-api.polar.sh', $mockClient);
-    $hooks->shouldReceive('sdkInit')->andReturn($sdkRequestContext);
-    $reflectionConfig = new \ReflectionClass($sdkConfig);
-    $hooksProperty = $reflectionConfig->getProperty('hooks');
-    $hooksProperty->setAccessible(true);
-    $hooksProperty->setValue($sdkConfig, $hooks);
-    $clientProperty = $reflectionConfig->getProperty('client');
-    $clientProperty->setAccessible(true);
-    $clientProperty->setValue($sdkConfig, $mockClient);
-    $sdk = new \Polar\Polar($sdkConfig);
+    $base = createBaseMockedSdk();
+    $sdk = $base['sdk'];
+
     $checkouts = Mockery::mock(\Polar\Checkouts::class);
     $reflectionSdk = new \ReflectionClass($sdk);
     $checkoutsProperty = $reflectionSdk->getProperty('checkouts');
@@ -80,7 +68,7 @@ it('can be redirected successfully', function () {
     expect($redirect->getTargetUrl())->toBe('https://polar.sh/checkout/123');
 });
 
-it('throws exception when redirect fails', function () {
+it('throws exception when redirect fails due to API error', function () {
     $mocked = createMockedSdkWithCheckouts();
     $sdk = $mocked['sdk'];
     $checkouts = $mocked['checkouts'];

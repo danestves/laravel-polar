@@ -18,31 +18,11 @@ beforeEach(function () {
 });
 
 afterEach(function () {
-    LaravelPolar::resetSdk();
+    resetLaravelPolarSdk();
 
     Mockery::close();
 });
 
-function createBaseMockedSdk(): array
-{
-    $sdkConfig = Mockery::mock(\Polar\SDKConfiguration::class);
-    $sdkConfig->shouldReceive('getTemplatedServerUrl')->andReturn('https://sandbox-api.polar.sh');
-    $hooks = Mockery::mock(\Polar\Hooks\SDKHooks::class);
-    $mockClient = Mockery::mock(\GuzzleHttp\ClientInterface::class);
-    $sdkRequestContext = new \Polar\Hooks\SDKRequestContext('https://sandbox-api.polar.sh', $mockClient);
-    $hooks->shouldReceive('sdkInit')->andReturn($sdkRequestContext);
-
-    $reflectionConfig = new \ReflectionClass($sdkConfig);
-    $hooksProperty = $reflectionConfig->getProperty('hooks');
-    $hooksProperty->setAccessible(true);
-    $hooksProperty->setValue($sdkConfig, $hooks);
-
-    $clientProperty = $reflectionConfig->getProperty('client');
-    $clientProperty->setAccessible(true);
-    $clientProperty->setValue($sdkConfig, $mockClient);
-
-    return ['sdkConfig' => $sdkConfig, 'sdk' => new \Polar\Polar($sdkConfig)];
-}
 
 function createMockedSdkWithEvents(): array
 {
@@ -106,9 +86,11 @@ it('can ingest a single usage event', function () {
 it('does not ingest event when customer is null', function () {
     $user = User::factory()->create();
 
-    $user->ingestUsageEvent('api_request', []);
+    $mocked = createMockedSdkWithEvents();
+    $mocked['events']->shouldNotReceive('ingest');
+    setLaravelPolarSdk($mocked['sdk']);
 
-    expect(true)->toBeTrue();
+    $user->ingestUsageEvent('api_request', []);
 });
 
 it('does not ingest event when customer polar_id is null', function () {
@@ -119,9 +101,11 @@ it('does not ingest event when customer polar_id is null', function () {
         'polar_id' => null,
     ]);
 
-    $user->ingestUsageEvent('api_request', []);
+    $mocked = createMockedSdkWithEvents();
+    $mocked['events']->shouldNotReceive('ingest');
+    setLaravelPolarSdk($mocked['sdk']);
 
-    expect(true)->toBeTrue();
+    $user->ingestUsageEvent('api_request', []);
 });
 
 it('can ingest multiple usage events in batch', function () {

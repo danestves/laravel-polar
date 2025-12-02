@@ -39,6 +39,18 @@ class ProcessWebhook extends ProcessWebhookJob
 {
     private ?\Speakeasy\Serializer\Serializer $serializer = null;
 
+    /**
+     * Get or create the cached JSON serializer instance.
+     */
+    private function getSerializer(): \Speakeasy\Serializer\Serializer
+    {
+        if ($this->serializer === null) {
+            $this->serializer = \Polar\Utils\JSON::createSerializer();
+        }
+
+        return $this->serializer;
+    }
+
     public function handle(): void
     {
         $decoded = json_decode($this->webhookCall, true);
@@ -457,15 +469,20 @@ class ProcessWebhook extends ProcessWebhookJob
     }
 
     /**
-     * Get or create the cached JSON serializer instance.
+     * Generic converter from array to SDK component using JSON serializer.
+     *
+     * @template T
+     * @param array<string, mixed> $data
+     * @param class-string<T> $class
+     * @return T
      */
-    private function getSerializer(): \Speakeasy\Serializer\Serializer
+    private function arrayToComponent(array $data, string $class): mixed
     {
-        if ($this->serializer === null) {
-            $this->serializer = \Polar\Utils\JSON::createSerializer();
+        $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException("Failed to encode data to JSON for {$class}: " . json_last_error_msg());
         }
-
-        return $this->serializer;
+        return $this->getSerializer()->deserialize($json, $class, 'json');
     }
 
     /**
@@ -473,12 +490,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToOrder(array $data): Components\Order
     {
-        $serializer = $this->getSerializer();
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException('Failed to encode order data to JSON: ' . json_last_error_msg());
-        }
-        return $serializer->deserialize($json, Components\Order::class, 'json');
+        return $this->arrayToComponent($data, Components\Order::class);
     }
 
     /**
@@ -486,12 +498,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToSubscription(array $data): Components\Subscription
     {
-        $serializer = $this->getSerializer();
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException('Failed to encode subscription data to JSON: ' . json_last_error_msg());
-        }
-        return $serializer->deserialize($json, Components\Subscription::class, 'json');
+        return $this->arrayToComponent($data, Components\Subscription::class);
     }
 
     /**
@@ -500,11 +507,17 @@ class ProcessWebhook extends ProcessWebhookJob
     private function arrayToBenefitGrant(array $data): Components\BenefitGrantDiscordWebhook|Components\BenefitGrantCustomWebhook|Components\BenefitGrantGitHubRepositoryWebhook|Components\BenefitGrantDownloadablesWebhook|Components\BenefitGrantLicenseKeysWebhook|Components\BenefitGrantMeterCreditWebhook
     {
         $type = $data['type'] ?? $data['benefit']['type'] ?? 'custom';
-        $serializer = $this->getSerializer();
+
+        if (!isset($data['type']) && !isset($data['benefit']['type'])) {
+            Log::warning('Benefit grant type missing, using default', ['data' => $data]);
+        }
+
         $json = json_encode($data);
         if ($json === false) {
             throw new \RuntimeException('Failed to encode benefit grant data to JSON: ' . json_last_error_msg());
         }
+
+        $serializer = $this->getSerializer();
 
         return match ($type) {
             'discord' => $serializer->deserialize($json, Components\BenefitGrantDiscordWebhook::class, 'json'),
@@ -513,7 +526,10 @@ class ProcessWebhook extends ProcessWebhookJob
             'downloadables' => $serializer->deserialize($json, Components\BenefitGrantDownloadablesWebhook::class, 'json'),
             'license_keys' => $serializer->deserialize($json, Components\BenefitGrantLicenseKeysWebhook::class, 'json'),
             'meter_credit' => $serializer->deserialize($json, Components\BenefitGrantMeterCreditWebhook::class, 'json'),
-            default => $serializer->deserialize($json, Components\BenefitGrantCustomWebhook::class, 'json'),
+            default => (function () use ($serializer, $json, $type) {
+                Log::warning('Unknown benefit grant type, using default', ['type' => $type]);
+                return $serializer->deserialize($json, Components\BenefitGrantCustomWebhook::class, 'json');
+            })(),
         };
     }
 
@@ -722,12 +738,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToCheckout(array $data): Components\Checkout
     {
-        $serializer = $this->getSerializer();
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException('Failed to encode checkout data to JSON: ' . json_last_error_msg());
-        }
-        return $serializer->deserialize($json, Components\Checkout::class, 'json');
+        return $this->arrayToComponent($data, Components\Checkout::class);
     }
 
     /**
@@ -735,12 +746,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToCustomer(array $data): Components\Customer
     {
-        $serializer = $this->getSerializer();
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException('Failed to encode customer data to JSON: ' . json_last_error_msg());
-        }
-        return $serializer->deserialize($json, Components\Customer::class, 'json');
+        return $this->arrayToComponent($data, Components\Customer::class);
     }
 
     /**
@@ -748,12 +754,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToCustomerState(array $data): Components\CustomerState
     {
-        $serializer = $this->getSerializer();
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException('Failed to encode customer state data to JSON: ' . json_last_error_msg());
-        }
-        return $serializer->deserialize($json, Components\CustomerState::class, 'json');
+        return $this->arrayToComponent($data, Components\CustomerState::class);
     }
 
     /**
@@ -761,12 +762,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToProduct(array $data): Components\Product
     {
-        $serializer = $this->getSerializer();
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException('Failed to encode product data to JSON: ' . json_last_error_msg());
-        }
-        return $serializer->deserialize($json, Components\Product::class, 'json');
+        return $this->arrayToComponent($data, Components\Product::class);
     }
 
     /**
@@ -775,11 +771,17 @@ class ProcessWebhook extends ProcessWebhookJob
     private function arrayToBenefit(array $data): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
     {
         $type = $data['type'] ?? 'custom';
-        $serializer = $this->getSerializer();
+
+        if (!isset($data['type'])) {
+            Log::warning('Benefit type missing, using default', ['data' => $data]);
+        }
+
         $json = json_encode($data);
         if ($json === false) {
             throw new \RuntimeException('Failed to encode benefit data to JSON: ' . json_last_error_msg());
         }
+
+        $serializer = $this->getSerializer();
 
         return match ($type) {
             'discord' => $serializer->deserialize($json, Components\BenefitDiscord::class, 'json'),
@@ -788,7 +790,10 @@ class ProcessWebhook extends ProcessWebhookJob
             'downloadables' => $serializer->deserialize($json, Components\BenefitDownloadables::class, 'json'),
             'license_keys' => $serializer->deserialize($json, Components\BenefitLicenseKeys::class, 'json'),
             'meter_credit' => $serializer->deserialize($json, Components\BenefitMeterCredit::class, 'json'),
-            default => $serializer->deserialize($json, Components\BenefitCustom::class, 'json'),
+            default => (function () use ($serializer, $json, $type) {
+                Log::warning('Unknown benefit type, using default', ['type' => $type]);
+                return $serializer->deserialize($json, Components\BenefitCustom::class, 'json');
+            })(),
         };
     }
 }
