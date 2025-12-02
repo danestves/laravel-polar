@@ -17,6 +17,8 @@ function resetLaravelPolarSdk(): void
 
 function createBaseMockedSdk(): array
 {
+    // The Polar SDK uses private properties for hooks/client configuration,
+    // requiring reflection to inject mocks for testing.
     $sdkConfig = Mockery::mock(\Polar\SDKConfiguration::class);
     $sdkConfig->shouldReceive('getTemplatedServerUrl')->andReturn('https://sandbox-api.polar.sh');
     $hooks = Mockery::mock(\Polar\Hooks\SDKHooks::class);

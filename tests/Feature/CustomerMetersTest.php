@@ -54,7 +54,7 @@ function createMockedSdkWithCustomerMeters(): array
 
 it('can ingest a single usage event', function () {
     $user = User::factory()->create();
-    $customer = Customer::factory()->create([
+    Customer::factory()->create([
         'billable_id' => $user->getKey(),
         'billable_type' => $user->getMorphClass(),
         'polar_id' => 'customer_123',
@@ -79,8 +79,6 @@ it('can ingest a single usage event', function () {
         'endpoint' => '/api/v1/data',
         'method' => 'GET',
     ]);
-
-    expect(true)->toBeTrue();
 });
 
 it('does not ingest event when customer is null', function () {
@@ -142,8 +140,6 @@ it('can ingest multiple usage events in batch', function () {
             'timestamp' => new \DateTime(),
         ],
     ]);
-
-    expect(true)->toBeTrue();
 });
 
 it('can list customer meters', function () {
@@ -257,8 +253,6 @@ it('can ingest events via LaravelPolar facade', function () {
     setLaravelPolarSdk($sdk);
 
     LaravelPolar::ingestEvents($request);
-
-    expect(true)->toBeTrue();
 });
 
 it('throws exception when ingesting events fails', function () {

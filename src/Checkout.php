@@ -273,7 +273,7 @@ class Checkout implements Responsable
 
         $checkout = LaravelPolar::createCheckoutSession($request);
 
-        if (!$checkout || !$checkout->url) {
+        if (!$checkout->url) {
             throw new Errors\APIException('Failed to create checkout session', 500, '', null);
         }
 

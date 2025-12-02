@@ -38,7 +38,7 @@ class LaravelPolar
      * @throws Errors\APIException
      * @throws Exception
      */
-    public static function createCheckoutSession(Components\CheckoutCreate $request): ?Components\Checkout
+    public static function createCheckoutSession(Components\CheckoutCreate $request): Components\Checkout
     {
         $sdk = self::sdk();
 
@@ -48,7 +48,7 @@ class LaravelPolar
             return $response->checkout;
         }
 
-        return null;
+        throw new Errors\APIException('Failed to create checkout session', $response->statusCode ?? 500, '', null);
     }
 
     /**

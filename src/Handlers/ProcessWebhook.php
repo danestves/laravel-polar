@@ -51,6 +51,10 @@ class ProcessWebhook extends ProcessWebhookJob
     public function handle(): void
     {
         $decoded = json_decode($this->webhookCall, true);
+        if ($decoded === null || !isset($decoded['payload'])) {
+            Log::error('Invalid webhook payload: failed to decode JSON or missing payload');
+            return;
+        }
         $payload = $decoded['payload'];
         $type = $payload['type'];
         $data = $payload['data'];

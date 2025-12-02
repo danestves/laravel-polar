@@ -47,12 +47,12 @@ class ListProductsCommand extends Command
 
         $options = $this->options();
         $request = new Operations\ProductsListRequest(
-            id: !empty($options['id']) ? (count($options['id']) === 1 ? $options['id'][0] : $options['id']) : null,
-            organizationId: !empty($options['organization-id']) ? (count($options['organization-id']) === 1 ? $options['organization-id'][0] : $options['organization-id']) : null,
+            id: $this->normalizeArrayOption($options['id'] ?? []),
+            organizationId: $this->normalizeArrayOption($options['organization-id'] ?? []),
             query: $options['query'] ?? null,
-            isArchived: isset($options['archived']) && $options['archived'] ? true : null,
-            isRecurring: isset($options['recurring']) && $options['recurring'] ? true : null,
-            benefitId: !empty($options['benefit-id']) ? (count($options['benefit-id']) === 1 ? $options['benefit-id'][0] : $options['benefit-id']) : null,
+            isArchived: $options['archived'] ?? null ? true : null,
+            isRecurring: $options['recurring'] ?? null ? true : null,
+            benefitId: $this->normalizeArrayOption($options['benefit-id'] ?? []),
             sorting: !empty($options['sorting']) ? $this->mapSorting($options['sorting']) : null,
             metadata: null,
             page: isset($options['page']) && is_numeric($options['page']) ? (int) $options['page'] : null,
@@ -127,6 +127,21 @@ class ListProductsCommand extends Command
     }
 
     /**
+     * Normalize array option to single value or array.
+     *
+     * @param  array<string>  $values
+     * @return string|array<string>|null
+     */
+    protected function normalizeArrayOption(array $values): string|array|null
+    {
+        if (empty($values)) {
+            return null;
+        }
+
+        return count($values) === 1 ? $values[0] : $values;
+    }
+
+    /**
      * Map sorting strings to ProductSortProperty enum values.
      *
      * @param  array<string>  $sorting
@@ -141,6 +156,8 @@ class ListProductsCommand extends Command
 
             if ($property !== null) {
                 $mapped[] = $property;
+            } else {
+                $this->components->warn("Unknown sorting criterion ignored: {$sort}");
             }
         }
 

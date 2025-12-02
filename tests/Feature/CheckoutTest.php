@@ -32,6 +32,8 @@ function createMockedSdkWithCheckouts(): array
 }
 
 it('can initiate a new checkout', function () {
+    // Note: This test verifies internal state via reflection. A future improvement
+    // would be to verify the SDK request payload when url() or redirect() is called.
     $checkout = Checkout::make(['product_123']);
 
     expect($checkout)->toBeInstanceOf(Checkout::class);

@@ -219,11 +219,9 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function swap(string $productId, ?SubscriptionProrationBehavior $prorationBehavior = SubscriptionProrationBehavior::Prorate): self
     {
-        $sdkProrationBehavior = $prorationBehavior ?? SubscriptionProrationBehavior::Prorate;
-
         $request = new Components\SubscriptionUpdateProduct(
             productId: $productId,
-            prorationBehavior: $sdkProrationBehavior,
+            prorationBehavior: $prorationBehavior ?? SubscriptionProrationBehavior::Prorate,
         );
 
         return $this->updateAndSync($request);
