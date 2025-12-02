@@ -2,6 +2,173 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.0.0 - 2025-12-02
+
+### What's Changed
+
+🎉 **We're excited to announce Laravel Polar v2.0.0!** This major release brings significant improvements, new features, and important breaking changes to align with the latest Polar API and modern PHP/Laravel standards.
+
+### 🚀 What's New
+
+#### Major Features
+
+- **✨ Laravel 11 & 12 Support**: Full support for Laravel 11.x and 12.x with modern Laravel features
+- **🔌 Enhanced Webhook Support**: Added 10 new webhook event types for better integration capabilities
+- **📊 Benefits Management**: Complete support for Polar Benefits API
+- **📈 Customer Meters**: Full support for usage-based billing and customer meters
+- **🎯 Improved Checkout API**: Enhanced checkout functionality with custom fields and discount code controls
+- **🔧 Polar SDK Integration**: Migrated to use Polar SDK Components for better type safety and API alignment
+
+#### New Webhook Events
+
+This release introduces support for 10 new webhook event types:
+
+- `checkout.created` - Fired when a checkout session is created
+- `checkout.updated` - Fired when a checkout session is updated
+- `customer.created` - Fired when a customer is created
+- `customer.updated` - Fired when a customer is updated
+- `customer.deleted` - Fired when a customer is deleted
+- `customer.state_changed` - Fired when a customer's state changes
+- `product.created` - Fired when a product is created
+- `product.updated` - Fired when a product is updated
+- `benefit.created` - Fired when a benefit is created
+- `benefit.updated` - Fired when a benefit is updated
+
+#### Enhanced Checkout Features
+
+The checkout API now supports additional features:
+
+- **Custom Field Data**: Use `withCustomFieldData()` to pass custom data to checkout sessions
+- **Discount Code Control**: Use `withoutDiscountCodes()` to disable discount code input
+- **Enhanced Billing Address**: Improved billing address support
+
+#### Code Quality Improvements
+
+- Refactored webhook processing for better error handling
+- Improved timestamp parsing and status handling
+- Streamlined JSON serialization
+- Enhanced test coverage
+- Removed redundant code and comments
+- Better type safety with Polar SDK Components
+
+### ⚠️ Breaking Changes
+
+#### PHP Version Requirement
+
+**🚨 BREAKING**: Laravel Polar v2 requires **PHP 8.3 or higher**.
+
+If you're running PHP 8.2 or lower, you must upgrade before installing v2.0.0.
+
+#### Updated Dependencies
+
+The following dependencies have been updated:
+
+- `polar-sh/sdk`: `^0.7.0` (previously `^0.6.0`)
+- `spatie/laravel-data`: `^4.0` (previously `^3.0`)
+- `spatie/laravel-webhook-client`: `^3.0` (previously `^2.0`)
+
+#### Model Casts Method
+
+Laravel Polar v2 uses Laravel 11's new `casts()` method. If you've extended any models (`Order`, `Subscription`, or `Customer`), ensure your custom casts are compatible.
+
+#### Enum to SDK Components Migration
+
+Internal enums have been replaced with Polar SDK Components for better type safety and API alignment. This change is mostly internal, but if you've extended or referenced internal enums, you may need to update your code.
+
+### 📦 Installation
+
+To upgrade to v2.0.0:
+
+```bash
+composer require danestves/laravel-polar:^2.0
+
+```
+After installation:
+
+1. **Republish configuration**:
+   
+   ```bash
+   php artisan vendor:publish --tag="polar-config" --force
+   
+   ```
+2. **Run migrations** (if any new ones exist):
+   
+   ```bash
+   php artisan migrate
+   
+   ```
+
+### 🔄 Migration Guide
+
+For detailed migration instructions, please see our comprehensive [Migration Guide](docs/migration-v1-to-v2.md).
+
+#### Quick Migration Checklist
+
+- [ ] Verify PHP 8.3+ is installed
+- [ ] Confirm Laravel 11.x or 12.x
+- [ ] Update `composer.json` to require `^2.0`
+- [ ] Run `composer update`
+- [ ] Republish configuration files
+- [ ] Run database migrations
+- [ ] Test checkout flow
+- [ ] Test subscription management
+- [ ] Test webhook handling
+- [ ] Review and update any custom code
+
+### 🐛 Bug Fixes
+
+- Fixed typo in README regarding embedded checkout attribute
+- Improved error handling in Checkout and LaravelPolar classes
+- Enhanced timestamp parsing in webhook processing
+- Fixed status assignment in Subscription model
+- Improved benefit type handling in webhook processing
+
+### 🔧 Improvements
+
+- Streamlined JSON serialization in webhook processing
+- Enhanced error handling throughout the package
+- Improved test coverage
+- Better code organization and structure
+- Updated GitHub Actions workflows
+- Removed unused code and dependencies
+
+### 📚 Documentation
+
+- Enhanced README with new webhook events documentation
+- Added comprehensive migration guide
+- Updated API server configuration documentation
+- Improved inline code documentation
+
+### 🙏 Contributors
+
+Thank you to all contributors who helped make this release possible!
+
+### 📖 Full Changelog
+
+For a complete list of changes, see the [CHANGELOG.md](CHANGELOG.md).
+
+### 🔗 Links
+
+- [Documentation](README.md)
+- [Migration Guide](docs/migration-v1-to-v2.md)
+- [GitHub Repository](https://github.com/danestves/laravel-polar)
+- [Polar API Documentation](https://docs.polar.sh)
+
+### 💬 Support
+
+If you encounter any issues during migration:
+
+1. Check the [GitHub Issues](https://github.com/danestves/laravel-polar/issues)
+2. Review the [Migration Guide](docs/migration-v1-to-v2.md)
+3. Open a new issue with details about your problem
+
+
+---
+
+**Note**: This is a major release with breaking changes. Please review the migration guide carefully before upgrading in production environments.
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v1.2.4...v2.0.0
+
 ## v1.2.4 - 2025-10-17
 
 ### What's Changed
