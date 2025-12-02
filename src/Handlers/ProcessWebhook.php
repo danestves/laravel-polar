@@ -312,11 +312,6 @@ class ProcessWebhook extends ProcessWebhookJob
         return LaravelPolar::$orderModel::firstWhere('polar_id', $orderId);
     }
 
-    /**
-     * Safely parse timestamp from payload, falling back to current time on failure.
-     *
-     * @param  mixed  $timestampValue
-     */
     private function parseTimestamp($timestampValue): \DateTime
     {
         if ($timestampValue === null) {
