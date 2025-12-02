@@ -74,7 +74,7 @@ class Checkout implements Responsable
      */
     public function withMetadata(?array $metadata): self
     {
-        $this->metadata = $metadata;
+        $this->metadata = ($metadata === []) ? null : $metadata;
 
         return $this;
     }
@@ -86,7 +86,7 @@ class Checkout implements Responsable
      */
     public function withCustomFieldData(?array $customFieldData): self
     {
-        $this->customFieldData = $customFieldData;
+        $this->customFieldData = ($customFieldData === []) ? null : $customFieldData;
 
         return $this;
     }
@@ -106,12 +106,15 @@ class Checkout implements Responsable
      */
     public function withCustomerMetadata(?array $customerMetadata): self
     {
-        $this->customerMetadata = $customerMetadata;
-
-        $this->customerMetadata = collect(array_replace_recursive($this->customerMetadata, $customerMetadata))
+        // Process input: trim strings and filter out nulls (defensive programming)
+        $processed = collect($customerMetadata)
             ->map(fn($value) => is_string($value) ? trim($value) : $value)
+            /** @phpstan-ignore-next-line Defensive: filter out nulls even though type doesn't allow them */
             ->filter(fn($value) => $value !== null)
             ->toArray();
+
+        // Convert empty array to null for SDK serialization
+        $this->customerMetadata = ($processed === []) ? null : $processed;
 
         return $this;
     }
