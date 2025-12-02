@@ -62,10 +62,10 @@ class OrderFactory extends Factory
      */
     public function configure(): self
     {
-        return $this->afterCreating(function ($subscription) {
+        return $this->afterCreating(function ($order) {
             Customer::factory()->create([
-                'billable_id' => $subscription->billable_id,
-                'billable_type' => $subscription->billable_type,
+                'billable_id' => $order->billable_id,
+                'billable_type' => $order->billable_type,
             ]);
         });
     }

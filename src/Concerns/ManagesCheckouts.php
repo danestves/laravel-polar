@@ -3,6 +3,7 @@
 namespace Danestves\LaravelPolar\Concerns;
 
 use Danestves\LaravelPolar\Checkout;
+use Illuminate\Support\Facades\Log;
 use Polar\Models\Components;
 
 trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts is used in Billable trait
@@ -33,7 +34,11 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
             if ($upperCode === 'UK') {
                 $upperCode = 'GB';
             }
-            $country = Components\CountryAlpha2Input::tryFrom($upperCode) ?? Components\CountryAlpha2Input::Us;
+            $country = Components\CountryAlpha2Input::tryFrom($upperCode);
+            if ($country === null) {
+                Log::warning("Invalid country code '{$upperCode}' provided, defaulting to US");
+                $country = Components\CountryAlpha2Input::Us;
+            }
 
             $billingAddress = new Components\AddressInput(
                 country: $country,

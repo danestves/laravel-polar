@@ -37,6 +37,8 @@ use Spatie\WebhookClient\Jobs\ProcessWebhookJob;
 
 class ProcessWebhook extends ProcessWebhookJob
 {
+    private ?\Speakeasy\Serializer\Serializer $serializer = null;
+
     public function handle(): void
     {
         $decoded = json_decode($this->webhookCall, true);
@@ -72,9 +74,6 @@ class ProcessWebhook extends ProcessWebhookJob
         };
 
         WebhookHandled::dispatch($payload);
-
-        // Acknowledge you received the response
-        http_response_code(200);
     }
 
     /**
@@ -114,6 +113,10 @@ class ProcessWebhook extends ProcessWebhookJob
         $billable = $this->resolveBillable($data);
 
         if (!($order = $this->findOrder($data['id'])) instanceof EloquentOrder) {
+            Log::warning('Order not found for webhook update', [
+                'order_id' => $data['id'],
+                'event_type' => $type,
+            ]);
             return;
         }
 
@@ -165,6 +168,10 @@ class ProcessWebhook extends ProcessWebhookJob
     private function handleSubscriptionUpdated(array $data, \DateTime $timestamp, string $type): void
     {
         if (!($subscription = $this->findSubscription($data['id'])) instanceof EloquentSubscription) {
+            Log::warning('Subscription not found for webhook update', [
+                'subscription_id' => $data['id'],
+                'event_type' => $type,
+            ]);
             return;
         }
 
@@ -182,6 +189,10 @@ class ProcessWebhook extends ProcessWebhookJob
     private function handleSubscriptionActive(array $data, \DateTime $timestamp, string $type): void
     {
         if (!($subscription = $this->findSubscription($data['id'])) instanceof EloquentSubscription) {
+            Log::warning('Subscription not found for webhook active event', [
+                'subscription_id' => $data['id'],
+                'event_type' => $type,
+            ]);
             return;
         }
 
@@ -199,6 +210,10 @@ class ProcessWebhook extends ProcessWebhookJob
     private function handleSubscriptionCanceled(array $data, \DateTime $timestamp, string $type): void
     {
         if (!($subscription = $this->findSubscription($data['id'])) instanceof EloquentSubscription) {
+            Log::warning('Subscription not found for webhook canceled event', [
+                'subscription_id' => $data['id'],
+                'event_type' => $type,
+            ]);
             return;
         }
 
@@ -216,6 +231,10 @@ class ProcessWebhook extends ProcessWebhookJob
     private function handleSubscriptionRevoked(array $data, \DateTime $timestamp, string $type): void
     {
         if (!($subscription = $this->findSubscription($data['id'])) instanceof EloquentSubscription) {
+            Log::warning('Subscription not found for webhook revoked event', [
+                'subscription_id' => $data['id'],
+                'event_type' => $type,
+            ]);
             return;
         }
 
@@ -438,12 +457,27 @@ class ProcessWebhook extends ProcessWebhookJob
     }
 
     /**
+     * Get or create the cached JSON serializer instance.
+     */
+    private function getSerializer(): \Speakeasy\Serializer\Serializer
+    {
+        if ($this->serializer === null) {
+            $this->serializer = \Polar\Utils\JSON::createSerializer();
+        }
+
+        return $this->serializer;
+    }
+
+    /**
      * Convert array to SDK Order object using SDK's JSON serializer.
      */
     private function arrayToOrder(array $data): Components\Order
     {
-        $serializer = \Polar\Utils\JSON::createSerializer();
+        $serializer = $this->getSerializer();
         $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode order data to JSON: ' . json_last_error_msg());
+        }
         return $serializer->deserialize($json, Components\Order::class, 'json');
     }
 
@@ -452,8 +486,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToSubscription(array $data): Components\Subscription
     {
-        $serializer = \Polar\Utils\JSON::createSerializer();
+        $serializer = $this->getSerializer();
         $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode subscription data to JSON: ' . json_last_error_msg());
+        }
         return $serializer->deserialize($json, Components\Subscription::class, 'json');
     }
 
@@ -463,8 +500,11 @@ class ProcessWebhook extends ProcessWebhookJob
     private function arrayToBenefitGrant(array $data): Components\BenefitGrantDiscordWebhook|Components\BenefitGrantCustomWebhook|Components\BenefitGrantGitHubRepositoryWebhook|Components\BenefitGrantDownloadablesWebhook|Components\BenefitGrantLicenseKeysWebhook|Components\BenefitGrantMeterCreditWebhook
     {
         $type = $data['type'] ?? $data['benefit']['type'] ?? 'custom';
-        $serializer = \Polar\Utils\JSON::createSerializer();
+        $serializer = $this->getSerializer();
         $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode benefit grant data to JSON: ' . json_last_error_msg());
+        }
 
         return match ($type) {
             'discord' => $serializer->deserialize($json, Components\BenefitGrantDiscordWebhook::class, 'json'),
@@ -682,8 +722,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToCheckout(array $data): Components\Checkout
     {
-        $serializer = \Polar\Utils\JSON::createSerializer();
+        $serializer = $this->getSerializer();
         $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode checkout data to JSON: ' . json_last_error_msg());
+        }
         return $serializer->deserialize($json, Components\Checkout::class, 'json');
     }
 
@@ -692,8 +735,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToCustomer(array $data): Components\Customer
     {
-        $serializer = \Polar\Utils\JSON::createSerializer();
+        $serializer = $this->getSerializer();
         $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode customer data to JSON: ' . json_last_error_msg());
+        }
         return $serializer->deserialize($json, Components\Customer::class, 'json');
     }
 
@@ -702,8 +748,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToCustomerState(array $data): Components\CustomerState
     {
-        $serializer = \Polar\Utils\JSON::createSerializer();
+        $serializer = $this->getSerializer();
         $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode customer state data to JSON: ' . json_last_error_msg());
+        }
         return $serializer->deserialize($json, Components\CustomerState::class, 'json');
     }
 
@@ -712,8 +761,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function arrayToProduct(array $data): Components\Product
     {
-        $serializer = \Polar\Utils\JSON::createSerializer();
+        $serializer = $this->getSerializer();
         $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode product data to JSON: ' . json_last_error_msg());
+        }
         return $serializer->deserialize($json, Components\Product::class, 'json');
     }
 
@@ -723,8 +775,11 @@ class ProcessWebhook extends ProcessWebhookJob
     private function arrayToBenefit(array $data): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
     {
         $type = $data['type'] ?? 'custom';
-        $serializer = \Polar\Utils\JSON::createSerializer();
+        $serializer = $this->getSerializer();
         $json = json_encode($data);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to encode benefit data to JSON: ' . json_last_error_msg());
+        }
 
         return match ($type) {
             'discord' => $serializer->deserialize($json, Components\BenefitDiscord::class, 'json'),

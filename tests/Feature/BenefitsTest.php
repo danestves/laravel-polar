@@ -17,11 +17,7 @@ beforeEach(function () {
 });
 
 afterEach(function () {
-    // Reset SDK instance after each test
-    $reflection = new \ReflectionClass(LaravelPolar::class);
-    $sdkProperty = $reflection->getProperty('sdkInstance');
-    $sdkProperty->setAccessible(true);
-    $sdkProperty->setValue(null, null);
+    LaravelPolar::resetSdk();
 
     Mockery::close();
 });
@@ -215,7 +211,7 @@ it('can delete a benefit via LaravelPolar facade', function () {
 
     LaravelPolar::deleteBenefit($benefitId);
 
-    expect(true)->toBeTrue();
+    $benefits->shouldHaveReceived('delete')->once();
 });
 
 it('throws exception when creating benefit fails', function () {

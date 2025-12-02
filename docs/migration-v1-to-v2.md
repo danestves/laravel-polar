@@ -132,6 +132,17 @@ protected function casts(): array
 
 The webhook event payload structure remains the same, but ensure your event listeners handle the payload correctly.
 
+**New Webhook Events:**
+
+This version introduces 10 new webhook event types:
+
+- `checkout.created`, `checkout.updated`
+- `customer.created`, `customer.updated`, `customer.deleted`, `customer.state_changed`
+- `product.created`, `product.updated`
+- `benefit.created`, `benefit.updated`
+
+See [Webhook Events](../README.md#webhook-events) for full documentation.
+
 **Action Required:**
 - Review your webhook event listeners
 - Ensure they're accessing payload data correctly
@@ -264,13 +275,41 @@ assert($subscription instanceof \Danestves\LaravelPolar\Subscription);
 Test that webhooks are still processed correctly:
 
 ```php
+use Illuminate\Support\Facades\Event;
+use Danestves\LaravelPolar\Events\SubscriptionCreated;
+
+// Verify webhook is dispatched as Laravel event
+Event::fake();
+
 // Simulate webhook payload
 $payload = [
     'type' => 'subscription.created',
-    'data' => [...],
+    'data' => [
+        'id' => 'sub_123',
+        'status' => 'active',
+        'product_id' => 'prod_123',
+        'customer_id' => 'cust_123',
+        'customer' => [
+            'metadata' => [
+                'billable_id' => '1',
+                'billable_type' => 'App\\Models\\User',
+            ],
+        ],
+        'current_period_end' => now()->addDays(30)->toIso8601String(),
+        'created_at' => now()->toIso8601String(),
+    ],
+    'timestamp' => now()->toIso8601String(),
 ];
 
-// Ensure your listeners still work
+// Dispatch webhook
+$response = $this->postJson('/polar/webhooks', [
+    'payload' => $payload,
+], [
+    'X-Webhook-Signature' => 'your-signature',
+]);
+
+// Assert event was fired
+Event::assertDispatched(SubscriptionCreated::class);
 ```
 
 ### 4. Orders and Customers
@@ -363,6 +402,7 @@ If you encounter any issues during migration:
 
 - [ ] PHP 8.3+ installed and verified
 - [ ] Laravel 11.x or 12.x confirmed
+- [ ] Reviewed CHANGELOG.md for v2-specific changes relevant to your setup
 - [ ] Updated `composer.json` to require `^2.0`
 - [ ] Ran `composer update`
 - [ ] Republished configuration files

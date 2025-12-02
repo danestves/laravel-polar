@@ -18,16 +18,12 @@ beforeEach(function () {
 });
 
 afterEach(function () {
-    // Reset SDK instance after each test
-    $reflection = new \ReflectionClass(LaravelPolar::class);
-    $sdkProperty = $reflection->getProperty('sdkInstance');
-    $sdkProperty->setAccessible(true);
-    $sdkProperty->setValue(null, null);
+    LaravelPolar::resetSdk();
 
     Mockery::close();
 });
 
-function createMockedSdkWithEvents(): array
+function createBaseMockedSdk(): array
 {
     $sdkConfig = Mockery::mock(\Polar\SDKConfiguration::class);
     $sdkConfig->shouldReceive('getTemplatedServerUrl')->andReturn('https://sandbox-api.polar.sh');
@@ -35,14 +31,24 @@ function createMockedSdkWithEvents(): array
     $mockClient = Mockery::mock(\GuzzleHttp\ClientInterface::class);
     $sdkRequestContext = new \Polar\Hooks\SDKRequestContext('https://sandbox-api.polar.sh', $mockClient);
     $hooks->shouldReceive('sdkInit')->andReturn($sdkRequestContext);
+
     $reflectionConfig = new \ReflectionClass($sdkConfig);
     $hooksProperty = $reflectionConfig->getProperty('hooks');
     $hooksProperty->setAccessible(true);
     $hooksProperty->setValue($sdkConfig, $hooks);
+
     $clientProperty = $reflectionConfig->getProperty('client');
     $clientProperty->setAccessible(true);
     $clientProperty->setValue($sdkConfig, $mockClient);
-    $sdk = new \Polar\Polar($sdkConfig);
+
+    return ['sdkConfig' => $sdkConfig, 'sdk' => new \Polar\Polar($sdkConfig)];
+}
+
+function createMockedSdkWithEvents(): array
+{
+    $base = createBaseMockedSdk();
+    $sdk = $base['sdk'];
+
     $events = Mockery::mock(\Polar\Events::class);
     $reflectionSdk = new \ReflectionClass($sdk);
     $eventsProperty = $reflectionSdk->getProperty('events');
@@ -54,20 +60,9 @@ function createMockedSdkWithEvents(): array
 
 function createMockedSdkWithCustomerMeters(): array
 {
-    $sdkConfig = Mockery::mock(\Polar\SDKConfiguration::class);
-    $sdkConfig->shouldReceive('getTemplatedServerUrl')->andReturn('https://sandbox-api.polar.sh');
-    $hooks = Mockery::mock(\Polar\Hooks\SDKHooks::class);
-    $mockClient = Mockery::mock(\GuzzleHttp\ClientInterface::class);
-    $sdkRequestContext = new \Polar\Hooks\SDKRequestContext('https://sandbox-api.polar.sh', $mockClient);
-    $hooks->shouldReceive('sdkInit')->andReturn($sdkRequestContext);
-    $reflectionConfig = new \ReflectionClass($sdkConfig);
-    $hooksProperty = $reflectionConfig->getProperty('hooks');
-    $hooksProperty->setAccessible(true);
-    $hooksProperty->setValue($sdkConfig, $hooks);
-    $clientProperty = $reflectionConfig->getProperty('client');
-    $clientProperty->setAccessible(true);
-    $clientProperty->setValue($sdkConfig, $mockClient);
-    $sdk = new \Polar\Polar($sdkConfig);
+    $base = createBaseMockedSdk();
+    $sdk = $base['sdk'];
+
     $customerMeters = Mockery::mock(\Polar\CustomerMeters::class);
     $reflectionSdk = new \ReflectionClass($sdk);
     $customerMetersProperty = $reflectionSdk->getProperty('customerMeters');

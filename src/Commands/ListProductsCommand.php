@@ -87,8 +87,6 @@ class ListProductsCommand extends Command
 
     protected function handleProducts(Operations\ProductsListRequest $request): int
     {
-        $this->validate();
-
         $productsResponse = spin(
             fn() => LaravelPolar::listProducts($request),
             '⚪ Fetching products information...',

@@ -299,6 +299,22 @@ class LaravelPolar
     }
 
     /**
+     * Reset the cached SDK instance (useful for testing).
+     */
+    public static function resetSdk(): void
+    {
+        self::$sdkInstance = null;
+    }
+
+    /**
+     * Set the SDK instance (useful for testing).
+     */
+    public static function setSdk(?Polar $sdk): void
+    {
+        self::$sdkInstance = $sdk;
+    }
+
+    /**
      * Get or create a cached Polar SDK instance.
      *
      * @throws Exception

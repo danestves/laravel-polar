@@ -3,8 +3,10 @@
 namespace Danestves\LaravelPolar\Tests;
 
 use Danestves\LaravelPolar\LaravelPolarServiceProvider;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\Concerns\InteractsWithViews;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -34,10 +36,8 @@ class TestCase extends Orchestra
         config()->set('app.key', 'base64:EWcFBKBT8lGDNE8nQhTHY+wg19QlfmbhtO9Qnn3NfcA=');
         config()->set('database.default', 'testing');
 
-        $schema = $app['db']->connection()->getSchemaBuilder();
-
-        if (!$schema->hasTable('users')) {
-            $schema->create('users', function ($table) {
+        if (!Schema::hasTable('users')) {
+            Schema::create('users', function (Blueprint $table) {
                 $table->id();
                 $table->string('name')->nullable();
                 $table->string('email')->unique();

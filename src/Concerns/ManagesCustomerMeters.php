@@ -11,6 +11,9 @@ trait ManagesCustomerMeters // @phpstan-ignore-line trait.unused - ManagesCustom
     /**
      * Track a single usage event for this customer.
      *
+     * Note: Silently returns if customer is not yet created in Polar.
+     * This allows fire-and-forget usage tracking without requiring customer setup.
+     *
      * @param  array<string, mixed>  $metadata
      *
      * @throws \Polar\Models\Errors\APIException
@@ -39,6 +42,9 @@ trait ManagesCustomerMeters // @phpstan-ignore-line trait.unused - ManagesCustom
     /**
      * Track multiple usage events for this customer in a batch.
      *
+     * Note: Silently returns if customer is not yet created in Polar.
+     * This allows fire-and-forget usage tracking without requiring customer setup.
+     *
      * @param  array<int, array{eventName: string, metadata?: array<string, mixed>, timestamp?: \DateTime}>  $events
      *
      * @throws \Polar\Models\Errors\APIException
@@ -47,6 +53,10 @@ trait ManagesCustomerMeters // @phpstan-ignore-line trait.unused - ManagesCustom
     public function ingestUsageEvents(array $events): void
     {
         if ($this->customer === null || $this->customer->polar_id === null) {
+            return;
+        }
+
+        if (empty($events)) {
             return;
         }
 

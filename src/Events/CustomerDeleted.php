@@ -2,15 +2,10 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Queue\SerializesModels;
 use Polar\Models\Components\WebhookCustomerDeletedPayload;
 
-class CustomerDeleted
+class CustomerDeleted extends WebhookEvent
 {
-    use Dispatchable;
-    use SerializesModels;
-
     /**
      * Create a new event instance.
      */
