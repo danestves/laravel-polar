@@ -283,12 +283,8 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     private function syncFromSdkComponent(Components\Subscription $subscription): self
     {
-        $statusValue = $subscription->status;
-        /** @var string|SubscriptionStatus $statusValue */
-        $status = \is_string($statusValue) ? SubscriptionStatus::from($statusValue) : $statusValue;
-
         $this->update([
-            'status' => $status,
+            'status' => $subscription->status,
             'product_id' => $subscription->productId,
             'current_period_end' => $subscription->currentPeriodEnd ? Carbon::make($subscription->currentPeriodEnd) : null,
             'ends_at' => $subscription->endedAt ? Carbon::make($subscription->endedAt) : null,
