@@ -99,6 +99,26 @@ class SubscriptionFactory extends Factory
     }
 
     /**
+     * Mark the subscription as trialing.
+     */
+    public function trialing(): self
+    {
+        return $this->state([
+            'status' => SubscriptionStatus::Trialing,
+        ]);
+    }
+
+    /**
+     * Mark the subscription as incomplete.
+     */
+    public function incomplete(): self
+    {
+        return $this->state([
+            'status' => SubscriptionStatus::Incomplete,
+        ]);
+    }
+
+    /**
      * Mark the subscription as expired
      */
     public function incompleteExpired(): self

@@ -80,9 +80,7 @@ it('can filter subscriptions by cancelled scope', function () {
 
 it('can filter subscriptions by on trial scope', function () {
     Subscription::factory()->active()->count(2)->create();
-    Subscription::factory()->create([
-        'status' => SubscriptionStatus::Trialing,
-    ]);
+    Subscription::factory()->trialing()->create();
 
     $trialingSubscriptions = Subscription::query()->onTrial()->get();
 
@@ -112,9 +110,7 @@ it('can filter subscriptions by unpaid scope', function () {
 
 it('can filter subscriptions by incomplete scope', function () {
     Subscription::factory()->active()->count(2)->create();
-    Subscription::factory()->create([
-        'status' => SubscriptionStatus::Incomplete,
-    ]);
+    Subscription::factory()->incomplete()->create();
 
     $incompleteSubscriptions = Subscription::query()->incomplete()->get();
 
