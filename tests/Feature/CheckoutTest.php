@@ -3,7 +3,6 @@
 use Danestves\LaravelPolar\Checkout;
 use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Support\Facades\Config;
-use Mockery;
 use Polar\Models\Errors;
 use Polar\Models\Operations;
 use Psr\Http\Message\ResponseInterface;
