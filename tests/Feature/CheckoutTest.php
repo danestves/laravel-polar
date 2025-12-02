@@ -281,3 +281,80 @@ it('can set all checkout options', function () {
     $allowDiscountCodesProperty->setAccessible(true);
     expect($allowDiscountCodesProperty->getValue($checkout))->toBeFalse();
 });
+
+it('converts empty metadata array to null', function () {
+    $checkout = Checkout::make(['product_123'])
+        ->withMetadata([]);
+
+    $reflection = new \ReflectionClass($checkout);
+    $metadataProperty = $reflection->getProperty('metadata');
+    $metadataProperty->setAccessible(true);
+
+    expect($metadataProperty->getValue($checkout))->toBeNull();
+});
+
+it('converts empty custom field data array to null', function () {
+    $checkout = Checkout::make(['product_123'])
+        ->withCustomFieldData([]);
+
+    $reflection = new \ReflectionClass($checkout);
+    $customFieldDataProperty = $reflection->getProperty('customFieldData');
+    $customFieldDataProperty->setAccessible(true);
+
+    expect($customFieldDataProperty->getValue($checkout))->toBeNull();
+});
+
+it('converts empty customer metadata array to null', function () {
+    $checkout = Checkout::make(['product_123'])
+        ->withCustomerMetadata([]);
+
+    $reflection = new \ReflectionClass($checkout);
+    $customerMetadataProperty = $reflection->getProperty('customerMetadata');
+    $customerMetadataProperty->setAccessible(true);
+
+    expect($customerMetadataProperty->getValue($checkout))->toBeNull();
+});
+
+it('converts customer metadata to null after filtering leaves empty array', function () {
+    $checkout = Checkout::make(['product_123'])
+        ->withCustomerMetadata(['key1' => null, 'key2' => null]);
+
+    $reflection = new \ReflectionClass($checkout);
+    $customerMetadataProperty = $reflection->getProperty('customerMetadata');
+    $customerMetadataProperty->setAccessible(true);
+
+    expect($customerMetadataProperty->getValue($checkout))->toBeNull();
+});
+
+it('preserves null metadata input', function () {
+    $checkout = Checkout::make(['product_123'])
+        ->withMetadata(null);
+
+    $reflection = new \ReflectionClass($checkout);
+    $metadataProperty = $reflection->getProperty('metadata');
+    $metadataProperty->setAccessible(true);
+
+    expect($metadataProperty->getValue($checkout))->toBeNull();
+});
+
+it('preserves non-empty metadata array', function () {
+    $checkout = Checkout::make(['product_123'])
+        ->withMetadata(['key' => 'value']);
+
+    $reflection = new \ReflectionClass($checkout);
+    $metadataProperty = $reflection->getProperty('metadata');
+    $metadataProperty->setAccessible(true);
+
+    expect($metadataProperty->getValue($checkout))->toBe(['key' => 'value']);
+});
+
+it('trims customer metadata string values', function () {
+    $checkout = Checkout::make(['product_123'])
+        ->withCustomerMetadata(['name' => '  John Doe  ']);
+
+    $reflection = new \ReflectionClass($checkout);
+    $customerMetadataProperty = $reflection->getProperty('customerMetadata');
+    $customerMetadataProperty->setAccessible(true);
+
+    expect($customerMetadataProperty->getValue($checkout))->toBe(['name' => 'John Doe']);
+});
