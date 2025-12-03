@@ -24,7 +24,7 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
         // We'll need a way to identify the user in any webhook we're catching so before
         // we make an API request we'll attach the authentication identifier to this
         // checkout so we can match it back to a user when handling Polar webhooks.
-        $customerMetadata = [...$customerMetadata, 'billable_id' => (string) $key,
+        $customerMetadata = [...($customerMetadata ?? []), 'billable_id' => (string) $key,
             'billable_type' => $this->getMorphClass()];
 
         $billingAddress = null;
@@ -82,7 +82,7 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
      */
     public function charge(int $amount, array $products, ?array $options = [], ?array $customerMetadata = [], ?array $metadata = []): Checkout
     {
-        return $this->checkout($products, [...$options, 'amount' => $amount], $customerMetadata, $metadata);
+        return $this->checkout($products, [...($options ?? []), 'amount' => $amount], $customerMetadata, $metadata);
     }
 
     /**
@@ -94,6 +94,6 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
      */
     public function subscribe(string $productId, string $type = "default", ?array $options = [], ?array $customerMetadata = [], ?array $metadata = []): Checkout
     {
-        return $this->checkout([$productId], $options, [...$customerMetadata, 'subscription_type' => $type], $metadata);
+        return $this->checkout([$productId], $options, [...($customerMetadata ?? []), 'subscription_type' => $type], $metadata);
     }
 }
