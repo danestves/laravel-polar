@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.0.2 - 2025-12-03
+
+### What's Changed
+
+* fix: handle null parameters spread by @adiologydev in https://github.com/danestves/laravel-polar/pull/49
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.0.1...v2.0.2
+
 ## v2.0.1 - 2025-12-02
 
 ### What's Changed
@@ -95,6 +103,7 @@ To upgrade to v2.0.0:
 composer require danestves/laravel-polar:^2.0
 
 
+
 ```
 After installation:
 
@@ -104,11 +113,13 @@ After installation:
    php artisan vendor:publish --tag="polar-config" --force
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    ```
