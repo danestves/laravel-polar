@@ -160,3 +160,46 @@ it('can use subscribe method to create subscription checkout', function () {
     expect($customerMetadata)->toHaveKey('subscription_type');
     expect($customerMetadata['subscription_type'])->toBe('premium');
 });
+
+it('can handle null parameters in checkout method', function () {
+    $user = User::factory()->create();
+    $checkout = $user->checkout(['product_123'], null, null, null);
+
+    expect($checkout)->toBeInstanceOf(Checkout::class);
+
+    $reflection = new \ReflectionClass($checkout);
+    $customerMetadataProperty = $reflection->getProperty('customerMetadata');
+    $customerMetadataProperty->setAccessible(true);
+
+    $customerMetadata = $customerMetadataProperty->getValue($checkout);
+    expect($customerMetadata)->toHaveKey('billable_id');
+    expect($customerMetadata)->toHaveKey('billable_type');
+});
+
+it('can handle null parameters in subscribe method', function () {
+    $user = User::factory()->create();
+    $checkout = $user->subscribe('product_123', 'premium', null, null, null);
+
+    expect($checkout)->toBeInstanceOf(Checkout::class);
+
+    $reflection = new \ReflectionClass($checkout);
+    $customerMetadataProperty = $reflection->getProperty('customerMetadata');
+    $customerMetadataProperty->setAccessible(true);
+
+    $customerMetadata = $customerMetadataProperty->getValue($checkout);
+    expect($customerMetadata)->toHaveKey('subscription_type');
+    expect($customerMetadata['subscription_type'])->toBe('premium');
+});
+
+it('can handle null parameters in charge method', function () {
+    $user = User::factory()->create();
+    $checkout = $user->charge(5000, ['product_123'], null, null, null);
+
+    expect($checkout)->toBeInstanceOf(Checkout::class);
+
+    $reflection = new \ReflectionClass($checkout);
+    $amountProperty = $reflection->getProperty('amount');
+    $amountProperty->setAccessible(true);
+
+    expect($amountProperty->getValue($checkout))->toBe(5000);
+});
