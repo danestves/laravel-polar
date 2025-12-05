@@ -2,6 +2,7 @@
 
 namespace Danestves\LaravelPolar;
 
+use Danestves\LaravelPolar\Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class Customer extends Model // @phpstan-ignore-line propertyTag.trait - Billable is used in the user final code
 {
-    /** @use HasFactory<\Danestves\LaravelPolar\Database\Factories\CustomerFactory> */
+    /** @use HasFactory<CustomerFactory> */
     use HasFactory;
 
     /**
@@ -69,5 +70,10 @@ class Customer extends Model // @phpstan-ignore-line propertyTag.trait - Billabl
         return [
             'trial_ends_at' => 'datetime',
         ];
+    }
+
+    protected static function newFactory(): CustomerFactory
+    {
+        return CustomerFactory::new();
     }
 }
