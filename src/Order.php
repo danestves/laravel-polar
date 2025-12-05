@@ -2,6 +2,7 @@
 
 namespace Danestves\LaravelPolar;
 
+use Danestves\LaravelPolar\Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Polar\Models\Components\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,7 +33,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable is used in the user final code
 {
-    /** @use HasFactory<\Danestves\LaravelPolar\Database\Factories\OrderFactory> */
+    /** @use HasFactory<OrderFactory> */
     use HasFactory;
 
     /**
@@ -154,5 +155,10 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
             'ordered_at' => 'datetime',
             'refunded_at' => 'datetime',
         ];
+    }
+
+    protected static function newFactory(): OrderFactory
+    {
+        return OrderFactory::new();
     }
 }
