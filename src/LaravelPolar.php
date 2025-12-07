@@ -114,7 +114,7 @@ class LaravelPolar
 
         $response = $sdk->customerSessions->create(request: $request);
 
-        if ($response->statusCode === 200 && $response->customerSession !== null) {
+        if ($response->statusCode === 201 && $response->customerSession !== null) {
             return $response->customerSession;
         }
 
