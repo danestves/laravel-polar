@@ -285,7 +285,8 @@ Instead of redirecting the user you can create the checkout link, pass it to the
 use Illuminate\Http\Request;
 
 Route::get('/billing', function (Request $request) {
-    $checkout = $request->user()->checkout(['product_id_123']);
+    $checkout = $request->user()->checkout(['product_id_123'])
+        ->withEmbedOrigin(config('app.url'));
 
     return view('billing', ['checkout' => $checkout]);
 });
