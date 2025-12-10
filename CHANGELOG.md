@@ -2,6 +2,21 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.0.3 - 2025-12-10
+
+### What's Changed
+
+* fix: `createCustomerSession` status code by @andrzejchmura in https://github.com/danestves/laravel-polar/pull/52
+* fix documentation about embedded checkout by @einenlum in https://github.com/danestves/laravel-polar/pull/53
+* fix: specify factories for models by @einenlum in https://github.com/danestves/laravel-polar/pull/51
+
+### New Contributors
+
+* @andrzejchmura made their first contribution in https://github.com/danestves/laravel-polar/pull/52
+* @einenlum made their first contribution in https://github.com/danestves/laravel-polar/pull/53
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.0.2...v2.0.3
+
 ## v2.0.2 - 2025-12-03
 
 ### What's Changed
@@ -104,6 +119,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -114,11 +130,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
