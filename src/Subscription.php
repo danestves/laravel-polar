@@ -2,6 +2,7 @@
 
 namespace Danestves\LaravelPolar;
 
+use Danestves\LaravelPolar\Database\Factories\SubscriptionFactory;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use Polar\Models\Components\SubscriptionProrationBehavior;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,7 +32,7 @@ use Polar\Models\Components\SubscriptionStatus;
  */
 class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Billable is used in the user final code
 {
-    /** @use HasFactory<\Danestves\LaravelPolar\Database\Factories\SubscriptionFactory> */
+    /** @use HasFactory<SubscriptionFactory> */
     use HasFactory;
 
     /**
@@ -319,5 +320,10 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             'current_period_end' => 'datetime',
             'ends_at' => 'datetime',
         ];
+    }
+
+    protected static function newFactory(): SubscriptionFactory
+    {
+        return SubscriptionFactory::new();
     }
 }
