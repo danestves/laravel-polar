@@ -43,6 +43,8 @@ class Checkout implements Responsable
     private ?string $subscriptionId = null;
 
     private ?string $successUrl = null;
+    
+    private ?string $returnUrl = null;
 
     private ?string $embedOrigin = null;
 
@@ -223,6 +225,16 @@ class Checkout implements Responsable
 
         return $this;
     }
+    
+    /**
+     * When set, a back button will be shown in the checkout to return to this URL.
+     */
+    public function withReturnUrl(string $returnUrl): self
+    {
+        $this->returnUrl = $returnUrl;
+
+        return $this;
+    }
 
     /**
      * If you plan to embed the checkout session, set this to the Origin of the embedding page. It'll allow the Polar iframe to communicate with the parent page.
@@ -271,6 +283,7 @@ class Checkout implements Responsable
             customerMetadata: $this->customerMetadata,
             subscriptionId: $this->subscriptionId,
             successUrl: $this->successUrl,
+            returnUrl: $this->returnUrl,
             embedOrigin: $this->embedOrigin,
         );
 
