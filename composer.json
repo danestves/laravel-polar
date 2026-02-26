@@ -24,7 +24,7 @@
         "spatie/laravel-data": "^4.0",
         "spatie/laravel-package-tools": "^1",
         "spatie/laravel-webhook-client": "^3.0",
-        "standard-webhooks/standard-webhooks": "dev-main"
+        "standard-webhooks/standard-webhooks": "^1.0"
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
