@@ -43,7 +43,7 @@ class Checkout implements Responsable
     private ?string $subscriptionId = null;
 
     private ?string $successUrl = null;
-    
+
     private ?string $returnUrl = null;
 
     private ?string $embedOrigin = null;
@@ -225,7 +225,7 @@ class Checkout implements Responsable
 
         return $this;
     }
-    
+
     /**
      * When set, a back button will be shown in the checkout to return to this URL.
      */
