@@ -113,6 +113,24 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     }
 
     /**
+     * Check if the order is void.
+     */
+    public function void(): bool
+    {
+        return $this->status === OrderStatus::Void;
+    }
+
+    /**
+     * Filter query by void.
+     *
+     * @param  Builder<Order>  $query
+     */
+    public function scopeVoid(Builder $query): void
+    {
+        $query->where('status', OrderStatus::Void);
+    }
+
+    /**
      * Determine if the order is for a specific product.
      */
     public function hasProduct(string $productId): bool
