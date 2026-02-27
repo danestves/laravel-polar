@@ -168,6 +168,7 @@ Configure the webhook for the following events that this package supports:
 - `benefit_grant.revoked`
 - `checkout.created`
 - `checkout.updated`
+- `checkout.expired`
 - `customer.created`
 - `customer.updated`
 - `customer.deleted`
@@ -819,6 +820,7 @@ The package dispatches the following webhook events:
 **Checkout Events:**
 - `Danestves\LaravelPolar\Events\CheckoutCreated`
 - `Danestves\LaravelPolar\Events\CheckoutUpdated`
+- `Danestves\LaravelPolar\Events\CheckoutExpired`
 
 **Customer Events:**
 - `Danestves\LaravelPolar\Events\CustomerCreated`
@@ -848,7 +850,7 @@ Each of these events has a `$payload` property containing the webhook payload. S
 
 | Event | Access Pattern |
 |-------|----------------|
-| `CheckoutCreated`, `CheckoutUpdated` | `$event->payload->checkout` |
+| `CheckoutCreated`, `CheckoutUpdated`, `CheckoutExpired` | `$event->payload->checkout` |
 | `CustomerCreated`, `CustomerUpdated`, `CustomerDeleted`, `CustomerStateChanged` | `$event->payload->customer` |
 | `ProductCreated`, `ProductUpdated` | `$event->payload->product` |
 | `BenefitCreated`, `BenefitUpdated` | `$event->payload->benefit` |
