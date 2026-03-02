@@ -46,6 +46,8 @@ class Checkout implements Responsable
 
     private ?string $returnUrl = null;
 
+    private ?Components\PresentmentCurrency $currency = null;
+
     private ?string $embedOrigin = null;
 
     /**
@@ -237,6 +239,16 @@ class Checkout implements Responsable
     }
 
     /**
+     * The presentment currency for the checkout.
+     */
+    public function withCurrency(Components\PresentmentCurrency $currency): self
+    {
+        $this->currency = $currency;
+
+        return $this;
+    }
+
+    /**
      * If you plan to embed the checkout session, set this to the Origin of the embedding page. It'll allow the Polar iframe to communicate with the parent page.
      */
     public function withEmbedOrigin(string $embedOrigin): self
@@ -273,6 +285,7 @@ class Checkout implements Responsable
             discountId: $this->discountId,
             allowDiscountCodes: $this->allowDiscountCodes,
             amount: $this->amount,
+            currency: $this->currency,
             customerId: $this->customerId,
             externalCustomerId: $this->customerExternalId,
             customerName: $this->customerName,

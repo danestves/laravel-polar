@@ -69,6 +69,13 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
             $checkout->withAmount((int) $options['amount']);
         }
 
+        if (isset($options['currency'])) {
+            $currency = Components\PresentmentCurrency::tryFrom($options['currency']);
+            if ($currency !== null) {
+                $checkout->withCurrency($currency);
+            }
+        }
+
         return $checkout;
     }
 

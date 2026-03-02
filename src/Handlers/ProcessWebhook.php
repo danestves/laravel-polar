@@ -11,6 +11,7 @@ use Danestves\LaravelPolar\Events\BenefitGrantRevoked;
 use Danestves\LaravelPolar\Events\BenefitGrantUpdated;
 use Danestves\LaravelPolar\Events\BenefitUpdated;
 use Danestves\LaravelPolar\Events\CheckoutCreated;
+use Danestves\LaravelPolar\Events\CheckoutExpired;
 use Danestves\LaravelPolar\Events\CheckoutUpdated;
 use Danestves\LaravelPolar\Events\CustomerCreated;
 use Danestves\LaravelPolar\Events\CustomerDeleted;
@@ -75,6 +76,7 @@ class ProcessWebhook extends ProcessWebhookJob
             'benefit_grant.revoked' => $this->handleBenefitGrantRevoked($data, $timestamp, $type),
             'checkout.created' => $this->handleCheckoutCreated($data, $timestamp, $type),
             'checkout.updated' => $this->handleCheckoutUpdated($data, $timestamp, $type),
+            'checkout.expired' => $this->handleCheckoutExpired($data, $timestamp, $type),
             'customer.created' => $this->handleCustomerCreated($data, $timestamp, $type),
             'customer.updated' => $this->handleCustomerUpdated($data, $timestamp, $type),
             'customer.deleted' => $this->handleCustomerDeleted($data, $timestamp, $type),
@@ -532,6 +534,17 @@ class ProcessWebhook extends ProcessWebhookJob
     }
 
     /**
+     * Handle the checkout expired event.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function handleCheckoutExpired(array $data, \DateTime $timestamp, string $type): void
+    {
+        $payload = $this->createCheckoutExpiredPayload($data, $timestamp, $type);
+        CheckoutExpired::dispatch($payload);
+    }
+
+    /**
      * Handle the customer created event.
      *
      * @param  array<string, mixed>  $data
@@ -635,6 +648,15 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $checkout = $this->arrayToCheckout($data);
         return new Components\WebhookCheckoutUpdatedPayload($timestamp, $checkout, $type);
+    }
+
+    /**
+     * Create WebhookCheckoutExpiredPayload from array data.
+     */
+    private function createCheckoutExpiredPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCheckoutExpiredPayload
+    {
+        $checkout = $this->arrayToCheckout($data);
+        return new Components\WebhookCheckoutExpiredPayload($timestamp, $checkout, $type);
     }
 
     /**
