@@ -2,6 +2,19 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.1.0 - 2026-03-02
+
+### What's Changed
+
+* Add return url for checkouts by @damms005 in https://github.com/danestves/laravel-polar/pull/58
+* feat: support for polar-sh/sdk v0.8.0 by @adiologydev in https://github.com/danestves/laravel-polar/pull/60
+
+### New Contributors
+
+* @damms005 made their first contribution in https://github.com/danestves/laravel-polar/pull/58
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.0.4...v2.1.0
+
 ## v2.0.4 - 2026-02-26
 
 ### What's Changed
@@ -134,6 +147,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -146,11 +160,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
