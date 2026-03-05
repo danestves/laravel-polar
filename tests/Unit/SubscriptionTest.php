@@ -38,6 +38,23 @@ it('can determine if the subscription is cancelled', function () {
     expect($subscription->active())->toBeFalse();
 });
 
+it('returns trial ends at value', function () {
+    $trialEnd = now()->addDays(14);
+    $subscription = new Subscription([
+        'status' => SubscriptionStatus::Trialing,
+        'trial_ends_at' => $trialEnd,
+    ]);
+
+    expect($subscription->trialEndsAt())->not->toBeNull();
+    expect($subscription->trialEndsAt()->toIso8601String())->toBe($trialEnd->toIso8601String());
+});
+
+it('returns null for trial ends at when not set', function () {
+    $subscription = new Subscription(['status' => SubscriptionStatus::Active]);
+
+    expect($subscription->trialEndsAt())->toBeNull();
+});
+
 it('can determine if the subscription is on a specific product', function () {
     $subscription = new Subscription(['product_id' => '45067']);
 

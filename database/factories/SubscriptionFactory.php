@@ -105,6 +105,7 @@ class SubscriptionFactory extends Factory
     {
         return $this->state([
             'status' => SubscriptionStatus::Trialing,
+            'trial_ends_at' => now()->addDays(14),
         ]);
     }
 

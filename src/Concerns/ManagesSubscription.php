@@ -41,6 +41,16 @@ trait ManagesSubscription // @phpstan-ignore-line trait.unused - ManagesSubscrip
     }
 
     /**
+     * Determine if the billable has a subscription that is currently on trial.
+     */
+    public function onTrial(string $type = 'default'): bool
+    {
+        $subscription = $this->subscription($type);
+
+        return $subscription !== null && $subscription->onTrial();
+    }
+
+    /**
      * Determine if the billable has a valid subscription for the given variant.
      */
     public function subscribedToProduct(string $productId, string $type = 'default'): bool

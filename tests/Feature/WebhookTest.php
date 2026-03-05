@@ -233,6 +233,43 @@ it('handles subscription.created webhook', function () {
     Event::assertDispatched(SubscriptionCreated::class);
 });
 
+it('handles subscription.created webhook with trial data', function () {
+    $user = User::factory()->create();
+    $trialEnd = now()->addDays(14)->toIso8601String();
+
+    $payload = [
+        'type' => 'subscription.created',
+        'data' => [
+            'id' => 'subscription_trial_123',
+            'status' => SubscriptionStatus::Trialing->value,
+            'product_id' => 'product_123',
+            'customer_id' => 'customer_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+            'current_period_end' => now()->addDays(30)->toIso8601String(),
+            'trial_end' => $trialEnd,
+            'ends_at' => null,
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    $subscription = Subscription::where('polar_id', 'subscription_trial_123')->first();
+    expect($subscription)->not->toBeNull();
+    expect($subscription->status)->toBe(SubscriptionStatus::Trialing);
+    expect($subscription->trial_ends_at)->not->toBeNull();
+    expect($subscription->trial_ends_at->toIso8601String())->toBe($trialEnd);
+
+    Event::assertDispatched(SubscriptionCreated::class);
+});
+
 it('handles subscription.updated webhook', function () {
     $user = User::factory()->create();
     $subscription = Subscription::factory()->active()->create([
@@ -259,6 +296,40 @@ it('handles subscription.updated webhook', function () {
     $subscription->refresh();
     expect($subscription->status)->toBe(SubscriptionStatus::PastDue);
     expect($subscription->product_id)->toBe('product_456');
+
+    Event::assertDispatched(SubscriptionUpdated::class);
+});
+
+it('handles subscription.updated webhook with trial data', function () {
+    $user = User::factory()->create();
+    $subscription = Subscription::factory()->trialing()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'subscription_123',
+    ]);
+
+    $trialEnd = now()->addDays(30)->toIso8601String();
+
+    $payload = [
+        'type' => 'subscription.updated',
+        'data' => [
+            'id' => 'subscription_123',
+            'status' => SubscriptionStatus::Trialing->value,
+            'product_id' => 'product_123',
+            'current_period_end' => now()->addDays(30)->toIso8601String(),
+            'trial_end' => $trialEnd,
+            'ends_at' => null,
+        ],
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    $subscription->refresh();
+    expect($subscription->status)->toBe(SubscriptionStatus::Trialing);
+    expect($subscription->trial_ends_at)->not->toBeNull();
+    expect($subscription->trial_ends_at->toIso8601String())->toBe($trialEnd);
 
     Event::assertDispatched(SubscriptionUpdated::class);
 });

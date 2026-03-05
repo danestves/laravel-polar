@@ -164,6 +164,7 @@ class ProcessWebhook extends ProcessWebhookJob
             'status' => \is_string($data['status']) ? SubscriptionStatus::from($data['status']) : $data['status'],
             'product_id' => $data['product_id'],
             'current_period_end' => $data['current_period_end'] ? Carbon::make($data['current_period_end']) : null,
+            'trial_ends_at' => isset($data['trial_end']) ? Carbon::make($data['trial_end']) : null,
             'ends_at' => $data['ends_at'] ? Carbon::make($data['ends_at']) : null,
         ]);
 
