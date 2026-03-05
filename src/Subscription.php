@@ -120,11 +120,31 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     }
 
     /**
+     * Get the trial end date.
+     */
+    public function trialEndsAt(): ?Carbon
+    {
+        return $this->trial_ends_at;
+    }
+
+    /**
      * Determine if the subscription's trial has expired.
      */
     public function hasExpiredTrial(): bool
     {
         return $this->trial_ends_at && $this->trial_ends_at->isPast();
+    }
+
+    /**
+     * Update the trial end date for the subscription.
+     */
+    public function updateTrial(\DateTimeInterface $trialEnd): self
+    {
+        $request = new Components\SubscriptionUpdateTrial(
+            trialEnd: \DateTime::createFromInterface($trialEnd),
+        );
+
+        return $this->updateAndSync($request);
     }
 
     /**
@@ -286,6 +306,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             'status' => $subscription->status,
             'product_id' => $subscription->productId,
             'current_period_end' => $subscription->currentPeriodEnd ? Carbon::make($subscription->currentPeriodEnd) : null,
+            'trial_ends_at' => $subscription->trialEnd ? Carbon::make($subscription->trialEnd) : null,
             'ends_at' => $subscription->endedAt ? Carbon::make($subscription->endedAt) : null,
         ]);
 
@@ -303,6 +324,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             'status' => \is_string($attributes['status']) ? SubscriptionStatus::from($attributes['status']) : $attributes['status'],
             'product_id' => $attributes['product_id'],
             'current_period_end' => isset($attributes['current_period_end']) ? Carbon::make($attributes['current_period_end']) : null,
+            'trial_ends_at' => isset($attributes['trial_end']) ? Carbon::make($attributes['trial_end']) : null,
             'ends_at' => isset($attributes['ends_at']) ? Carbon::make($attributes['ends_at']) : null,
         ]);
 
@@ -318,6 +340,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
         return [
             'status' => SubscriptionStatus::class,
             'current_period_end' => 'datetime',
+            'trial_ends_at' => 'datetime',
             'ends_at' => 'datetime',
         ];
     }

@@ -146,6 +146,27 @@ it('can sync subscription data', function () {
     expect($subscription->current_period_end)->not->toBeNull();
 });
 
+it('can sync subscription data with trial end', function () {
+    $subscription = Subscription::factory()->active()->create([
+        'product_id' => 'product_123',
+    ]);
+
+    $trialEnd = now()->addDays(14)->toIso8601String();
+
+    $subscription->sync([
+        'status' => SubscriptionStatus::Trialing->value,
+        'product_id' => 'product_123',
+        'current_period_end' => now()->addDays(30)->toIso8601String(),
+        'trial_end' => $trialEnd,
+        'ends_at' => null,
+    ]);
+
+    $subscription->refresh();
+    expect($subscription->status)->toBe(SubscriptionStatus::Trialing);
+    expect($subscription->trial_ends_at)->not->toBeNull();
+    expect($subscription->trial_ends_at->toIso8601String())->toBe($trialEnd);
+});
+
 it('throws exception when resuming incomplete expired subscription', function () {
     $subscription = Subscription::factory()->incompleteExpired()->create([
         'polar_id' => 'polar_sub_123',

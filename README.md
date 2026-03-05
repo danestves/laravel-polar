@@ -660,8 +660,43 @@ When a cancelled subscription approaches the end of its grace period, it becomes
 
 #### Subscription Trials
 
-> [!NOTE]
-> Coming soon.
+Polar supports trials on subscriptions. Trial data is automatically synced when subscriptions are created or updated via webhooks.
+
+You can check if a subscription is currently on trial:
+
+```php
+if ($user->subscription()->onTrial()) {
+    // ...
+}
+```
+
+Or check directly on the billable:
+
+```php
+if ($user->onTrial()) {
+    // ...
+}
+```
+
+You can retrieve the trial end date:
+
+```php
+$trialEnd = $user->subscription()->trialEndsAt();
+```
+
+You can also check if a trial has expired:
+
+```php
+if ($user->subscription()->hasExpiredTrial()) {
+    // ...
+}
+```
+
+To update the trial period of a subscription:
+
+```php
+$user->subscription()->updateTrial(now()->addDays(30));
+```
 
 ### Benefits
 
@@ -1034,9 +1069,6 @@ class EventServiceProvider extends ServiceProvider
 Laravel v11 and v12 will automatically discover listeners and subscribers if they follow Laravel's naming conventions.
 
 ## Roadmap
-
-- [ ] Add support for trials
-    Polar itself doesn't support trials, but we can manage them by ourselves.
 
 ## Testing
 
