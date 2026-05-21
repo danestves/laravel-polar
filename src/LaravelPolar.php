@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.11.0';
+    public const string VERSION = '2.12.0';
 
     /**
      * The cached Polar SDK instance.
@@ -296,6 +296,99 @@ class LaravelPolar
         }
 
         throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    }
+
+    /**
+     * Fetch Polar metrics (analytics) for a given period. Wraps the SDK's
+     * MetricsGetRequest with all original parameters.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function getMetrics(Operations\MetricsGetRequest $request): Components\MetricsResponse
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->metrics->get(request: $request);
+
+        if ($response->statusCode === 200 && $response->metricsResponse !== null) {
+            return $response->metricsResponse;
+        }
+
+        throw new Errors\APIException('Failed to get metrics', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * List files (admin-scoped).
+     *
+     * @param  string|array<string>|null  $organizationId
+     * @param  string|array<string>|null  $ids
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listFiles(string|array|null $organizationId = null, string|array|null $ids = null, ?int $page = null, ?int $limit = null): Operations\FilesListResponse
+    {
+        $sdk = self::sdk();
+
+        $generator = $sdk->files->list(
+            organizationId: $organizationId,
+            ids: $ids,
+            page: $page,
+            limit: $limit,
+        );
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list files', 500, '', null);
+    }
+
+    /**
+     * List organizations the authenticated access token has access to.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listOrganizations(?string $slug = null, ?int $page = null, ?int $limit = null): Operations\OrganizationsListResponse
+    {
+        $sdk = self::sdk();
+
+        $generator = $sdk->organizations->list(
+            slug: $slug,
+            page: $page,
+            limit: $limit,
+        );
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list organizations', 500, '', null);
+    }
+
+    /**
+     * Get a single organization by ID.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function getOrganization(string $organizationId): Components\Organization
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->organizations->get(id: $organizationId);
+
+        if ($response->statusCode === 200 && $response->organization !== null) {
+            return $response->organization;
+        }
+
+        throw new Errors\APIException('Failed to get organization', $response->statusCode ?? 500, '', null);
     }
 
     /**
