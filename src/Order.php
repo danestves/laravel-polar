@@ -77,6 +77,45 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     }
 
     /**
+     * Cached custom-field data fetched from Polar.
+     *
+     * @var array<string, string|int|bool|\DateTime|null>|null
+     */
+    protected ?array $cachedCustomFieldData = null;
+
+    /**
+     * Fetch the custom-field data captured at checkout for this order.
+     *
+     * Data is not persisted in `polar_orders`; this method fetches the order
+     * from Polar on demand and memoizes the result for the lifetime of this
+     * Order instance.
+     *
+     * @return array<string, string|int|bool|\DateTime|null>
+     *
+     * @throws \Polar\Models\Errors\APIException
+     * @throws \Exception
+     */
+    public function customFieldData(): array
+    {
+        if ($this->cachedCustomFieldData !== null) {
+            return $this->cachedCustomFieldData;
+        }
+
+        if ($this->polar_id === null) {
+            return $this->cachedCustomFieldData = [];
+        }
+
+        $sdkResponse = LaravelPolar::sdk()->orders->get(id: $this->polar_id);
+        $sdkOrder = $sdkResponse->order;
+
+        if ($sdkOrder === null) {
+            return $this->cachedCustomFieldData = [];
+        }
+
+        return $this->cachedCustomFieldData = $sdkOrder->customFieldData ?? [];
+    }
+
+    /**
      * Issue a refund for this order. Defaults to refunding the remaining
      * unrefunded amount with reason "customer_request".
      *

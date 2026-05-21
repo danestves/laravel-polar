@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.6.0';
+    public const string VERSION = '2.7.0';
 
     /**
      * The cached Polar SDK instance.
@@ -296,6 +296,105 @@ class LaravelPolar
         }
 
         throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    }
+
+    /**
+     * Create a custom field.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function createCustomField(Components\CustomFieldCreateText|Components\CustomFieldCreateNumber|Components\CustomFieldCreateDate|Components\CustomFieldCreateCheckbox|Components\CustomFieldCreateSelect $request): Components\CustomFieldText|Components\CustomFieldNumber|Components\CustomFieldDate|Components\CustomFieldCheckbox|Components\CustomFieldSelect
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customFields->create(request: $request);
+
+        if ($response->statusCode === 201 && $response->customField !== null) {
+            return $response->customField;
+        }
+
+        throw new Errors\APIException('Failed to create custom field', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Update a custom field.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function updateCustomField(string $customFieldId, Components\CustomFieldUpdateText|Components\CustomFieldUpdateNumber|Components\CustomFieldUpdateDate|Components\CustomFieldUpdateCheckbox|Components\CustomFieldUpdateSelect $request): Components\CustomFieldText|Components\CustomFieldNumber|Components\CustomFieldDate|Components\CustomFieldCheckbox|Components\CustomFieldSelect
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customFields->update(customFieldUpdate: $request, id: $customFieldId);
+
+        if ($response->statusCode === 200 && $response->customField !== null) {
+            return $response->customField;
+        }
+
+        throw new Errors\APIException('Failed to update custom field', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Delete a custom field.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function deleteCustomField(string $customFieldId): void
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customFields->delete(id: $customFieldId);
+
+        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
+            throw new Errors\APIException('Failed to delete custom field', $response->statusCode, '', null);
+        }
+    }
+
+    /**
+     * List custom fields.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listCustomFields(?Operations\CustomFieldsListRequest $request = null): Operations\CustomFieldsListResponse
+    {
+        $sdk = self::sdk();
+
+        if ($request === null) {
+            $request = new Operations\CustomFieldsListRequest();
+        }
+
+        $generator = $sdk->customFields->list(request: $request);
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list custom fields', 500, '', null);
+    }
+
+    /**
+     * Get a specific custom field by ID.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function getCustomField(string $customFieldId): Components\CustomFieldText|Components\CustomFieldNumber|Components\CustomFieldDate|Components\CustomFieldCheckbox|Components\CustomFieldSelect
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customFields->get(id: $customFieldId);
+
+        if ($response->statusCode === 200 && $response->customField !== null) {
+            return $response->customField;
+        }
+
+        throw new Errors\APIException('Failed to get custom field', $response->statusCode ?? 500, '', null);
     }
 
     /**
