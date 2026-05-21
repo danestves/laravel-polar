@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.4.0';
+    public const string VERSION = '2.5.0';
 
     /**
      * The cached Polar SDK instance.
@@ -296,6 +296,105 @@ class LaravelPolar
         }
 
         throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    }
+
+    /**
+     * Create a discount.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function createDiscount(Components\DiscountFixedOnceForeverDurationCreate|Components\DiscountFixedRepeatDurationCreate|Components\DiscountPercentageOnceForeverDurationCreate|Components\DiscountPercentageRepeatDurationCreate $request): Components\DiscountFixedOnceForeverDuration|Components\DiscountFixedRepeatDuration|Components\DiscountPercentageOnceForeverDuration|Components\DiscountPercentageRepeatDuration
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->discounts->create(request: $request);
+
+        if ($response->statusCode === 201 && $response->discount !== null) {
+            return $response->discount;
+        }
+
+        throw new Errors\APIException('Failed to create discount', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Update a discount.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function updateDiscount(string $discountId, Components\DiscountUpdate $request): Components\DiscountFixedOnceForeverDuration|Components\DiscountFixedRepeatDuration|Components\DiscountPercentageOnceForeverDuration|Components\DiscountPercentageRepeatDuration
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->discounts->update(discountUpdate: $request, id: $discountId);
+
+        if ($response->statusCode === 200 && $response->discount !== null) {
+            return $response->discount;
+        }
+
+        throw new Errors\APIException('Failed to update discount', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Delete a discount.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function deleteDiscount(string $discountId): void
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->discounts->delete(id: $discountId);
+
+        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
+            throw new Errors\APIException('Failed to delete discount', $response->statusCode, '', null);
+        }
+    }
+
+    /**
+     * List discounts.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listDiscounts(?Operations\DiscountsListRequest $request = null): Operations\DiscountsListResponse
+    {
+        $sdk = self::sdk();
+
+        if ($request === null) {
+            $request = new Operations\DiscountsListRequest();
+        }
+
+        $generator = $sdk->discounts->list(request: $request);
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list discounts', 500, '', null);
+    }
+
+    /**
+     * Get a specific discount by ID.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function getDiscount(string $discountId): Components\DiscountFixedOnceForeverDuration|Components\DiscountFixedRepeatDuration|Components\DiscountPercentageOnceForeverDuration|Components\DiscountPercentageRepeatDuration
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->discounts->get(id: $discountId);
+
+        if ($response->statusCode === 200 && $response->discount !== null) {
+            return $response->discount;
+        }
+
+        throw new Errors\APIException('Failed to get discount', $response->statusCode ?? 500, '', null);
     }
 
     /**
