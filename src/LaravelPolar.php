@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.5.0';
+    public const string VERSION = '2.6.0';
 
     /**
      * The cached Polar SDK instance.
@@ -296,6 +296,105 @@ class LaravelPolar
         }
 
         throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    }
+
+    /**
+     * Create a checkout link.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function createCheckoutLink(Components\CheckoutLinkCreateProductPrice|Components\CheckoutLinkCreateProduct|Components\CheckoutLinkCreateProducts $request): Components\CheckoutLink
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->checkoutLinks->create(request: $request);
+
+        if ($response->statusCode === 201 && $response->checkoutLink !== null) {
+            return $response->checkoutLink;
+        }
+
+        throw new Errors\APIException('Failed to create checkout link', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Update a checkout link.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function updateCheckoutLink(string $checkoutLinkId, Components\CheckoutLinkUpdate $request): Components\CheckoutLink
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->checkoutLinks->update(checkoutLinkUpdate: $request, id: $checkoutLinkId);
+
+        if ($response->statusCode === 200 && $response->checkoutLink !== null) {
+            return $response->checkoutLink;
+        }
+
+        throw new Errors\APIException('Failed to update checkout link', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Delete a checkout link.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function deleteCheckoutLink(string $checkoutLinkId): void
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->checkoutLinks->delete(id: $checkoutLinkId);
+
+        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
+            throw new Errors\APIException('Failed to delete checkout link', $response->statusCode, '', null);
+        }
+    }
+
+    /**
+     * List checkout links.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listCheckoutLinks(?Operations\CheckoutLinksListRequest $request = null): Operations\CheckoutLinksListResponse
+    {
+        $sdk = self::sdk();
+
+        if ($request === null) {
+            $request = new Operations\CheckoutLinksListRequest();
+        }
+
+        $generator = $sdk->checkoutLinks->list(request: $request);
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list checkout links', 500, '', null);
+    }
+
+    /**
+     * Get a specific checkout link by ID.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function getCheckoutLink(string $checkoutLinkId): Components\CheckoutLink
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->checkoutLinks->get(id: $checkoutLinkId);
+
+        if ($response->statusCode === 200 && $response->checkoutLink !== null) {
+            return $response->checkoutLink;
+        }
+
+        throw new Errors\APIException('Failed to get checkout link', $response->statusCode ?? 500, '', null);
     }
 
     /**
