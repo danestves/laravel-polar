@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.10.0';
+    public const string VERSION = '2.11.0';
 
     /**
      * The cached Polar SDK instance.
@@ -296,6 +296,82 @@ class LaravelPolar
         }
 
         throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    }
+
+    /**
+     * List the seats on a subscription or order.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listSeats(?string $subscriptionId = null, ?string $orderId = null): Components\SeatsList
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customerSeats->listSeats(subscriptionId: $subscriptionId, orderId: $orderId);
+
+        if ($response->statusCode === 200 && $response->seatsList !== null) {
+            return $response->seatsList;
+        }
+
+        throw new Errors\APIException('Failed to list seats', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Assign a seat to a member by email, customer id, or external id.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function assignSeat(Components\SeatAssign $request): Components\CustomerSeat
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customerSeats->assignSeat(request: $request);
+
+        if ($response->statusCode === 200 && $response->customerSeat !== null) {
+            return $response->customerSeat;
+        }
+
+        throw new Errors\APIException('Failed to assign seat', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Revoke a seat from a member.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function revokeSeat(string $seatId): Components\CustomerSeat
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customerSeats->revokeSeat(seatId: $seatId);
+
+        if ($response->statusCode === 200 && $response->customerSeat !== null) {
+            return $response->customerSeat;
+        }
+
+        throw new Errors\APIException('Failed to revoke seat', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Resend the invitation email for a pending seat.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function resendSeatInvitation(string $seatId): Components\CustomerSeat
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->customerSeats->resendInvitation(seatId: $seatId);
+
+        if ($response->statusCode === 200 && $response->customerSeat !== null) {
+            return $response->customerSeat;
+        }
+
+        throw new Errors\APIException('Failed to resend seat invitation', $response->statusCode ?? 500, '', null);
     }
 
     /**
