@@ -289,6 +289,49 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     }
 
     /**
+     * List the seats on this subscription.
+     */
+    public function seats(): Components\SeatsList
+    {
+        return LaravelPolar::listSeats(subscriptionId: $this->polar_id);
+    }
+
+    /**
+     * Assign a seat on this subscription to a member by email, customer id, or
+     * external customer id. Passing none of the three creates a pending seat
+     * that can be claimed via an invitation link.
+     *
+     * @param  array<string, mixed>|null  $metadata
+     */
+    public function assignSeat(?string $email = null, ?string $customerId = null, ?string $externalCustomerId = null, ?array $metadata = null, ?bool $immediateClaim = false): Components\CustomerSeat
+    {
+        return LaravelPolar::assignSeat(new Components\SeatAssign(
+            subscriptionId: $this->polar_id,
+            email: $email,
+            customerId: $customerId,
+            externalCustomerId: $externalCustomerId,
+            metadata: $metadata,
+            immediateClaim: $immediateClaim,
+        ));
+    }
+
+    /**
+     * Revoke a seat from this subscription.
+     */
+    public function revokeSeat(string $seatId): Components\CustomerSeat
+    {
+        return LaravelPolar::revokeSeat($seatId);
+    }
+
+    /**
+     * Resend the invitation email for a pending seat on this subscription.
+     */
+    public function resendSeatInvitation(string $seatId): Components\CustomerSeat
+    {
+        return LaravelPolar::resendSeatInvitation($seatId);
+    }
+
+    /**
      * Remove any active discount from this subscription on the next billing cycle.
      */
     public function removeDiscount(): self
