@@ -2,6 +2,25 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.8.0 - 2026-05-21
+
+### What's Changed
+
+* feat(subscription): Cashier-style applyDiscount / removeDiscount by @danestves in https://github.com/danestves/laravel-polar/pull/78
+
+Closes the Cashier-parallel gap from the v2.5 admin Discount CRUD: the package can now apply a discount on an existing subscription, not just at checkout.
+
+```php
+$subscription->applyDiscount('disc_xxx');
+$subscription->removeDiscount();
+```
+
+Both methods return `$this` for chaining and apply on the next billing cycle (Polar's default for discount changes).
+
+See [`docs/migration-v2.7-to-v2.8.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.7-to-v2.8.md).
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.7.0...v2.8.0
+
 ## v2.7.0 - 2026-05-21
 
 ### What's Changed
@@ -19,8 +38,8 @@ LaravelPolar::getCustomField('cf_xxx');
 
 // Read collected data from an Order (fetched on demand, memoized per instance):
 $order->customFieldData();
-```
 
+```
 See [`docs/migration-v2.6-to-v2.7.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.6-to-v2.7.md).
 
 **Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.6.0...v2.7.0
@@ -43,6 +62,7 @@ LaravelPolar::deleteCheckoutLink('cl_xxx');
 LaravelPolar::listCheckoutLinks();
 LaravelPolar::getCheckoutLink('cl_xxx');
 
+
 ```
 See [`docs/migration-v2.5-to-v2.6.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.5-to-v2.6.md).
 
@@ -64,6 +84,7 @@ LaravelPolar::listDiscounts();
 LaravelPolar::getDiscount('disc_xxx');
 
 
+
 ```
 See [`docs/migration-v2.4-to-v2.5.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.4-to-v2.5.md).
 
@@ -83,6 +104,7 @@ use Polar\Models\Components\RefundReason;
 $order->refund();                                              // refund the remaining unrefunded amount
 $order->refund(amount: 2500, reason: RefundReason::Fraudulent); // partial refund with custom reason
 $order->refunds();                                             // Collection of Refund items for this order
+
 
 
 
@@ -254,6 +276,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -272,11 +295,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
