@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.8.0';
+    public const string VERSION = '2.9.0';
 
     /**
      * The cached Polar SDK instance.
@@ -296,6 +296,177 @@ class LaravelPolar
         }
 
         throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    }
+
+    /**
+     * List license keys (admin-scoped, requires an org-scoped access token).
+     *
+     * @param  string|array<string>|null  $organizationId
+     * @param  string|array<string>|null  $benefitId
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listLicenseKeys(string|array|null $organizationId = null, string|array|null $benefitId = null, ?int $page = null, ?int $limit = null): Operations\LicenseKeysListResponse
+    {
+        $sdk = self::sdk();
+
+        $generator = $sdk->licenseKeys->list(
+            organizationId: $organizationId,
+            benefitId: $benefitId,
+            page: $page,
+            limit: $limit,
+        );
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list license keys', 500, '', null);
+    }
+
+    /**
+     * Get a license key by ID (admin-scoped).
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function getLicenseKey(string $licenseKeyId): Components\LicenseKeyWithActivations
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->licenseKeys->get(id: $licenseKeyId);
+
+        if ($response->statusCode === 200 && $response->licenseKeyWithActivations !== null) {
+            return $response->licenseKeyWithActivations;
+        }
+
+        throw new Errors\APIException('Failed to get license key', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Update a license key (admin-scoped).
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function updateLicenseKey(string $licenseKeyId, Components\LicenseKeyUpdate $request): Components\LicenseKeyRead
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->licenseKeys->update(licenseKeyUpdate: $request, id: $licenseKeyId);
+
+        if ($response->statusCode === 200 && $response->licenseKeyRead !== null) {
+            return $response->licenseKeyRead;
+        }
+
+        throw new Errors\APIException('Failed to update license key', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Validate a license key. Public-facing — does not require an org-scoped
+     * access token but does require an organization id (passed as arg or
+     * configured via polar.organization_id).
+     *
+     * @param  array<string, mixed>|null  $conditions
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function validateLicenseKey(string $key, ?string $organizationId = null, ?string $activationId = null, ?array $conditions = null, ?string $benefitId = null, ?string $customerId = null, ?int $incrementUsage = null): Components\ValidatedLicenseKey
+    {
+        $sdk = self::sdk();
+
+        $request = new Components\LicenseKeyValidate(
+            key: $key,
+            organizationId: self::resolveOrganizationId($organizationId),
+            conditions: $conditions,
+            activationId: $activationId,
+            benefitId: $benefitId,
+            customerId: $customerId,
+            incrementUsage: $incrementUsage,
+        );
+
+        $response = $sdk->licenseKeys->validate(request: $request);
+
+        if ($response->statusCode === 200 && $response->validatedLicenseKey !== null) {
+            return $response->validatedLicenseKey;
+        }
+
+        throw new Errors\APIException('Failed to validate license key', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Activate a license key. Public-facing — does not require an org-scoped
+     * access token but does require an organization id (passed as arg or
+     * configured via polar.organization_id).
+     *
+     * @param  array<string, mixed>|null  $conditions
+     * @param  array<string, mixed>|null  $meta
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function activateLicenseKey(string $key, string $label, ?string $organizationId = null, ?array $conditions = null, ?array $meta = null): Components\LicenseKeyActivationRead
+    {
+        $sdk = self::sdk();
+
+        $request = new Components\LicenseKeyActivate(
+            key: $key,
+            organizationId: self::resolveOrganizationId($organizationId),
+            label: $label,
+            conditions: $conditions,
+            meta: $meta,
+        );
+
+        $response = $sdk->licenseKeys->activate(request: $request);
+
+        if ($response->statusCode === 200 && $response->licenseKeyActivationRead !== null) {
+            return $response->licenseKeyActivationRead;
+        }
+
+        throw new Errors\APIException('Failed to activate license key', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * Deactivate a license key activation. Public-facing — same auth pattern
+     * as activate/validate.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function deactivateLicenseKey(string $key, string $activationId, ?string $organizationId = null): void
+    {
+        $sdk = self::sdk();
+
+        $request = new Components\LicenseKeyDeactivate(
+            key: $key,
+            organizationId: self::resolveOrganizationId($organizationId),
+            activationId: $activationId,
+        );
+
+        $response = $sdk->licenseKeys->deactivate(request: $request);
+
+        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
+            throw new Errors\APIException('Failed to deactivate license key', $response->statusCode, '', null);
+        }
+    }
+
+    /**
+     * Resolve an organization id from an explicit argument or the config
+     * fallback. Throws when neither is set.
+     */
+    private static function resolveOrganizationId(?string $organizationId): string
+    {
+        $resolved = $organizationId ?? config('polar.organization_id');
+
+        if (! is_string($resolved) || $resolved === '') {
+            throw new \InvalidArgumentException('Polar organization id is required. Pass it explicitly or set polar.organization_id in your config.');
+        }
+
+        return $resolved;
     }
 
     /**

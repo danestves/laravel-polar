@@ -15,6 +15,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Polar Organization ID
+    |--------------------------------------------------------------------------
+    |
+    | Optional. Some Polar endpoints (notably the public license-key
+    | validate / activate / deactivate routes) require an organization id.
+    | Setting this once here avoids passing it on every call.
+    |
+    | If unset, callers must pass the organization id explicitly when invoking
+    | LaravelPolar::validateLicenseKey / activateLicenseKey / deactivateLicenseKey.
+    |
+    */
+    'organization_id' => env('POLAR_ORGANIZATION_ID'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Polar Server
     |--------------------------------------------------------------------------
     |
