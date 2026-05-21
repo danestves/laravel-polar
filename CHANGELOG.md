@@ -2,6 +2,18 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.3.0 - 2026-05-21
+
+### What's Changed
+
+* feat: support for polar-sh/sdk v0.10.0 by @danestves in https://github.com/danestves/laravel-polar/pull/73
+
+This release upgrades the underlying `polar-sh/sdk` dependency from `^0.8.0` to `^0.10.0`. The public API of `danestves/laravel-polar` is unchanged — your existing calls to `LaravelPolar::*`, the `Billable` trait, models, and events continue to work the same way.
+
+See [`docs/migration-v2.2-to-v2.3.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.2-to-v2.3.md) for a detailed walkthrough of the SDK-level changes (Customer is now a discriminated union, Subscription currentPeriodEnd is non-nullable, new prorationBehavior options, etc.).
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.2.0...v2.3.0
+
 ## v2.1.0 - 2026-03-02
 
 ### What's Changed
@@ -148,6 +160,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -161,11 +174,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
