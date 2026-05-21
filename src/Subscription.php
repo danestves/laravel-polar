@@ -122,7 +122,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
      * Get the trial end date.
      */
-    public function trialEndsAt(): ?Carbon
+    public function trialEndsAt(): ?\Carbon\CarbonInterface
     {
         return $this->trial_ends_at;
     }
