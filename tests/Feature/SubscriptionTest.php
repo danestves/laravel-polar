@@ -1,9 +1,11 @@
 <?php
 
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
-use Polar\Models\Components\SubscriptionStatus;
 use Danestves\LaravelPolar\Subscription;
 use Illuminate\Support\Facades\Config;
+use Polar\Models\Components;
+use Polar\Models\Components\SubscriptionStatus;
+use Polar\Models\Operations\SubscriptionsUpdateResponse;
 
 beforeEach(function () {
     Config::set('polar.access_token', 'test-token');
@@ -11,6 +13,7 @@ beforeEach(function () {
 });
 
 afterEach(function () {
+    resetLaravelPolarSdk();
     Mockery::close();
 });
 
@@ -174,4 +177,94 @@ it('throws exception when resuming incomplete expired subscription', function ()
 
     expect(fn() => $subscription->resume())
         ->toThrow(PolarApiError::class, 'Subscription is incomplete and expired.');
+});
+
+it('applyDiscount forwards SubscriptionUpdateDiscount with the discount id to the SDK', function () {
+    $base = createBaseMockedSdk();
+    $sdk = $base['sdk'];
+
+    $subscriptions = Mockery::mock(\Polar\Subscriptions::class);
+    $reflectionSdk = new \ReflectionClass($sdk);
+    $subscriptionsProperty = $reflectionSdk->getProperty('subscriptions');
+    $subscriptionsProperty->setAccessible(true);
+    $subscriptionsProperty->setValue($sdk, $subscriptions);
+
+    setLaravelPolarSdk($sdk);
+
+    $subscription = Subscription::factory()->active()->create([
+        'polar_id' => 'sub_apply',
+        'product_id' => 'prod_orig',
+    ]);
+
+    $sdkSubscription = Mockery::mock(Components\Subscription::class);
+    $sdkSubscription->status = SubscriptionStatus::Active;
+    $sdkSubscription->productId = 'prod_orig';
+    $sdkSubscription->currentPeriodEnd = new \DateTime('+30 days');
+    $sdkSubscription->trialEnd = null;
+    $sdkSubscription->endedAt = null;
+
+    $response = new SubscriptionsUpdateResponse(
+        contentType: 'application/json',
+        statusCode: 200,
+        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
+        subscription: $sdkSubscription,
+    );
+
+    $subscriptions->shouldReceive('update')
+        ->once()
+        ->withArgs(function ($body, string $id) {
+            return $id === 'sub_apply'
+                && $body instanceof Components\SubscriptionUpdateDiscount
+                && $body->discountId === 'disc_holiday';
+        })
+        ->andReturn($response);
+
+    $result = $subscription->applyDiscount('disc_holiday');
+
+    expect($result)->toBe($subscription);
+});
+
+it('removeDiscount forwards SubscriptionUpdateDiscount with null discountId to the SDK', function () {
+    $base = createBaseMockedSdk();
+    $sdk = $base['sdk'];
+
+    $subscriptions = Mockery::mock(\Polar\Subscriptions::class);
+    $reflectionSdk = new \ReflectionClass($sdk);
+    $subscriptionsProperty = $reflectionSdk->getProperty('subscriptions');
+    $subscriptionsProperty->setAccessible(true);
+    $subscriptionsProperty->setValue($sdk, $subscriptions);
+
+    setLaravelPolarSdk($sdk);
+
+    $subscription = Subscription::factory()->active()->create([
+        'polar_id' => 'sub_remove',
+        'product_id' => 'prod_orig',
+    ]);
+
+    $sdkSubscription = Mockery::mock(Components\Subscription::class);
+    $sdkSubscription->status = SubscriptionStatus::Active;
+    $sdkSubscription->productId = 'prod_orig';
+    $sdkSubscription->currentPeriodEnd = new \DateTime('+30 days');
+    $sdkSubscription->trialEnd = null;
+    $sdkSubscription->endedAt = null;
+
+    $response = new SubscriptionsUpdateResponse(
+        contentType: 'application/json',
+        statusCode: 200,
+        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
+        subscription: $sdkSubscription,
+    );
+
+    $subscriptions->shouldReceive('update')
+        ->once()
+        ->withArgs(function ($body, string $id) {
+            return $id === 'sub_remove'
+                && $body instanceof Components\SubscriptionUpdateDiscount
+                && $body->discountId === null;
+        })
+        ->andReturn($response);
+
+    $result = $subscription->removeDiscount();
+
+    expect($result)->toBe($subscription);
 });
