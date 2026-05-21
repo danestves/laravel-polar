@@ -68,6 +68,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Polar Organization ID
+    |--------------------------------------------------------------------------
+    |
+    | Optional. Some Polar endpoints (notably the public license-key
+    | validate / activate / deactivate routes) require an organization id.
+    | Setting this once here avoids passing it on every call.
+    |
+    | If unset, callers must pass the organization id explicitly when invoking
+    | LaravelPolar::validateLicenseKey / activateLicenseKey / deactivateLicenseKey.
+    |
+    */
+    'organization_id' => env('POLAR_ORGANIZATION_ID'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Polar Server
     |--------------------------------------------------------------------------
     |
@@ -145,6 +160,14 @@ Configure your access token. Create a new token in the Polar Dashboard > Setting
 
 ```bash
 POLAR_ACCESS_TOKEN="<your_access_token>"
+```
+
+### Organization ID (optional)
+
+Some endpoints (notably the public-facing License Key methods — `validateLicenseKey`, `activateLicenseKey`, `deactivateLicenseKey`) require an organization id. Set it once in your `.env` and the package will pick it up automatically, or pass it explicitly on every call.
+
+```bash
+POLAR_ORGANIZATION_ID="<your_organization_id>"
 ```
 
 ### Webhook Secret
@@ -333,6 +356,38 @@ At the end is just a normal link but using an special attribute for the script t
 > [!NOTE]
 > Remember that you can use the theme attribute too to change the color system in the checkout
 
+#### Checkout Links
+
+Checkout Links are reusable hosted URLs you can drop into marketing pages, emails, or "Buy now" buttons. They live on Polar's side and don't require a session — share the same URL with anyone. Manage them with the `LaravelPolar` facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+
+// Create a checkout link for a single product:
+$link = LaravelPolar::createCheckoutLink(new Components\CheckoutLinkCreateProduct(
+    productId: 'product_id_123',
+    paymentProcessor: 'stripe',
+));
+
+echo $link->url; // share this anywhere
+
+// Or for multiple products (customer picks one):
+LaravelPolar::createCheckoutLink(new Components\CheckoutLinkCreateProducts(/* ... */));
+
+// Or pinned to a specific price:
+LaravelPolar::createCheckoutLink(new Components\CheckoutLinkCreateProductPrice(/* ... */));
+```
+
+Update, delete, list, and fetch a single link:
+
+```php
+LaravelPolar::updateCheckoutLink('cl_xxx', new Components\CheckoutLinkUpdate(label: 'Black Friday'));
+LaravelPolar::deleteCheckoutLink('cl_xxx');
+LaravelPolar::listCheckoutLinks();           // optional CheckoutLinksListRequest
+LaravelPolar::getCheckoutLink('cl_xxx');     // Components\CheckoutLink
+```
+
 ### Prefill Customer Information
 
 You can override the user data using the following methods in your models provided by the `Billable` trait.
@@ -385,6 +440,112 @@ When working with custom data, this library has a few reserved terms.
 - `subscription_type`
 
 Using any of these will result in an exception being thrown.
+
+### Custom Fields
+
+Polar lets you collect arbitrary structured data at checkout — company name, VAT ID, license seat count, anything you need. Define the fields once, attach them at checkout, and read them back from the resulting `Order`.
+
+#### Defining Custom Fields
+
+Create custom field definitions via the `LaravelPolar` facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+
+$field = LaravelPolar::createCustomField(new Components\CustomFieldCreateText(
+    slug: 'company',
+    name: 'Company name',
+    properties: new Components\CustomFieldTextProperties(),
+));
+```
+
+The SDK exposes five create variants matching Polar's field types: `CustomFieldCreateText`, `CustomFieldCreateNumber`, `CustomFieldCreateDate`, `CustomFieldCreateCheckbox`, `CustomFieldCreateSelect`.
+
+Manage existing definitions:
+
+```php
+LaravelPolar::updateCustomField('cf_xxx', new Components\CustomFieldUpdateText(name: 'Org name'));
+LaravelPolar::deleteCustomField('cf_xxx');
+LaravelPolar::listCustomFields();
+LaravelPolar::getCustomField('cf_xxx');
+```
+
+#### Collecting Custom Field Data at Checkout
+
+Attach values when starting a checkout:
+
+```php
+$user->checkout('product_id_123')
+    ->withCustomFieldData([
+        'company' => 'Acme, Inc.',
+        'seats' => 10,
+    ]);
+```
+
+#### Reading Custom Field Data from an Order
+
+After purchase, retrieve the captured values from the `Order`:
+
+```php
+$data = $order->customFieldData(); // array<string, string|int|bool|\DateTime|null>
+```
+
+The data is fetched from Polar on demand (not persisted in `polar_orders`) and memoized on the Order instance for the lifetime of the request, so calling it twice in the same controller only hits the API once.
+
+### Discounts
+
+Discounts are reusable coupon codes you can either apply automatically at checkout or hand to a customer to enter themselves.
+
+#### Managing Discount Codes
+
+Create, update, delete, list, and fetch discounts via the `LaravelPolar` facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+
+$discount = LaravelPolar::createDiscount(new Components\DiscountPercentageOnceForeverDurationCreate(
+    name: 'Black Friday 50%',
+    type: Components\DiscountType::Percentage,
+    duration: Components\DiscountDuration::Once,
+    basisPoints: 5000,
+    organizationId: 'your-org-id',
+));
+
+LaravelPolar::updateDiscount('disc_xxx', new Components\DiscountUpdate(name: 'Black Friday extended'));
+LaravelPolar::deleteDiscount('disc_xxx');
+LaravelPolar::listDiscounts();
+LaravelPolar::getDiscount('disc_xxx');
+```
+
+The SDK offers four create variants: `DiscountFixedOnceForeverDurationCreate`, `DiscountFixedRepeatDurationCreate`, `DiscountPercentageOnceForeverDurationCreate`, `DiscountPercentageRepeatDurationCreate`.
+
+#### Applying a Discount at Checkout
+
+Pin a discount to a checkout session:
+
+```php
+$user->checkout('product_id_123')
+    ->withDiscountId('disc_xxx');
+```
+
+To accept customer-entered discount codes at checkout (the default), no extra setup is needed. To force a specific discount and prevent the customer from changing it:
+
+```php
+$user->checkout('product_id_123')
+    ->withDiscountId('disc_xxx')
+    ->withoutDiscountCodes();
+```
+
+#### Applying a Discount to an Existing Subscription
+
+Apply or remove a discount on an active subscription. The change takes effect on the next billing cycle:
+
+```php
+$user->subscription()->applyDiscount('disc_xxx');
+$user->subscription()->removeDiscount();
+```
 
 ### Customers
 
@@ -463,6 +624,81 @@ Furthermore, you can check if a consumer has purchased a specific product:
 if ($user->hasPurchasedProduct('product_id_123')) {
     // ...
 }
+```
+
+#### Refunding Orders
+
+Issue a refund directly from an `Order` instance. By default, `refund()` refunds the remaining unrefunded amount with reason `customer_request`:
+
+```php
+$order->refund();
+```
+
+For a partial refund, pass an explicit amount (in minor units / cents):
+
+```php
+$order->refund(amount: 2500);
+```
+
+Pass a reason, comment, and metadata to fully describe a refund:
+
+```php
+use Polar\Models\Components\RefundReason;
+
+$order->refund(
+    amount: 2500,
+    reason: RefundReason::Fraudulent,
+    comment: 'flagged by risk team',
+    metadata: ['ticket' => 'T-42'],
+);
+```
+
+List previous refunds for an order as a Collection:
+
+```php
+$refunds = $order->refunds(); // Illuminate\Support\Collection<int, \Polar\Models\Components\Refund>
+```
+
+For admin / cross-order refund management, use the facade directly:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+use Polar\Models\Operations;
+
+LaravelPolar::createRefund(new Components\RefundCreate(
+    orderId: 'ord_xxx',
+    reason: Components\RefundReason::Duplicate,
+    amount: 1000,
+));
+
+LaravelPolar::listRefunds(new Operations\RefundsListRequest(orderId: 'ord_xxx'));
+```
+
+#### Receipts / Invoices
+
+Polar generates PDF invoices on demand for each order. The `Order` model exposes Cashier-style helpers to surface them to customers:
+
+```php
+// Get the URL (e.g. for an <a href> in a Blade view):
+$url = $order->receiptUrl(); // ?string, memoized per Order instance
+
+// Or redirect directly (for a controller route):
+return $order->downloadInvoice(); // Illuminate\Http\RedirectResponse
+```
+
+`receiptUrl()` mints a short-lived customer session, calls Polar's generate-invoice endpoint, and reads the URL from the response. The result is memoized on the Order instance, so calling it twice in the same request only hits Polar once.
+
+```blade
+@if ($order->receiptUrl())
+    <a href="{{ $order->receiptUrl() }}">Download invoice</a>
+@endif
+```
+
+```php
+Route::get('/orders/{order}/invoice', function (Order $order) {
+    return $order->downloadInvoice(); // throws RuntimeException if no URL is available
+});
 ```
 
 ### Subscriptions
@@ -698,6 +934,53 @@ To update the trial period of a subscription:
 $user->subscription()->updateTrial(now()->addDays(30));
 ```
 
+#### Team Seats
+
+For team / multi-seat subscriptions, manage seat assignments directly from the `Subscription` model.
+
+List seats on a subscription (including counts of available and total seats):
+
+```php
+$seatsList = $user->subscription()->seats();
+
+$seatsList->seats;          // array<Polar\Models\Components\CustomerSeat>
+$seatsList->availableSeats; // int
+$seatsList->totalSeats;     // int
+```
+
+Assign a seat. Pass an `email` to send an invitation, or a `customerId` / `externalCustomerId` to assign directly to an existing customer:
+
+```php
+$user->subscription()->assignSeat(email: 'alice@example.com');
+$user->subscription()->assignSeat(customerId: 'cust_xxx');
+$user->subscription()->assignSeat(
+    email: 'alice@example.com',
+    metadata: ['role' => 'admin'],
+);
+```
+
+Revoke or resend invitations:
+
+```php
+$user->subscription()->revokeSeat('seat_xxx');
+$user->subscription()->resendSeatInvitation('seat_xxx');
+```
+
+For admin / cross-subscription seat management, the facade variant is also available:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+
+LaravelPolar::listSeats(subscriptionId: 'sub_xxx');
+LaravelPolar::assignSeat(new Components\SeatAssign(
+    subscriptionId: 'sub_xxx',
+    email: 'alice@example.com',
+));
+LaravelPolar::revokeSeat('seat_xxx');
+LaravelPolar::resendSeatInvitation('seat_xxx');
+```
+
 ### Benefits
 
 Benefits are automated features that are granted to customers when they purchase your products. You can manage benefits using both the `LaravelPolar` facade (for create/update/delete operations) and methods on your billable model (for listing and retrieving benefits).
@@ -827,6 +1110,126 @@ $meter = LaravelPolar::getCustomerMeter('meter-id-123');
 
 > [!NOTE]
 > Usage events are sent to Polar for processing. They are not stored locally in your database. Use Polar's dashboard or API to view processed usage data.
+
+### License Keys
+
+Polar supports issuing license keys as a benefit type — useful for desktop apps, SDKs, paid CLIs, and anything else that needs an offline-checkable credential. The package wraps three concentric surfaces: admin management, public verification (from end-user machines), and a Cashier-style accessor on the billable model.
+
+> [!NOTE]
+> The public verification methods (`validateLicenseKey`, `activateLicenseKey`, `deactivateLicenseKey`) need a Polar organization id. Either pass it explicitly on every call, or set `POLAR_ORGANIZATION_ID` in your `.env` and the package will pick it up automatically.
+>
+> ```bash
+> POLAR_ORGANIZATION_ID="your-org-id"
+> ```
+
+#### Admin Management
+
+Use the `LaravelPolar` facade with your org-scoped access token. These methods derive the organization from the token, so no extra config is needed:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+
+LaravelPolar::listLicenseKeys();                                  // optional filters
+LaravelPolar::getLicenseKey('lk_xxx');                            // LicenseKeyWithActivations
+LaravelPolar::updateLicenseKey('lk_xxx', new Components\LicenseKeyUpdate(
+    limitActivations: 10,
+));
+```
+
+#### Public Verification
+
+Use these from your end-user's machine (a desktop app, CLI, etc.) to validate and manage activations. They require an organization id — either passed explicitly or via the `polar.organization_id` config key:
+
+```php
+// Validate a key (optionally bound to a specific activation):
+LaravelPolar::validateLicenseKey(
+    key: 'LIC-XXXX-XXXX-XXXX',
+    activationId: 'act_xxx',
+);
+
+// Activate a license on a new device:
+$activation = LaravelPolar::activateLicenseKey(
+    key: 'LIC-XXXX-XXXX-XXXX',
+    label: 'My MacBook Pro',
+    meta: ['hostname' => 'macbook-pro', 'os' => 'darwin'],
+);
+
+// Deactivate an activation:
+LaravelPolar::deactivateLicenseKey(
+    key: 'LIC-XXXX-XXXX-XXXX',
+    activationId: 'act_xxx',
+);
+```
+
+Passing the organization id explicitly overrides the config:
+
+```php
+LaravelPolar::validateLicenseKey('LIC-XXXX-XXXX-XXXX', organizationId: 'org_xxx');
+```
+
+#### Listing a Customer's License Keys
+
+Use the Cashier-style accessor on your billable model. It mints a short-lived customer session under the hood, so the customer doesn't see your admin token:
+
+```php
+$keys = $user->licenseKeys();                  // Collection<int, LicenseKeyRead>
+$keys = $user->licenseKeys(benefitId: 'b_xx'); // scope to a single benefit
+```
+
+### Advanced
+
+Thin facade wrappers around the rest of Polar's API surface. These exist as convenience helpers for occasional use; for anything heavier, see [Reaching into the SDK directly](#reaching-into-the-sdk-directly).
+
+#### Metrics (revenue analytics)
+
+```php
+use Brick\DateTime\LocalDate;
+use Danestves\LaravelPolar\LaravelPolar;
+use Polar\Models\Components;
+use Polar\Models\Operations;
+
+$metrics = LaravelPolar::getMetrics(new Operations\MetricsGetRequest(
+    startDate: LocalDate::of(2026, 1, 1),
+    endDate:   LocalDate::of(2026, 1, 31),
+    interval:  Components\TimeInterval::Day,
+));
+
+// $metrics->periods is an array of Components\MetricPeriod
+```
+
+#### Files
+
+List downloadable assets, product media, and org avatars:
+
+```php
+$response = LaravelPolar::listFiles();
+$items = $response->listResourceFileRead?->items ?? [];
+```
+
+#### Organizations
+
+```php
+$orgs = LaravelPolar::listOrganizations();
+$org  = LaravelPolar::getOrganization('org_xxx'); // Components\Organization
+```
+
+### Reaching into the SDK directly
+
+The package wraps the common Polar operations with Laravel-idiomatic helpers, but it does **not** wrap every endpoint. For anything not covered above — Wallets, Files create/update/delete, OAuth2 flows, Metrics dashboards, Organizations create/update, and so on — drop straight into the underlying Polar SDK client:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+
+$sdk = LaravelPolar::sdk(); // returns Polar\Polar — the underlying SDK client
+
+$sdk->customerPortal->wallets->list(...);
+$sdk->files->create(...);
+$sdk->organizations->update(...);
+$sdk->oauth2->...;
+```
+
+This is the documented and supported way to call any unwrapped endpoint. The package keeps a thin layer for the common cases; `sdk()` covers the long tail.
 
 ### Handling Webhooks
 
@@ -1067,8 +1470,6 @@ class EventServiceProvider extends ServiceProvider
 ```
 
 Laravel v11 and v12 will automatically discover listeners and subscribers if they follow Laravel's naming conventions.
-
-## Roadmap
 
 ## Testing
 
