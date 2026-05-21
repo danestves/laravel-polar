@@ -2,6 +2,26 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.5.0 - 2026-05-21
+
+### What's Changed
+
+* feat(discounts): admin CRUD via LaravelPolar facade by @danestves in https://github.com/danestves/laravel-polar/pull/75
+
+Adds five admin facade methods on `LaravelPolar` for managing discount codes. Purely additive — no breaking changes.
+
+```php
+LaravelPolar::createDiscount(new Components\DiscountPercentageOnceForeverDurationCreate(...));
+LaravelPolar::updateDiscount('disc_xxx', new Components\DiscountUpdate(name: 'New name'));
+LaravelPolar::deleteDiscount('disc_xxx');
+LaravelPolar::listDiscounts();
+LaravelPolar::getDiscount('disc_xxx');
+```
+
+See [`docs/migration-v2.4-to-v2.5.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.4-to-v2.5.md).
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.4.0...v2.5.0
+
 ## v2.4.0 - 2026-05-21
 
 ### What's Changed
@@ -16,8 +36,8 @@ use Polar\Models\Components\RefundReason;
 $order->refund();                                              // refund the remaining unrefunded amount
 $order->refund(amount: 2500, reason: RefundReason::Fraudulent); // partial refund with custom reason
 $order->refunds();                                             // Collection of Refund items for this order
-```
 
+```
 See [`docs/migration-v2.3-to-v2.4.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.3-to-v2.4.md) for full method signatures.
 
 **Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.3.0...v2.4.0
@@ -182,6 +202,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -197,11 +218,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
