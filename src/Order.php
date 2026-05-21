@@ -77,6 +77,57 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     }
 
     /**
+     * Issue a refund for this order. Defaults to refunding the remaining
+     * unrefunded amount with reason "customer_request".
+     *
+     * @param  array<string, scalar|null>|null  $metadata
+     *
+     * @throws \Polar\Models\Errors\APIException
+     * @throws \Exception
+     */
+    public function refund(
+        ?int $amount = null,
+        ?\Polar\Models\Components\RefundReason $reason = null,
+        ?string $comment = null,
+        ?array $metadata = null,
+    ): \Polar\Models\Components\Refund {
+        if ($this->polar_id === null) {
+            throw new \RuntimeException('Order has no polar_id; cannot refund.');
+        }
+
+        $request = new \Polar\Models\Components\RefundCreate(
+            orderId: $this->polar_id,
+            reason: $reason ?? \Polar\Models\Components\RefundReason::CustomerRequest,
+            amount: $amount ?? max(0, $this->amount - $this->refunded_amount),
+            metadata: $metadata,
+            comment: $comment,
+        );
+
+        return LaravelPolar::createRefund($request);
+    }
+
+    /**
+     * List refunds for this order.
+     *
+     * @return \Illuminate\Support\Collection<int, \Polar\Models\Components\Refund>
+     *
+     * @throws \Polar\Models\Errors\APIException
+     * @throws \Exception
+     */
+    public function refunds(): \Illuminate\Support\Collection
+    {
+        if ($this->polar_id === null) {
+            return collect();
+        }
+
+        $response = LaravelPolar::listRefunds(
+            new \Polar\Models\Operations\RefundsListRequest(orderId: $this->polar_id),
+        );
+
+        return collect($response->listResourceRefund->items ?? []);
+    }
+
+    /**
      * Check if the order is refunded.
      */
     public function refunded(): bool
