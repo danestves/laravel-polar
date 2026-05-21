@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.3.0';
+    public const string VERSION = '2.4.0';
 
     /**
      * The cached Polar SDK instance.
@@ -296,6 +296,50 @@ class LaravelPolar
         }
 
         throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    }
+
+    /**
+     * Create a refund for an order.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function createRefund(Components\RefundCreate $request): Components\Refund
+    {
+        $sdk = self::sdk();
+
+        $response = $sdk->refunds->create(request: $request);
+
+        if ($response->statusCode === 200 && $response->refund !== null) {
+            return $response->refund;
+        }
+
+        throw new Errors\APIException('Failed to create refund', $response->statusCode ?? 500, '', null);
+    }
+
+    /**
+     * List refunds.
+     *
+     * @throws Errors\APIException
+     * @throws Exception
+     */
+    public static function listRefunds(?Operations\RefundsListRequest $request = null): Operations\RefundsListResponse
+    {
+        $sdk = self::sdk();
+
+        if ($request === null) {
+            $request = new Operations\RefundsListRequest();
+        }
+
+        $generator = $sdk->refunds->list(request: $request);
+
+        foreach ($generator as $response) {
+            if ($response->statusCode === 200) {
+                return $response;
+            }
+        }
+
+        throw new Errors\APIException('Failed to list refunds', 500, '', null);
     }
 
     /**
