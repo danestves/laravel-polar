@@ -21,8 +21,10 @@ These apply to every PR in this roadmap.
 - **Errors.** Re-throw `Polar\Models\Errors\APIException` as today. No new exception types unless an HTTP status genuinely lacks meaningful handling.
 - **Events.** Each new wrapped webhook event gets a corresponding Laravel event in `src/Events/` only if Polar emits the underlying webhook.
 - **Versioning.** Each PR bumps `LaravelPolar::VERSION` by a semver patch/minor. PR #1 = `0.4.0`. Subsequent feature PRs increment to `0.4.1 … 0.4.N`. No breaking changes are introduced inside the `0.4` line.
+- **Release tagging.** After each PR merges to `main`, create a matching annotated git tag (`v0.4.0`, `v0.4.1`, …) on the merge commit and push it to origin. The tag value must equal the `LaravelPolar::VERSION` constant set in that PR. Packagist auto-publishes from tags, so the tag is what makes the release usable.
 - **Tests.** Each PR ships Pest tests covering the new public surface, using `LaravelPolar::setSdk()` to inject a mocked SDK.
 - **Docs.** Each PR appends a section to `README.md` under the appropriate parent heading and an entry to `CHANGELOG.md`.
+- **Client migration notes.** If a PR introduces changes that require any user-side code change to keep working (signature changes, renamed methods, removed config keys, new required arguments, behavior changes that affect existing callers), the PR ships a `docs/migration-vX.Y-to-vA.B.md` file describing each change and the recommended fix. Pure-additive PRs (new methods that existing users can ignore) do not need a migration doc.
 
 ## Already shipped (no PR needed)
 
@@ -254,6 +256,25 @@ For each PR:
 - `LaravelPolar::VERSION` bumped.
 - `CHANGELOG.md` updated.
 - `README.md` updated where user-facing surface changed.
+- `docs/migration-vX.Y-to-vA.B.md` present iff the PR forces any user-side code change (see Core conventions).
 - Tests cover the new public methods and Billable accessors.
 - No new migrations.
 - No removal or rename of existing public methods within the `0.4` line.
+
+## Release flow after merge
+
+For every PR in this roadmap, the post-merge release flow is:
+
+1. PR is reviewed and merged into `main` via squash or merge commit.
+2. Locally on `main`:
+   ```bash
+   git checkout main
+   git pull --ff-only
+   VERSION=$(php -r 'require "vendor/autoload.php"; echo Danestves\\LaravelPolar\\LaravelPolar::VERSION;')
+   git tag -a "v$VERSION" -m "Release v$VERSION"
+   git push origin "v$VERSION"
+   ```
+3. Packagist picks up the new tag automatically (the danestves/laravel-polar package is configured to auto-update from GitHub). Verify the new version appears on https://packagist.org/packages/danestves/laravel-polar.
+4. If the PR shipped a migration doc, announce the release with a link to that doc (release notes, Twitter/X, README badge).
+
+This step does NOT happen inside the upgrade branch / worktree — it happens on `main` after merge. The implementation plan should mention it as a post-merge action.
