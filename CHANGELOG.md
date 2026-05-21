@@ -2,6 +2,28 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.12.0 - 2026-05-21
+
+### What's Changed
+
+* feat(advanced): metrics, files list, organizations, and sdk() escape hatch by @danestves in https://github.com/danestves/laravel-polar/pull/82
+
+Closes the v2.x roadmap kicked off with PR #73 (SDK upgrade to polar-sh/sdk ^0.10).
+
+```php
+LaravelPolar::getMetrics(new Operations\MetricsGetRequest(...));
+LaravelPolar::listFiles();
+LaravelPolar::listOrganizations();
+LaravelPolar::getOrganization('org_xxx');
+
+// Escape hatch for anything not wrapped:
+LaravelPolar::sdk()->...
+```
+
+See [`docs/migration-v2.11-to-v2.12.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.11-to-v2.12.md) for the escape-hatch recipe.
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.11.0...v2.12.0
+
 ## v2.11.0 - 2026-05-21
 
 ### What's Changed
@@ -20,8 +42,8 @@ LaravelPolar::listSeats(subscriptionId: 'sub_xxx');
 LaravelPolar::assignSeat(new Components\SeatAssign(...));
 LaravelPolar::revokeSeat('seat_xxx');
 LaravelPolar::resendSeatInvitation('seat_xxx');
-```
 
+```
 See [`docs/migration-v2.10-to-v2.11.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.10-to-v2.11.md).
 
 **Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.10.0...v2.11.0
@@ -37,6 +59,7 @@ Adds Cashier-style invoice/receipt access on the Order model.
 ```php
 $order->receiptUrl();       // ?string, memoized per instance
 $order->downloadInvoice();  // RedirectResponse — strict (throws on null)
+
 
 ```
 See [`docs/migration-v2.9-to-v2.10.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.9-to-v2.10.md).
@@ -63,6 +86,7 @@ LaravelPolar::deactivateLicenseKey('LIC-XXXX-XXXX', activationId: 'act_xxx');
 $user->licenseKeys();
 
 
+
 ```
 New optional config: `polar.organization_id` / `POLAR_ORGANIZATION_ID` for the public-facing methods.
 
@@ -81,6 +105,7 @@ Closes the Cashier-parallel gap from the v2.5 admin Discount CRUD: the package c
 ```php
 $subscription->applyDiscount('disc_xxx');
 $subscription->removeDiscount();
+
 
 
 
@@ -112,6 +137,7 @@ $order->customFieldData();
 
 
 
+
 ```
 See [`docs/migration-v2.6-to-v2.7.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.6-to-v2.7.md).
 
@@ -134,6 +160,7 @@ LaravelPolar::updateCheckoutLink('cl_xxx', new Components\CheckoutLinkUpdate(lab
 LaravelPolar::deleteCheckoutLink('cl_xxx');
 LaravelPolar::listCheckoutLinks();
 LaravelPolar::getCheckoutLink('cl_xxx');
+
 
 
 
@@ -164,6 +191,7 @@ LaravelPolar::getDiscount('disc_xxx');
 
 
 
+
 ```
 See [`docs/migration-v2.4-to-v2.5.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.4-to-v2.5.md).
 
@@ -183,6 +211,7 @@ use Polar\Models\Components\RefundReason;
 $order->refund();                                              // refund the remaining unrefunded amount
 $order->refund(amount: 2500, reason: RefundReason::Fraudulent); // partial refund with custom reason
 $order->refunds();                                             // Collection of Refund items for this order
+
 
 
 
@@ -362,6 +391,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -384,11 +414,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
