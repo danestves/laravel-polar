@@ -737,14 +737,32 @@ class ProcessWebhook extends ProcessWebhookJob
         return $this->arrayToComponent($data, Components\Checkout::class);
     }
 
-    private function arrayToCustomer(array $data): Components\Customer
+    private function arrayToCustomer(array $data): Components\CustomerIndividual|Components\CustomerTeam
     {
-        return $this->arrayToComponent($data, Components\Customer::class);
+        $type = $data['type'] ?? null;
+        if ($type === null) {
+            throw new \InvalidArgumentException('Customer data is missing the required "type" discriminator field (expected "individual" or "team").');
+        }
+
+        return match ($type) {
+            'individual' => $this->arrayToComponent($data, Components\CustomerIndividual::class),
+            'team' => $this->arrayToComponent($data, Components\CustomerTeam::class),
+            default => throw new \InvalidArgumentException("Unknown customer type: \"{$type}\". Expected \"individual\" or \"team\"."),
+        };
     }
 
-    private function arrayToCustomerState(array $data): Components\CustomerState
+    private function arrayToCustomerState(array $data): Components\CustomerStateIndividual|Components\CustomerStateTeam
     {
-        return $this->arrayToComponent($data, Components\CustomerState::class);
+        $type = $data['type'] ?? null;
+        if ($type === null) {
+            throw new \InvalidArgumentException('Customer state data is missing the required "type" discriminator field (expected "individual" or "team").');
+        }
+
+        return match ($type) {
+            'individual' => $this->arrayToComponent($data, Components\CustomerStateIndividual::class),
+            'team' => $this->arrayToComponent($data, Components\CustomerStateTeam::class),
+            default => throw new \InvalidArgumentException("Unknown customer state type: \"{$type}\". Expected \"individual\" or \"team\"."),
+        };
     }
 
     private function arrayToProduct(array $data): Components\Product

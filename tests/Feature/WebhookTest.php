@@ -433,6 +433,7 @@ it('handles benefit_grant.created webhook', function () {
             'customer_id' => 'customer_123',
             'customer' => [
                 'id' => 'customer_123',
+                'type' => 'individual',
                 'metadata' => [
                     'billable_id' => (string) $user->getKey(),
                     'billable_type' => $user->getMorphClass(),
@@ -459,6 +460,7 @@ it('handles benefit_grant.updated webhook', function () {
             'customer_id' => 'customer_123',
             'customer' => [
                 'id' => 'customer_123',
+                'type' => 'individual',
                 'metadata' => [
                     'billable_id' => (string) $user->getKey(),
                     'billable_type' => $user->getMorphClass(),
@@ -485,6 +487,7 @@ it('handles benefit_grant.revoked webhook', function () {
             'customer_id' => 'customer_123',
             'customer' => [
                 'id' => 'customer_123',
+                'type' => 'individual',
                 'metadata' => [
                     'billable_id' => (string) $user->getKey(),
                     'billable_type' => $user->getMorphClass(),
@@ -647,6 +650,7 @@ it('handles customer.created webhook', function () {
         'type' => 'customer.created',
         'data' => [
             'id' => 'customer_123',
+            'type' => 'individual',
             'email' => 'test@example.com',
             'name' => 'Test User',
             'created_at' => now()->toIso8601String(),
@@ -667,6 +671,7 @@ it('handles customer.updated webhook', function () {
         'type' => 'customer.updated',
         'data' => [
             'id' => 'customer_123',
+            'type' => 'individual',
             'email' => 'updated@example.com',
             'name' => 'Updated User',
             'created_at' => now()->toIso8601String(),
@@ -687,6 +692,7 @@ it('handles customer.deleted webhook', function () {
         'type' => 'customer.deleted',
         'data' => [
             'id' => 'customer_123',
+            'type' => 'individual',
             'email' => 'test@example.com',
             'name' => 'Test User',
             'created_at' => now()->toIso8601String(),
@@ -707,6 +713,7 @@ it('handles customer.state_changed webhook', function () {
         'type' => 'customer.state_changed',
         'data' => [
             'id' => 'customer_123',
+            'type' => 'individual',
             'email' => 'test@example.com',
             'name' => 'Test User',
             'active_subscriptions' => [],
