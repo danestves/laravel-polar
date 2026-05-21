@@ -2,6 +2,29 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.7.0 - 2026-05-21
+
+### What's Changed
+
+* feat(custom-fields): admin CRUD + Order::customFieldData accessor by @danestves in https://github.com/danestves/laravel-polar/pull/77
+
+Adds the admin management surface for Polar custom fields and a memoized read accessor for the custom-field data collected at checkout.
+
+```php
+LaravelPolar::createCustomField(new Components\CustomFieldCreateText(slug: 'company', name: 'Company name', properties: new Components\CustomFieldTextProperties()));
+LaravelPolar::updateCustomField('cf_xxx', new Components\CustomFieldUpdateText(name: 'New label'));
+LaravelPolar::deleteCustomField('cf_xxx');
+LaravelPolar::listCustomFields();
+LaravelPolar::getCustomField('cf_xxx');
+
+// Read collected data from an Order (fetched on demand, memoized per instance):
+$order->customFieldData();
+```
+
+See [`docs/migration-v2.6-to-v2.7.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.6-to-v2.7.md).
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.6.0...v2.7.0
+
 ## v2.6.0 - 2026-05-21
 
 ### What's Changed
@@ -19,8 +42,8 @@ LaravelPolar::updateCheckoutLink('cl_xxx', new Components\CheckoutLinkUpdate(lab
 LaravelPolar::deleteCheckoutLink('cl_xxx');
 LaravelPolar::listCheckoutLinks();
 LaravelPolar::getCheckoutLink('cl_xxx');
-```
 
+```
 See [`docs/migration-v2.5-to-v2.6.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.5-to-v2.6.md).
 
 **Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.5.0...v2.6.0
@@ -39,6 +62,7 @@ LaravelPolar::updateDiscount('disc_xxx', new Components\DiscountUpdate(name: 'Ne
 LaravelPolar::deleteDiscount('disc_xxx');
 LaravelPolar::listDiscounts();
 LaravelPolar::getDiscount('disc_xxx');
+
 
 ```
 See [`docs/migration-v2.4-to-v2.5.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.4-to-v2.5.md).
@@ -59,6 +83,7 @@ use Polar\Models\Components\RefundReason;
 $order->refund();                                              // refund the remaining unrefunded amount
 $order->refund(amount: 2500, reason: RefundReason::Fraudulent); // partial refund with custom reason
 $order->refunds();                                             // Collection of Refund items for this order
+
 
 
 ```
@@ -228,6 +253,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -245,11 +271,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
