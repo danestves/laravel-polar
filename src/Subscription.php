@@ -281,6 +281,22 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     }
 
     /**
+     * Apply a discount to this subscription on the next billing cycle.
+     */
+    public function applyDiscount(string $discountId): self
+    {
+        return $this->updateAndSync(new Components\SubscriptionUpdateDiscount(discountId: $discountId));
+    }
+
+    /**
+     * Remove any active discount from this subscription on the next billing cycle.
+     */
+    public function removeDiscount(): self
+    {
+        return $this->updateAndSync(new Components\SubscriptionUpdateDiscount(discountId: null));
+    }
+
+    /**
      * Update the subscription and sync the changes.
      *
      * @param Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request
