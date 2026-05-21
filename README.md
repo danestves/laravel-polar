@@ -567,6 +567,32 @@ Optionally, you can obtain the signed customer portal URL directly:
 $url = $user->customerPortalUrl();
 ```
 
+#### Payment Methods
+
+List a customer's saved payment methods:
+
+```php
+$methods = $user->paymentMethods(); // Collection<int, PaymentMethodCard|PaymentMethodGeneric>
+
+foreach ($methods as $method) {
+    // $method->type is the discriminator: 'card' for PaymentMethodCard, etc.
+    // PaymentMethodCard exposes brand / last4 / expMonth / expYear etc.
+}
+```
+
+Delete one:
+
+```php
+$user->deletePaymentMethod('pm_xxx');
+```
+
+Both methods mint a short-lived customer session under the hood, so they work without sharing your org-scoped admin token with the client.
+
+> [!NOTE]
+> Polar does not expose a server-side "add payment method" endpoint — customers add new payment methods through the customer portal. Send them there with `$user->redirectToCustomerPortal()`.
+
+Both methods throw `Danestves\LaravelPolar\Exceptions\InvalidCustomer` if the billable has no associated Polar customer yet.
+
 ### Orders
 
 #### Retrieving Orders
