@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '0.3.2';
+    public const string VERSION = '2.3.0';
 
     /**
      * The cached Polar SDK instance.

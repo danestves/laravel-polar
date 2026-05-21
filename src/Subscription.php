@@ -122,7 +122,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
      * Get the trial end date.
      */
-    public function trialEndsAt(): ?Carbon
+    public function trialEndsAt(): ?\Carbon\CarbonInterface
     {
         return $this->trial_ends_at;
     }
@@ -305,7 +305,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
         $this->update([
             'status' => $subscription->status,
             'product_id' => $subscription->productId,
-            'current_period_end' => $subscription->currentPeriodEnd ? Carbon::make($subscription->currentPeriodEnd) : null,
+            'current_period_end' => Carbon::make($subscription->currentPeriodEnd),
             'trial_ends_at' => $subscription->trialEnd ? Carbon::make($subscription->trialEnd) : null,
             'ends_at' => $subscription->endedAt ? Carbon::make($subscription->endedAt) : null,
         ]);
