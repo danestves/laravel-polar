@@ -8,6 +8,7 @@ use Danestves\LaravelPolar\Concerns\ManagesCustomer;
 use Danestves\LaravelPolar\Concerns\ManagesCustomerMeters;
 use Danestves\LaravelPolar\Concerns\ManagesLicenseKeys;
 use Danestves\LaravelPolar\Concerns\ManagesOrders;
+use Danestves\LaravelPolar\Concerns\ManagesPaymentMethods;
 use Danestves\LaravelPolar\Concerns\ManagesSubscription;
 
 trait Billable // @phpstan-ignore-line trait.unused - Billable is used in the user final code
@@ -18,5 +19,6 @@ trait Billable // @phpstan-ignore-line trait.unused - Billable is used in the us
     use ManagesCustomerMeters;
     use ManagesLicenseKeys;
     use ManagesOrders;
+    use ManagesPaymentMethods;
     use ManagesSubscription;
 }
