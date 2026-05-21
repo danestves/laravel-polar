@@ -116,6 +116,70 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     }
 
     /**
+     * Memoized invoice/receipt URL for this order.
+     */
+    protected ?string $cachedReceiptUrl = null;
+
+    /**
+     * Get the invoice/receipt URL for this order. Triggers invoice generation
+     * on Polar (the result is asynchronous on their side), then returns the
+     * URL of the generated PDF. Memoized per Order instance.
+     *
+     * Returns null when the order has no `polar_id` or no customer association.
+     *
+     * @throws \Polar\Models\Errors\APIException
+     * @throws \Exception
+     */
+    public function receiptUrl(): ?string
+    {
+        if ($this->cachedReceiptUrl !== null) {
+            return $this->cachedReceiptUrl;
+        }
+
+        if ($this->polar_id === null || $this->customer_id === '') {
+            return null;
+        }
+
+        $session = LaravelPolar::createCustomerSession(
+            new \Polar\Models\Components\CustomerSessionCustomerIDCreate(customerId: $this->customer_id),
+        );
+
+        $response = LaravelPolar::sdk()->customerPortal->orders->generateInvoice(
+            security: new \Polar\Models\Operations\CustomerPortalOrdersGenerateInvoiceSecurity(customerSession: $session->token),
+            id: $this->polar_id,
+        );
+
+        $body = $response->any;
+        if (is_array($body) && isset($body['url']) && is_string($body['url'])) {
+            return $this->cachedReceiptUrl = $body['url'];
+        }
+
+        if (is_object($body) && isset($body->url) && is_string($body->url)) {
+            return $this->cachedReceiptUrl = $body->url;
+        }
+
+        return null;
+    }
+
+    /**
+     * Redirect the user's browser to the invoice/receipt URL for this order.
+     *
+     * @throws \RuntimeException when no URL is available (e.g. unsynced order)
+     * @throws \Polar\Models\Errors\APIException
+     * @throws \Exception
+     */
+    public function downloadInvoice(): \Illuminate\Http\RedirectResponse
+    {
+        $url = $this->receiptUrl();
+
+        if ($url === null) {
+            throw new \RuntimeException('No receipt URL available for this order.');
+        }
+
+        return new \Illuminate\Http\RedirectResponse($url);
+    }
+
+    /**
      * Issue a refund for this order. Defaults to refunding the remaining
      * unrefunded amount with reason "customer_request".
      *
