@@ -388,6 +388,14 @@ LaravelPolar::listCheckoutLinks();           // optional CheckoutLinksListReques
 LaravelPolar::getCheckoutLink('cl_xxx');     // Components\CheckoutLink
 ```
 
+#### Inertia.js compatibility
+
+The `Checkout` Responsable and `$user->redirectToCustomerPortal()` auto-detect Inertia requests via the `X-Inertia` header and return `Inertia::location($url)` instead of a plain redirect. This avoids CORS errors when Inertia's XHR-based client tries to follow a redirect to an external host like `polar.sh`. No setup needed — works out of the box when `inertiajs/inertia-laravel` is installed.
+
+For non-Inertia callers (Blade, JSON APIs, console), the behavior is unchanged — a standard `RedirectResponse` to the external URL.
+
+If you prefer to handle the redirect yourself, call `$checkout->url()` or `$user->customerPortalUrl()` directly and route the URL however you like.
+
 ### Prefill Customer Information
 
 You can override the user data using the following methods in your models provided by the `Billable` trait.
