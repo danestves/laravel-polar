@@ -28,6 +28,7 @@ class TestCase extends Orchestra
     {
         return [
             LaravelPolarServiceProvider::class,
+            \Inertia\ServiceProvider::class,
         ];
     }
 

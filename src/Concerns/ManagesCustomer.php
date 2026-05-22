@@ -51,10 +51,22 @@ trait ManagesCustomer // @phpstan-ignore-line trait.unused - ManagesCustomer is 
 
     /**
      * Generate a redirect response to the billable's customer portal.
+     *
+     * Returns an Inertia::location response when invoked from an Inertia
+     * request (detected via the X-Inertia header). This avoids CORS errors
+     * when Inertia's XHR-based client tries to follow a redirect to an
+     * external host. Falls back to a standard RedirectResponse otherwise.
      */
-    public function redirectToCustomerPortal(): RedirectResponse
+    public function redirectToCustomerPortal(): \Symfony\Component\HttpFoundation\Response
     {
-        return new RedirectResponse($this->customerPortalUrl());
+        $url = $this->customerPortalUrl();
+
+        $request = request();
+        if ($request->header('X-Inertia') === 'true' && class_exists(\Inertia\Inertia::class)) {
+            return \Inertia\Inertia::location($url);
+        }
+
+        return new RedirectResponse($url);
     }
 
     /**

@@ -27,6 +27,7 @@
         "standard-webhooks/standard-webhooks": "^1.0"
     },
     "require-dev": {
+        "inertiajs/inertia-laravel": "^3.1",
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.2",
         "mockery/mockery": "^1.5",

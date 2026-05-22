@@ -258,9 +258,15 @@ class Checkout implements Responsable
         return $this;
     }
 
-    public function toResponse($request): RedirectResponse
+    public function toResponse($request): \Symfony\Component\HttpFoundation\Response
     {
-        return $this->redirect();
+        $url = $this->url();
+
+        if ($request->header('X-Inertia') === 'true' && class_exists(\Inertia\Inertia::class)) {
+            return \Inertia\Inertia::location($url);
+        }
+
+        return Redirect::to($url, 303);
     }
 
     public function redirect(): RedirectResponse
