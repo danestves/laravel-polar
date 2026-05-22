@@ -2,6 +2,27 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v2.13.1 - 2026-05-22
+
+### What's Fixed
+
+* fix(inertia): auto-detect X-Inertia and return Inertia::location() to avoid CORS by @danestves in https://github.com/danestves/laravel-polar/pull/86
+
+`Checkout::toResponse()` and `$user->redirectToCustomerPortal()` now auto-detect Inertia.js requests via the `X-Inertia` header and return `Inertia::location($url)` instead of a plain redirect. Fixes CORS errors in Inertia apps where XHR-based form submissions would fail trying to follow a 303 to `polar.sh`.
+
+```
+Access to XMLHttpRequest at 'https://sandbox.polar.sh/checkout/...'
+... has been blocked by CORS policy
+```
+
+No setup needed — works out of the box when `inertiajs/inertia-laravel` is installed. The package has zero hard dependency on Inertia (detection is gated behind `class_exists()`).
+
+Non-Inertia callers see no behavior change.
+
+See [`docs/migration-v2.13.0-to-v2.13.1.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.13.0-to-v2.13.1.md).
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.13.0...v2.13.1
+
 ## v2.12.0 - 2026-05-21
 
 ### What's Changed
@@ -18,8 +39,8 @@ LaravelPolar::getOrganization('org_xxx');
 
 // Escape hatch for anything not wrapped:
 LaravelPolar::sdk()->...
-```
 
+```
 See [`docs/migration-v2.11-to-v2.12.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.11-to-v2.12.md) for the escape-hatch recipe.
 
 **Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.11.0...v2.12.0
@@ -43,6 +64,7 @@ LaravelPolar::assignSeat(new Components\SeatAssign(...));
 LaravelPolar::revokeSeat('seat_xxx');
 LaravelPolar::resendSeatInvitation('seat_xxx');
 
+
 ```
 See [`docs/migration-v2.10-to-v2.11.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.10-to-v2.11.md).
 
@@ -59,6 +81,7 @@ Adds Cashier-style invoice/receipt access on the Order model.
 ```php
 $order->receiptUrl();       // ?string, memoized per instance
 $order->downloadInvoice();  // RedirectResponse — strict (throws on null)
+
 
 
 ```
@@ -87,6 +110,7 @@ $user->licenseKeys();
 
 
 
+
 ```
 New optional config: `polar.organization_id` / `POLAR_ORGANIZATION_ID` for the public-facing methods.
 
@@ -105,6 +129,7 @@ Closes the Cashier-parallel gap from the v2.5 admin Discount CRUD: the package c
 ```php
 $subscription->applyDiscount('disc_xxx');
 $subscription->removeDiscount();
+
 
 
 
@@ -138,6 +163,7 @@ $order->customFieldData();
 
 
 
+
 ```
 See [`docs/migration-v2.6-to-v2.7.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.6-to-v2.7.md).
 
@@ -160,6 +186,7 @@ LaravelPolar::updateCheckoutLink('cl_xxx', new Components\CheckoutLinkUpdate(lab
 LaravelPolar::deleteCheckoutLink('cl_xxx');
 LaravelPolar::listCheckoutLinks();
 LaravelPolar::getCheckoutLink('cl_xxx');
+
 
 
 
@@ -192,6 +219,7 @@ LaravelPolar::getDiscount('disc_xxx');
 
 
 
+
 ```
 See [`docs/migration-v2.4-to-v2.5.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.4-to-v2.5.md).
 
@@ -211,6 +239,7 @@ use Polar\Models\Components\RefundReason;
 $order->refund();                                              // refund the remaining unrefunded amount
 $order->refund(amount: 2500, reason: RefundReason::Fraudulent); // partial refund with custom reason
 $order->refunds();                                             // Collection of Refund items for this order
+
 
 
 
@@ -392,6 +421,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -415,11 +445,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
