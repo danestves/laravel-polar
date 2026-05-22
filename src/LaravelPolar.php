@@ -10,7 +10,7 @@ use Polar\Polar;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.13.1';
+    public const string VERSION = '2.13.2';
 
     /**
      * The cached Polar SDK instance.
@@ -253,7 +253,7 @@ class LaravelPolar
 
         $response = $sdk->events->ingest(request: $request);
 
-        if ($response->statusCode !== 202) {
+        if ($response->statusCode < 200 || $response->statusCode >= 300) {
             throw new Errors\APIException('Failed to ingest events', 500, '', null);
         }
     }
