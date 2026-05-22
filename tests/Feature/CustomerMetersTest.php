@@ -281,3 +281,69 @@ it('throws exception when ingesting events fails', function () {
     expect(fn() => LaravelPolar::ingestEvents($request))
         ->toThrow(Errors\APIException::class);
 });
+
+it('treats a 200 response from ingestEvents as success', function () {
+    $mocked = createMockedSdkWithEvents();
+    $sdk = $mocked['sdk'];
+    $events = $mocked['events'];
+    $mockRawResponse = Mockery::mock(ResponseInterface::class);
+
+    $response = new Operations\EventsIngestResponse(
+        contentType: 'application/json',
+        statusCode: 200,
+        rawResponse: $mockRawResponse,
+    );
+
+    $events->shouldReceive('ingest')->once()->andReturn($response);
+
+    setLaravelPolarSdk($sdk);
+
+    $request = new Components\EventsIngest(events: []);
+
+    expect(fn() => LaravelPolar::ingestEvents($request))
+        ->not->toThrow(Errors\APIException::class);
+});
+
+it('treats a 202 response from ingestEvents as success', function () {
+    $mocked = createMockedSdkWithEvents();
+    $sdk = $mocked['sdk'];
+    $events = $mocked['events'];
+    $mockRawResponse = Mockery::mock(ResponseInterface::class);
+
+    $response = new Operations\EventsIngestResponse(
+        contentType: 'application/json',
+        statusCode: 202,
+        rawResponse: $mockRawResponse,
+    );
+
+    $events->shouldReceive('ingest')->once()->andReturn($response);
+
+    setLaravelPolarSdk($sdk);
+
+    $request = new Components\EventsIngest(events: []);
+
+    expect(fn() => LaravelPolar::ingestEvents($request))
+        ->not->toThrow(Errors\APIException::class);
+});
+
+it('throws when ingestEvents returns a 4xx status', function () {
+    $mocked = createMockedSdkWithEvents();
+    $sdk = $mocked['sdk'];
+    $events = $mocked['events'];
+    $mockRawResponse = Mockery::mock(ResponseInterface::class);
+
+    $response = new Operations\EventsIngestResponse(
+        contentType: 'application/json',
+        statusCode: 400,
+        rawResponse: $mockRawResponse,
+    );
+
+    $events->shouldReceive('ingest')->once()->andReturn($response);
+
+    setLaravelPolarSdk($sdk);
+
+    $request = new Components\EventsIngest(events: []);
+
+    expect(fn() => LaravelPolar::ingestEvents($request))
+        ->toThrow(Errors\APIException::class);
+});
