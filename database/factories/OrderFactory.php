@@ -4,7 +4,7 @@ namespace Danestves\LaravelPolar\Database\Factories;
 
 use Danestves\LaravelPolar\Customer;
 use Danestves\LaravelPolar\Order;
-use Polar\Models\Components\OrderStatus;
+use Danestves\LaravelPolar\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<Order> */

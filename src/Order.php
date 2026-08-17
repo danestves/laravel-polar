@@ -3,8 +3,9 @@
 namespace Danestves\LaravelPolar;
 
 use Danestves\LaravelPolar\Database\Factories\OrderFactory;
+use Danestves\LaravelPolar\Enums\OrderStatus;
+use Danestves\LaravelPolar\Enums\RefundCreateReason;
 use Illuminate\Database\Eloquent\Builder;
-use Polar\Models\Components\OrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -90,10 +91,9 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
      * from Polar on demand and memoizes the result for the lifetime of this
      * Order instance.
      *
-     * @return array<string, string|int|bool|\DateTime|null>
+     * @return array<string, mixed>
      *
-     * @throws \Polar\Models\Errors\APIException
-     * @throws \Exception
+     * @throws \Danestves\LaravelPolar\Exceptions\PolarApiError
      */
     public function customFieldData(): array
     {
@@ -105,14 +105,7 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
             return $this->cachedCustomFieldData = [];
         }
 
-        $sdkResponse = LaravelPolar::sdk()->orders->get(id: $this->polar_id);
-        $sdkOrder = $sdkResponse->order;
-
-        if ($sdkOrder === null) {
-            return $this->cachedCustomFieldData = [];
-        }
-
-        return $this->cachedCustomFieldData = $sdkOrder->customFieldData ?? [];
+        return $this->cachedCustomFieldData = LaravelPolar::getOrder($this->polar_id)->customFieldData ?? [];
     }
 
     /**
@@ -125,10 +118,10 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
      * on Polar (the result is asynchronous on their side), then returns the
      * URL of the generated PDF. Memoized per Order instance.
      *
-     * Returns null when the order has no `polar_id` or no customer association.
+     * Returns null when the order has no `polar_id` or no customer association, or while Polar
+     * is still generating the document.
      *
-     * @throws \Polar\Models\Errors\APIException
-     * @throws \Exception
+     * @throws \Danestves\LaravelPolar\Exceptions\PolarApiError
      */
     public function receiptUrl(): ?string
     {
@@ -141,32 +134,17 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
         }
 
         $session = LaravelPolar::createCustomerSession(
-            new \Polar\Models\Components\CustomerSessionCustomerIDCreate(customerId: $this->customer_id),
+            new Data\CustomerSessionCustomerIDCreate(customerId: $this->customer_id),
         );
 
-        $response = LaravelPolar::sdk()->customerPortal->orders->generateInvoice(
-            security: new \Polar\Models\Operations\CustomerPortalOrdersGenerateInvoiceSecurity(customerSession: $session->token),
-            id: $this->polar_id,
-        );
-
-        $body = $response->any;
-        if (is_array($body) && isset($body['url']) && is_string($body['url'])) {
-            return $this->cachedReceiptUrl = $body['url'];
-        }
-
-        if (is_object($body) && isset($body->url) && is_string($body->url)) {
-            return $this->cachedReceiptUrl = $body->url;
-        }
-
-        return null;
+        return $this->cachedReceiptUrl = LaravelPolar::getOrderInvoiceUrl($session->token, $this->polar_id);
     }
 
     /**
      * Redirect the user's browser to the invoice/receipt URL for this order.
      *
      * @throws \RuntimeException when no URL is available (e.g. unsynced order)
-     * @throws \Polar\Models\Errors\APIException
-     * @throws \Exception
+     * @throws \Danestves\LaravelPolar\Exceptions\PolarApiError
      */
     public function downloadInvoice(): \Illuminate\Http\RedirectResponse
     {
@@ -183,39 +161,35 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
      * Issue a refund for this order. Defaults to refunding the remaining
      * unrefunded amount with reason "customer_request".
      *
-     * @param  array<string, scalar|null>|null  $metadata
+     * @param  array<string, mixed>|null  $metadata
      *
-     * @throws \Polar\Models\Errors\APIException
-     * @throws \Exception
+     * @throws \Danestves\LaravelPolar\Exceptions\PolarApiError
      */
     public function refund(
         ?int $amount = null,
-        ?\Polar\Models\Components\RefundReason $reason = null,
+        ?RefundCreateReason $reason = null,
         ?string $comment = null,
         ?array $metadata = null,
-    ): \Polar\Models\Components\Refund {
+    ): Data\Refund {
         if ($this->polar_id === null) {
             throw new \RuntimeException('Order has no polar_id; cannot refund.');
         }
 
-        $request = new \Polar\Models\Components\RefundCreate(
+        return LaravelPolar::createRefund(new Data\RefundCreate(
             orderId: $this->polar_id,
-            reason: $reason ?? \Polar\Models\Components\RefundReason::CustomerRequest,
+            reason: $reason ?? RefundCreateReason::CustomerRequest,
             amount: $amount ?? max(0, $this->amount - $this->refunded_amount),
             metadata: $metadata,
             comment: $comment,
-        );
-
-        return LaravelPolar::createRefund($request);
+        ));
     }
 
     /**
      * List refunds for this order.
      *
-     * @return \Illuminate\Support\Collection<int, \Polar\Models\Components\Refund>
+     * @return \Illuminate\Support\Collection<int, Data\Refund>
      *
-     * @throws \Polar\Models\Errors\APIException
-     * @throws \Exception
+     * @throws \Danestves\LaravelPolar\Exceptions\PolarApiError
      */
     public function refunds(): \Illuminate\Support\Collection
     {
@@ -223,11 +197,7 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
             return collect();
         }
 
-        $response = LaravelPolar::listRefunds(
-            new \Polar\Models\Operations\RefundsListRequest(orderId: $this->polar_id),
-        );
-
-        return collect($response->listResourceRefund->items ?? []);
+        return LaravelPolar::listRefunds(['order_id' => $this->polar_id])->collect();
     }
 
     /**

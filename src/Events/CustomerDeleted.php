@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Polar\Models\Components\WebhookCustomerDeletedPayload;
+use Danestves\LaravelPolar\Data\WebhookCustomerDeletedPayload;
 
 class CustomerDeleted extends WebhookEvent
 {

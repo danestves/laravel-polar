@@ -3,7 +3,7 @@
 namespace Danestves\LaravelPolar\Concerns;
 
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components\OrderStatus;
+use Danestves\LaravelPolar\Enums\OrderStatus;
 use Danestves\LaravelPolar\Order;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 

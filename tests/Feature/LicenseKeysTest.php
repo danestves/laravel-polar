@@ -2,215 +2,120 @@
 
 namespace Tests\Feature;
 
+use Danestves\LaravelPolar\Data;
 use Danestves\LaravelPolar\Exceptions\InvalidCustomer;
 use Danestves\LaravelPolar\LaravelPolar;
 use Danestves\LaravelPolar\Tests\Fixtures\User;
 use Illuminate\Support\Facades\Config;
-use Mockery;
-use Polar\Models\Components;
-use Polar\Models\Errors;
-use Polar\Models\Operations;
+use Illuminate\Support\Facades\Http;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
+it('lists license keys', function () {
+    fakePolarList('v1/license-keys/*', [polarFixture('LicenseKeyRead', ['id' => 'lk_1'])]);
+
+    expect(LaravelPolar::listLicenseKeys(['organization_id' => 'org_1'])->first()->id)->toBe('lk_1');
+
+    Http::assertSent(fn($request) => str_contains($request->url(), 'organization_id=org_1'));
+});
+
+it('gets a license key with its activations', function () {
+    fakePolar('v1/license-keys/lk_1', polarFixture('LicenseKeyWithActivations', ['id' => 'lk_1']));
+
+    expect(LaravelPolar::getLicenseKey('lk_1'))
+        ->toBeInstanceOf(Data\LicenseKeyWithActivations::class);
+});
+
+it('updates a license key', function () {
+    fakePolar('v1/license-keys/lk_1', polarFixture('LicenseKeyRead', [
+        'id' => 'lk_1',
+        'usage' => 5,
+    ]));
+
+    expect(LaravelPolar::updateLicenseKey('lk_1', ['usage' => 5])->usage)->toBe(5);
+
+    Http::assertSent(fn($request) => $request->method() === 'PATCH');
+});
+
+it('validates a license key against the public customer-portal route', function () {
+    fakePolar('v1/customer-portal/license-keys/validate', polarFixture('ValidatedLicenseKey', [
+        'id' => 'lk_1',
+    ]));
+
+    $validated = LaravelPolar::validateLicenseKey('KEY-123', organizationId: 'org_explicit');
+
+    expect($validated)->toBeInstanceOf(Data\ValidatedLicenseKey::class);
+
+    Http::assertSent(fn($request) => $request['key'] === 'KEY-123'
+        && $request['organization_id'] === 'org_explicit'
+        && str_ends_with($request->url(), '/v1/customer-portal/license-keys/validate'));
+});
+
+it('falls back to the configured organization id', function () {
+    Config::set('polar.organization_id', 'org_from_config');
+    fakePolar('v1/customer-portal/license-keys/validate', polarFixture('ValidatedLicenseKey'));
+
+    LaravelPolar::validateLicenseKey('KEY-123');
+
+    Http::assertSent(fn($request) => $request['organization_id'] === 'org_from_config');
+});
+
+it('refuses to validate without an organization id', function () {
     Config::set('polar.organization_id', null);
+
+    expect(fn() => LaravelPolar::validateLicenseKey('KEY-123'))
+        ->toThrow(\InvalidArgumentException::class, 'organization id is required');
 });
 
-afterEach(function () {
-    resetLaravelPolarSdk();
-    Mockery::close();
+it('activates a license key with a label and metadata', function () {
+    Config::set('polar.organization_id', 'org_1');
+    fakePolar('v1/customer-portal/license-keys/activate', polarFixture('LicenseKeyActivationRead', [
+        'id' => 'act_1',
+    ]));
+
+    $activation = LaravelPolar::activateLicenseKey('KEY-123', 'Laptop', meta: ['host' => 'macbook']);
+
+    expect($activation->id)->toBe('act_1');
+
+    Http::assertSent(fn($request) => $request['key'] === 'KEY-123'
+        && $request['label'] === 'Laptop'
+        && $request['meta'] === ['host' => 'macbook']);
 });
 
-function createMockedSdkWithLicenseKeys(): array
-{
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
+it('deactivates a license key activation', function () {
+    Config::set('polar.organization_id', 'org_1');
+    fakePolar('v1/customer-portal/license-keys/deactivate', [], 204);
 
-    $licenseKeys = Mockery::mock(\Polar\LicenseKeys::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $property = $reflectionSdk->getProperty('licenseKeys');
-    $property->setAccessible(true);
-    $property->setValue($sdk, $licenseKeys);
+    LaravelPolar::deactivateLicenseKey('KEY-123', 'act_1');
 
-    return ['sdk' => $sdk, 'licenseKeys' => $licenseKeys];
-}
-
-it('listLicenseKeys returns the first 200 page from the generator', function () {
-    $mocked = createMockedSdkWithLicenseKeys();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $list = new Components\ListResourceLicenseKeyRead(
-        items: [Mockery::mock(Components\LicenseKeyRead::class)],
-        pagination: new Components\Pagination(totalCount: 1, maxPage: 1),
-    );
-
-    $response = new Operations\LicenseKeysListResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        listResourceLicenseKeyRead: $list,
-    );
-
-    $mocked['licenseKeys']->shouldReceive('list')->andReturn((function () use ($response) {
-        yield $response;
-    })());
-
-    $result = LaravelPolar::listLicenseKeys();
-
-    expect($result)->toBe($response);
-    expect($result->listResourceLicenseKeyRead?->items)->toHaveCount(1);
+    Http::assertSent(fn($request) => $request['activation_id'] === 'act_1'
+        && str_ends_with($request->url(), '/v1/customer-portal/license-keys/deactivate'));
 });
 
-it('getLicenseKey returns the LicenseKeyWithActivations on 200', function () {
-    $mocked = createMockedSdkWithLicenseKeys();
-    setLaravelPolarSdk($mocked['sdk']);
+it('lists a billable\'s license keys through a customer session', function () {
+    Http::fake([
+        polarUrl('v1/customer-sessions/') => Http::response(
+            polarFixture('CustomerSession', ['token' => 'cst_token']),
+            201,
+        ),
+        polarUrl('v1/customer-portal/license-keys/*') => Http::response([
+            'items' => [polarFixture('LicenseKeyRead', ['id' => 'lk_1'])],
+            'pagination' => ['total_count' => 1, 'max_page' => 1],
+        ]),
+    ]);
 
-    $keyMock = Mockery::mock(Components\LicenseKeyWithActivations::class);
-    $response = new Operations\LicenseKeysGetResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        licenseKeyWithActivations: $keyMock,
-    );
+    $user = User::factory()->create();
+    $user->createAsCustomer(['polar_id' => 'cus_1']);
 
-    $mocked['licenseKeys']->shouldReceive('get')->once()->andReturn($response);
+    expect($user->licenseKeys()->pluck('id')->all())->toBe(['lk_1']);
 
-    expect(LaravelPolar::getLicenseKey('lk_abc'))->toBe($keyMock);
+    // The portal call must authenticate as the customer, not with the org token.
+    Http::assertSent(fn($request) => ! str_contains($request->url(), 'customer-portal')
+        || $request->hasHeader('Authorization', 'Bearer cst_token'));
 });
 
-it('updateLicenseKey returns the updated LicenseKeyRead on 200', function () {
-    $mocked = createMockedSdkWithLicenseKeys();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $keyMock = Mockery::mock(Components\LicenseKeyRead::class);
-    $response = new Operations\LicenseKeysUpdateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        licenseKeyRead: $keyMock,
-    );
-
-    $mocked['licenseKeys']->shouldReceive('update')
-        ->once()
-        ->withArgs(fn($body, string $id) => $id === 'lk_abc' && $body instanceof Components\LicenseKeyUpdate)
-        ->andReturn($response);
-
-    expect(LaravelPolar::updateLicenseKey('lk_abc', new Components\LicenseKeyUpdate(limitActivations: 5)))->toBe($keyMock);
-});
-
-it('validateLicenseKey forwards organizationId from the explicit argument', function () {
-    $mocked = createMockedSdkWithLicenseKeys();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $vMock = Mockery::mock(Components\ValidatedLicenseKey::class);
-    $response = new Operations\LicenseKeysValidateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        validatedLicenseKey: $vMock,
-    );
-
-    $mocked['licenseKeys']->shouldReceive('validate')
-        ->once()
-        ->withArgs(function (Components\LicenseKeyValidate $body) {
-            return $body->key === 'lic_xxx' && $body->organizationId === 'org_passed';
-        })
-        ->andReturn($response);
-
-    expect(LaravelPolar::validateLicenseKey('lic_xxx', 'org_passed'))->toBe($vMock);
-});
-
-it('validateLicenseKey falls back to polar.organization_id when not passed', function () {
-    Config::set('polar.organization_id', 'org_from_config');
-
-    $mocked = createMockedSdkWithLicenseKeys();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $vMock = Mockery::mock(Components\ValidatedLicenseKey::class);
-    $response = new Operations\LicenseKeysValidateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        validatedLicenseKey: $vMock,
-    );
-
-    $mocked['licenseKeys']->shouldReceive('validate')
-        ->once()
-        ->withArgs(fn(Components\LicenseKeyValidate $body) => $body->organizationId === 'org_from_config')
-        ->andReturn($response);
-
-    LaravelPolar::validateLicenseKey('lic_xxx');
-});
-
-it('validateLicenseKey throws InvalidArgumentException when no org id is available', function () {
-    $mocked = createMockedSdkWithLicenseKeys();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    expect(fn() => LaravelPolar::validateLicenseKey('lic_xxx'))
-        ->toThrow(\InvalidArgumentException::class, 'Polar organization id is required');
-});
-
-it('activateLicenseKey forwards label and metadata to the SDK', function () {
-    Config::set('polar.organization_id', 'org_from_config');
-
-    $mocked = createMockedSdkWithLicenseKeys();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $aMock = Mockery::mock(Components\LicenseKeyActivationRead::class);
-    $response = new Operations\LicenseKeysActivateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        licenseKeyActivationRead: $aMock,
-    );
-
-    $mocked['licenseKeys']->shouldReceive('activate')
-        ->once()
-        ->withArgs(function (Components\LicenseKeyActivate $body) {
-            return $body->key === 'lic_xxx'
-                && $body->organizationId === 'org_from_config'
-                && $body->label === 'My MacBook'
-                && $body->meta === ['hostname' => 'macbook-pro'];
-        })
-        ->andReturn($response);
-
-    LaravelPolar::activateLicenseKey('lic_xxx', 'My MacBook', meta: ['hostname' => 'macbook-pro']);
-});
-
-it('deactivateLicenseKey accepts 200 and 204 from the SDK', function () {
-    Config::set('polar.organization_id', 'org_from_config');
-
-    $mocked = createMockedSdkWithLicenseKeys();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $ok = new Operations\LicenseKeysDeactivateResponse(
-        contentType: 'application/json',
-        statusCode: 204,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-    );
-
-    $mocked['licenseKeys']->shouldReceive('deactivate')->once()->andReturn($ok);
-    LaravelPolar::deactivateLicenseKey('lic_xxx', 'act_xxx');
-
-    $err = new Operations\LicenseKeysDeactivateResponse(
-        contentType: 'application/json',
-        statusCode: 500,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-    );
-    $mocked['licenseKeys']->shouldReceive('deactivate')->once()->andReturn($err);
-    expect(fn() => LaravelPolar::deactivateLicenseKey('lic_xxx', 'act_xxx'))
-        ->toThrow(Errors\APIException::class);
-});
-
-it('$user->licenseKeys() throws when the customer has not been created yet', function () {
+it('refuses to list license keys before the billable has a Polar customer', function () {
     $user = User::factory()->create();
 
     expect(fn() => $user->licenseKeys())->toThrow(InvalidCustomer::class);
-});
 
-it('$user->licenseKeys() returns an empty Collection when no customer exists', function () {
-    $user = User::factory()->create();
-
-    expect(fn() => $user->licenseKeys())->toThrow(InvalidCustomer::class);
+    Http::assertNothingSent();
 });

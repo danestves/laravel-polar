@@ -2,10 +2,12 @@
 
 namespace Danestves\LaravelPolar\Tests;
 
+use Danestves\LaravelPolar\LaravelPolar;
 use Danestves\LaravelPolar\LaravelPolarServiceProvider;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\Concerns\InteractsWithViews;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,11 +24,27 @@ class TestCase extends Orchestra
         Factory::guessFactoryNamesUsing(
             fn(string $modelName) => 'Danestves\\LaravelPolar\\Database\\Factories\\' . class_basename($modelName) . 'Factory',
         );
+
+        // The client is a static singleton, so it has to be dropped between tests or one test's
+        // configuration leaks into the next.
+        LaravelPolar::resetClient();
+
+        // No test should ever reach the real Polar API; an unfaked call is a bug in the test.
+        Http::preventStrayRequests();
+    }
+
+    protected function tearDown(): void
+    {
+        LaravelPolar::resetClient();
+
+        parent::tearDown();
     }
 
     protected function getPackageProviders($app)
     {
         return [
+            // Auto-discovered in a real application; testbench needs it spelled out.
+            \Spatie\LaravelData\LaravelDataServiceProvider::class,
             LaravelPolarServiceProvider::class,
             \Inertia\ServiceProvider::class,
         ];
@@ -36,6 +54,8 @@ class TestCase extends Orchestra
     {
         config()->set('app.key', 'base64:EWcFBKBT8lGDNE8nQhTHY+wg19QlfmbhtO9Qnn3NfcA=');
         config()->set('database.default', 'testing');
+        config()->set('polar.access_token', 'polar_oat_test');
+        config()->set('polar.server', 'sandbox');
 
         if (!Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table) {

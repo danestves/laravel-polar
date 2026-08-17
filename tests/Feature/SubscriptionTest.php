@@ -2,20 +2,9 @@
 
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use Danestves\LaravelPolar\Subscription;
-use Illuminate\Support\Facades\Config;
-use Polar\Models\Components;
-use Polar\Models\Components\SubscriptionStatus;
-use Polar\Models\Operations\SubscriptionsUpdateResponse;
-
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
-});
-
-afterEach(function () {
-    resetLaravelPolarSdk();
-    Mockery::close();
-});
+use Danestves\LaravelPolar\Enums\SubscriptionProrationBehavior;
+use Danestves\LaravelPolar\Enums\SubscriptionStatus;
+use Illuminate\Support\Facades\Http;
 
 it('can determine if the subscription is valid while on its grace period', function () {
     $subscription = Subscription::factory()->cancelled()->create([
@@ -179,92 +168,93 @@ it('throws exception when resuming incomplete expired subscription', function ()
         ->toThrow(PolarApiError::class, 'Subscription is incomplete and expired.');
 });
 
-it('applyDiscount forwards SubscriptionUpdateDiscount with the discount id to the SDK', function () {
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
-
-    $subscriptions = Mockery::mock(\Polar\Subscriptions::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $subscriptionsProperty = $reflectionSdk->getProperty('subscriptions');
-    $subscriptionsProperty->setAccessible(true);
-    $subscriptionsProperty->setValue($sdk, $subscriptions);
-
-    setLaravelPolarSdk($sdk);
+it('applies a discount to the subscription', function () {
+    fakePolar('v1/subscriptions/*', polarFixture('Subscription', [
+        'id' => 'sub_apply',
+        'status' => 'active',
+        'product_id' => 'prod_orig',
+    ]));
 
     $subscription = Subscription::factory()->active()->create([
         'polar_id' => 'sub_apply',
         'product_id' => 'prod_orig',
     ]);
 
-    $sdkSubscription = Mockery::mock(Components\Subscription::class);
-    $sdkSubscription->status = SubscriptionStatus::Active;
-    $sdkSubscription->productId = 'prod_orig';
-    $sdkSubscription->currentPeriodEnd = new \DateTime('+30 days');
-    $sdkSubscription->trialEnd = null;
-    $sdkSubscription->endedAt = null;
+    expect($subscription->applyDiscount('disc_holiday'))->toBe($subscription);
 
-    $response = new SubscriptionsUpdateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        subscription: $sdkSubscription,
-    );
-
-    $subscriptions->shouldReceive('update')
-        ->once()
-        ->withArgs(function ($body, string $id) {
-            return $id === 'sub_apply'
-                && $body instanceof Components\SubscriptionUpdateDiscount
-                && $body->discountId === 'disc_holiday';
-        })
-        ->andReturn($response);
-
-    $result = $subscription->applyDiscount('disc_holiday');
-
-    expect($result)->toBe($subscription);
+    Http::assertSent(fn($request) => $request->method() === 'PATCH'
+        && str_ends_with($request->url(), '/v1/subscriptions/sub_apply')
+        && $request['discount_id'] === 'disc_holiday');
 });
 
-it('removeDiscount forwards SubscriptionUpdateDiscount with null discountId to the SDK', function () {
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
+it('removes a discount by sending an explicit null', function () {
+    fakePolar('v1/subscriptions/*', polarFixture('Subscription', [
+        'id' => 'sub_remove',
+        'status' => 'active',
+    ]));
 
-    $subscriptions = Mockery::mock(\Polar\Subscriptions::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $subscriptionsProperty = $reflectionSdk->getProperty('subscriptions');
-    $subscriptionsProperty->setAccessible(true);
-    $subscriptionsProperty->setValue($sdk, $subscriptions);
-
-    setLaravelPolarSdk($sdk);
-
-    $subscription = Subscription::factory()->active()->create([
+    Subscription::factory()->active()->create([
         'polar_id' => 'sub_remove',
         'product_id' => 'prod_orig',
+    ])->removeDiscount();
+
+    // Polar reads an omitted key as "leave alone", so clearing requires the null to survive.
+    Http::assertSent(fn($request) => array_key_exists('discount_id', $request->data())
+        && $request['discount_id'] === null);
+});
+
+it('swaps the subscription onto another product', function () {
+    fakePolar('v1/subscriptions/*', polarFixture('Subscription', [
+        'id' => 'sub_swap',
+        'status' => 'active',
+        'product_id' => 'prod_new',
+    ]));
+
+    $subscription = Subscription::factory()->active()->create([
+        'polar_id' => 'sub_swap',
+        'product_id' => 'prod_old',
     ]);
 
-    $sdkSubscription = Mockery::mock(Components\Subscription::class);
-    $sdkSubscription->status = SubscriptionStatus::Active;
-    $sdkSubscription->productId = 'prod_orig';
-    $sdkSubscription->currentPeriodEnd = new \DateTime('+30 days');
-    $sdkSubscription->trialEnd = null;
-    $sdkSubscription->endedAt = null;
+    $subscription->swap('prod_new');
 
-    $response = new SubscriptionsUpdateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        subscription: $sdkSubscription,
-    );
+    expect($subscription->refresh()->product_id)->toBe('prod_new');
 
-    $subscriptions->shouldReceive('update')
-        ->once()
-        ->withArgs(function ($body, string $id) {
-            return $id === 'sub_remove'
-                && $body instanceof Components\SubscriptionUpdateDiscount
-                && $body->discountId === null;
-        })
-        ->andReturn($response);
+    Http::assertSent(fn($request) => $request['product_id'] === 'prod_new'
+        && $request['proration_behavior'] === SubscriptionProrationBehavior::Prorate->value);
+});
 
-    $result = $subscription->removeDiscount();
+it('invoices immediately when swapping and invoicing', function () {
+    fakePolar('v1/subscriptions/*', polarFixture('Subscription', ['status' => 'active']));
 
-    expect($result)->toBe($subscription);
+    Subscription::factory()->active()->create(['polar_id' => 'sub_swap'])
+        ->swapAndInvoice('prod_new');
+
+    Http::assertSent(fn($request) => $request['proration_behavior'] === SubscriptionProrationBehavior::Invoice->value);
+});
+
+it('cancels at period end and uncancels by resuming', function () {
+    fakePolar('v1/subscriptions/*', polarFixture('Subscription', ['status' => 'active']));
+
+    $subscription = Subscription::factory()->active()->create(['polar_id' => 'sub_1']);
+
+    $subscription->cancel();
+    $subscription->resume();
+
+    $sent = [];
+    Http::assertSent(function ($request) use (&$sent) {
+        $sent[] = $request['cancel_at_period_end'];
+
+        return true;
+    });
+
+    expect($sent)->toBe([true, false]);
+});
+
+it('sets a trial end date on the subscription', function () {
+    fakePolar('v1/subscriptions/*', polarFixture('Subscription', ['status' => 'trialing']));
+
+    Subscription::factory()->active()->create(['polar_id' => 'sub_1'])
+        ->updateTrial(new \DateTimeImmutable('2026-06-01T00:00:00+00:00'));
+
+    Http::assertSent(fn($request) => str_starts_with($request['trial_end'], '2026-06-01T00:00:00'));
 });

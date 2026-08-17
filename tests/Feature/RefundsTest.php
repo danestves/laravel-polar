@@ -2,238 +2,92 @@
 
 namespace Tests\Feature;
 
+use Danestves\LaravelPolar\Data;
+use Danestves\LaravelPolar\Enums\RefundCreateReason;
 use Danestves\LaravelPolar\LaravelPolar;
 use Danestves\LaravelPolar\Order;
-use Illuminate\Support\Facades\Config;
-use Mockery;
-use Polar\Models\Components;
-use Polar\Models\Operations;
+use Illuminate\Support\Facades\Http;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
-});
+it('creates a refund', function () {
+    fakePolar('v1/refunds/', polarFixture('Refund', ['id' => 'ref_1', 'amount' => 5000]), 201);
 
-afterEach(function () {
-    resetLaravelPolarSdk();
-    Mockery::close();
-});
-
-function createMockedSdkWithRefunds(): array
-{
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
-
-    $refunds = Mockery::mock(\Polar\Refunds::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $refundsProperty = $reflectionSdk->getProperty('refunds');
-    $refundsProperty->setAccessible(true);
-    $refundsProperty->setValue($sdk, $refunds);
-
-    return ['sdk' => $sdk, 'refunds' => $refunds];
-}
-
-it('forwards createRefund to the SDK and returns the refund on success', function () {
-    $mocked = createMockedSdkWithRefunds();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $refundMock = Mockery::mock(Components\Refund::class);
-    $response = new Operations\RefundsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        refund: $refundMock,
-    );
-
-    $request = new Components\RefundCreate(
-        orderId: 'ord_123',
-        reason: Components\RefundReason::CustomerRequest,
-        amount: 5000,
-    );
-
-    $mocked['refunds']->shouldReceive('create')
-        ->once()
-        ->withArgs(function ($body) {
-            return $body instanceof Components\RefundCreate
-                && $body->orderId === 'ord_123'
-                && $body->reason === Components\RefundReason::CustomerRequest
-                && $body->amount === 5000;
-        })
-        ->andReturn($response);
-
-    $result = LaravelPolar::createRefund($request);
-
-    expect($result)->toBe($refundMock);
-});
-
-it('throws when createRefund SDK call returns a non-200 status', function () {
-    $mocked = createMockedSdkWithRefunds();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $response = new Operations\RefundsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 500,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        refund: null,
-    );
-
-    $mocked['refunds']->shouldReceive('create')->andReturn($response);
-
-    $request = new Components\RefundCreate(
-        orderId: 'ord_123',
-        reason: Components\RefundReason::Other,
-        amount: 100,
-    );
-
-    expect(fn() => LaravelPolar::createRefund($request))
-        ->toThrow(\Polar\Models\Errors\APIException::class);
-});
-
-it('listRefunds returns the first 200 response from the paginated generator', function () {
-    $mocked = createMockedSdkWithRefunds();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $list = new Components\ListResourceRefund(
-        items: [Mockery::mock(Components\Refund::class)],
-        pagination: new Components\Pagination(totalCount: 1, maxPage: 1),
-    );
-
-    $response = new Operations\RefundsListResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        listResourceRefund: $list,
-    );
-
-    $mocked['refunds']->shouldReceive('list')->andReturn((function () use ($response) {
-        yield $response;
-    })());
-
-    $result = LaravelPolar::listRefunds();
-
-    expect($result)->toBe($response);
-    expect($result->listResourceRefund?->items)->toHaveCount(1);
-});
-
-it('Order::refund forwards to LaravelPolar::createRefund with defaults filled from the order', function () {
-    $mocked = createMockedSdkWithRefunds();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $order = Order::factory()->paid()->create([
-        'polar_id' => 'ord_abc',
-        'amount' => 10000,
-        'refunded_amount' => 3000,
+    $refund = LaravelPolar::createRefund([
+        'order_id' => 'order_1',
+        'reason' => RefundCreateReason::CustomerRequest->value,
+        'amount' => 5000,
     ]);
 
-    $refundMock = Mockery::mock(Components\Refund::class);
-    $response = new Operations\RefundsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        refund: $refundMock,
-    );
+    expect($refund)->toBeInstanceOf(Data\Refund::class)
+        ->and($refund->amount)->toBe(5000);
 
-    $mocked['refunds']->shouldReceive('create')
-        ->once()
-        ->withArgs(function ($body) {
-            return $body instanceof Components\RefundCreate
-                && $body->orderId === 'ord_abc'
-                && $body->reason === Components\RefundReason::CustomerRequest
-                && $body->amount === 7000;
-        })
-        ->andReturn($response);
-
-    $result = $order->refund();
-
-    expect($result)->toBe($refundMock);
+    Http::assertSent(fn($request) => $request->method() === 'POST'
+        && $request['order_id'] === 'order_1'
+        && $request['reason'] === 'customer_request');
 });
 
-it('Order::refund honors a provided amount, reason, comment, and metadata', function () {
-    $mocked = createMockedSdkWithRefunds();
-    setLaravelPolarSdk($mocked['sdk']);
+it('lists refunds', function () {
+    fakePolarList('v1/refunds/*', [polarFixture('Refund', ['id' => 'ref_1'])]);
+
+    expect(LaravelPolar::listRefunds()->first()->id)->toBe('ref_1');
+});
+
+it('refunds an order, defaulting to the unrefunded remainder', function () {
+    fakePolar('v1/refunds/', polarFixture('Refund', ['id' => 'ref_1']), 201);
 
     $order = Order::factory()->paid()->create([
-        'polar_id' => 'ord_def',
+        'polar_id' => 'order_1',
         'amount' => 10000,
-        'refunded_amount' => 0,
+        'refunded_amount' => 2500,
     ]);
 
-    $refundMock = Mockery::mock(Components\Refund::class);
-    $response = new Operations\RefundsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        refund: $refundMock,
-    );
+    $order->refund();
 
-    $mocked['refunds']->shouldReceive('create')
-        ->once()
-        ->withArgs(function ($body) {
-            return $body instanceof Components\RefundCreate
-                && $body->orderId === 'ord_def'
-                && $body->amount === 2500
-                && $body->reason === Components\RefundReason::Fraudulent
-                && $body->comment === 'flagged by risk team'
-                && $body->metadata === ['ticket' => 'T-42'];
-        })
-        ->andReturn($response);
+    Http::assertSent(fn($request) => $request['order_id'] === 'order_1'
+        && $request['amount'] === 7500
+        && $request['reason'] === 'customer_request');
+});
+
+it('refunds an order with an explicit amount, reason, comment and metadata', function () {
+    fakePolar('v1/refunds/', polarFixture('Refund', ['id' => 'ref_1']), 201);
+
+    $order = Order::factory()->paid()->create(['polar_id' => 'order_1', 'amount' => 10000]);
 
     $order->refund(
-        amount: 2500,
-        reason: Components\RefundReason::Fraudulent,
-        comment: 'flagged by risk team',
-        metadata: ['ticket' => 'T-42'],
+        amount: 1000,
+        reason: RefundCreateReason::Duplicate,
+        comment: 'Charged twice',
+        metadata: ['ticket' => 'SUP-42'],
     );
+
+    Http::assertSent(fn($request) => $request['amount'] === 1000
+        && $request['reason'] === 'duplicate'
+        && $request['comment'] === 'Charged twice'
+        && $request['metadata'] === ['ticket' => 'SUP-42']);
 });
 
-it('Order::refunds returns a Collection of Refund items for this order', function () {
-    $mocked = createMockedSdkWithRefunds();
-    setLaravelPolarSdk($mocked['sdk']);
+it('refuses to refund an order that was never synced', function () {
+    $order = Order::factory()->paid()->create(['polar_id' => null]);
 
-    $order = Order::factory()->paid()->create([
-        'polar_id' => 'ord_ghi',
+    expect(fn() => $order->refund())->toThrow(\RuntimeException::class, 'cannot refund');
+});
+
+it('lists the refunds belonging to an order', function () {
+    fakePolarList('v1/refunds/*', [
+        polarFixture('Refund', ['id' => 'ref_1']),
+        polarFixture('Refund', ['id' => 'ref_2']),
     ]);
 
-    $refund1 = Mockery::mock(Components\Refund::class);
-    $refund2 = Mockery::mock(Components\Refund::class);
+    $order = Order::factory()->paid()->create(['polar_id' => 'order_1']);
 
-    $list = new Components\ListResourceRefund(
-        items: [$refund1, $refund2],
-        pagination: new Components\Pagination(totalCount: 2, maxPage: 1),
-    );
+    expect($order->refunds()->pluck('id')->all())->toBe(['ref_1', 'ref_2']);
 
-    $response = new Operations\RefundsListResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        listResourceRefund: $list,
-    );
-
-    $mocked['refunds']->shouldReceive('list')
-        ->once()
-        ->withArgs(function ($request) {
-            return $request instanceof Operations\RefundsListRequest
-                && $request->orderId === 'ord_ghi';
-        })
-        ->andReturn((function () use ($response) {
-            yield $response;
-        })());
-
-    $refunds = $order->refunds();
-
-    expect($refunds)->toHaveCount(2);
-    expect($refunds->first())->toBe($refund1);
+    Http::assertSent(fn($request) => str_contains($request->url(), 'order_id=order_1'));
 });
 
-it('Order::refunds returns an empty collection when the order has no polar_id', function () {
+it('returns no refunds for an order that was never synced', function () {
     $order = Order::factory()->paid()->create(['polar_id' => null]);
 
-    expect($order->refunds())->toHaveCount(0);
-});
+    expect($order->refunds())->toBeEmpty();
 
-it('Order::refund throws when the order has no polar_id', function () {
-    $order = Order::factory()->paid()->create(['polar_id' => null]);
-
-    expect(fn() => $order->refund(amount: 100))
-        ->toThrow(\RuntimeException::class, 'Order has no polar_id');
+    Http::assertNothingSent();
 });

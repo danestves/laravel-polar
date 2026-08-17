@@ -4,7 +4,9 @@ namespace Danestves\LaravelPolar\Concerns;
 
 use Danestves\LaravelPolar\Checkout;
 use Illuminate\Support\Facades\Log;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data\AddressInput;
+use Danestves\LaravelPolar\Enums\CountryAlpha2;
+use Danestves\LaravelPolar\Enums\PresentmentCurrency;
 
 trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts is used in Billable trait
 {
@@ -34,13 +36,13 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
             if ($upperCode === 'UK') {
                 $upperCode = 'GB';
             }
-            $country = Components\CountryAlpha2Input::tryFrom($upperCode);
+            $country = CountryAlpha2::tryFrom($upperCode);
             if ($country === null) {
                 Log::warning("Invalid country code '{$upperCode}' provided, defaulting to US");
-                $country = Components\CountryAlpha2Input::Us;
+                $country = CountryAlpha2::US;
             }
 
-            $billingAddress = new Components\AddressInput(
+            $billingAddress = new AddressInput(
                 country: $country,
                 line1: isset($options['line1']) ? (string) $options['line1'] : null,
                 line2: isset($options['line2']) ? (string) $options['line2'] : null,
@@ -70,7 +72,7 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
         }
 
         if (isset($options['currency'])) {
-            $currency = Components\PresentmentCurrency::tryFrom($options['currency']);
+            $currency = PresentmentCurrency::tryFrom((string) $options['currency']);
             if ($currency !== null) {
                 $checkout->withCurrency($currency);
             }

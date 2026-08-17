@@ -3,6 +3,7 @@
 namespace Danestves\LaravelPolar;
 
 use Danestves\LaravelPolar\Commands\ListProductsCommand;
+use Danestves\LaravelPolar\Http\PolarClient;
 use Danestves\LaravelPolar\View\Components\Button;
 use Illuminate\Support\Facades\Blade;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
@@ -39,11 +40,9 @@ class LaravelPolarServiceProvider extends PackageServiceProvider
     {
         parent::register();
 
-        $this->app->singleton(\Polar\Polar::class, function () {
-            return LaravelPolar::sdk();
-        });
+        $this->app->singleton(PolarClient::class, fn() => LaravelPolar::client());
 
-        $this->app->alias(\Polar\Polar::class, 'polar.sdk');
+        $this->app->alias(PolarClient::class, 'polar.client');
     }
 
     public function boot(): void

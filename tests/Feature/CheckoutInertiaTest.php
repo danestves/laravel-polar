@@ -5,16 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Danestves\LaravelPolar\Checkout;
-use Illuminate\Support\Facades\Config;
 use Mockery;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
-});
-
 afterEach(function () {
-    resetLaravelPolarSdk();
     Mockery::close();
 });
 

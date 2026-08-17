@@ -3,9 +3,10 @@
 namespace Danestves\LaravelPolar\Handlers;
 
 use Carbon\Carbon;
+use Danestves\LaravelPolar\Data;
+use Danestves\LaravelPolar\Enums\OrderStatus;
+use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Events\BenefitCreated;
-use Polar\Models\Components\OrderStatus;
-use Polar\Models\Components\SubscriptionStatus;
 use Danestves\LaravelPolar\Events\BenefitGrantCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantRevoked;
 use Danestves\LaravelPolar\Events\BenefitGrantUpdated;
@@ -33,22 +34,10 @@ use Danestves\LaravelPolar\LaravelPolar;
 use Danestves\LaravelPolar\Order as EloquentOrder;
 use Danestves\LaravelPolar\Subscription as EloquentSubscription;
 use Illuminate\Support\Facades\Log;
-use Polar\Models\Components;
 use Spatie\WebhookClient\Jobs\ProcessWebhookJob;
 
 class ProcessWebhook extends ProcessWebhookJob
 {
-    private ?\Speakeasy\Serializer\Serializer $serializer = null;
-
-    private function getSerializer(): \Speakeasy\Serializer\Serializer
-    {
-        if ($this->serializer === null) {
-            $this->serializer = \Polar\Utils\JSON::createSerializer();
-        }
-
-        return $this->serializer;
-    }
-
     public function handle(): void
     {
         $decoded = json_decode($this->webhookCall, true);
@@ -114,7 +103,7 @@ class ProcessWebhook extends ProcessWebhookJob
             'ordered_at' => Carbon::make($data['created_at']),
         ]);
 
-        $payload = $this->createOrderCreatedPayload($data, $timestamp, $type);
+        $payload = $this->payload(Data\WebhookOrderCreatedPayload::class, $data, $timestamp, $type);
         OrderCreated::dispatch($billable, $order, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -144,7 +133,7 @@ class ProcessWebhook extends ProcessWebhookJob
             'refunded_at' => $isRefunded ? Carbon::make($data['refunded_at']) : null,
         ]);
 
-        $payload = $this->createOrderUpdatedPayload($data, $timestamp, $type);
+        $payload = $this->payload(Data\WebhookOrderUpdatedPayload::class, $data, $timestamp, $type);
         OrderUpdated::dispatch($billable, $order, $payload, $isRefunded); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -172,7 +161,7 @@ class ProcessWebhook extends ProcessWebhookJob
             $billable->customer->update(['polar_id' => $data['customer_id']]); // @phpstan-ignore-line property.notFound - the property is found in the billable model
         }
 
-        $payload = $this->createSubscriptionCreatedPayload($data, $timestamp, $type);
+        $payload = $this->payload(Data\WebhookSubscriptionCreatedPayload::class, $data, $timestamp, $type);
         SubscriptionCreated::dispatch($billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -193,7 +182,7 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $subscription->sync($data);
 
-        $payload = $this->createSubscriptionUpdatedPayload($data, $timestamp, $type);
+        $payload = $this->payload(Data\WebhookSubscriptionUpdatedPayload::class, $data, $timestamp, $type);
         SubscriptionUpdated::dispatch($subscription->billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -214,7 +203,7 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $subscription->sync($data);
 
-        $payload = $this->createSubscriptionActivePayload($data, $timestamp, $type);
+        $payload = $this->payload(Data\WebhookSubscriptionActivePayload::class, $data, $timestamp, $type);
         SubscriptionActive::dispatch($subscription->billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -235,7 +224,7 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $subscription->sync($data);
 
-        $payload = $this->createSubscriptionCanceledPayload($data, $timestamp, $type);
+        $payload = $this->payload(Data\WebhookSubscriptionCanceledPayload::class, $data, $timestamp, $type);
         SubscriptionCanceled::dispatch($subscription->billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -256,7 +245,7 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $subscription->sync($data);
 
-        $payload = $this->createSubscriptionRevokedPayload($data, $timestamp, $type);
+        $payload = $this->payload(Data\WebhookSubscriptionRevokedPayload::class, $data, $timestamp, $type);
         SubscriptionRevoked::dispatch($subscription->billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -269,7 +258,7 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $billable = $this->resolveBillable($data);
 
-        $payload = $this->createBenefitGrantCreatedPayload($data, $timestamp, $type);
+        $payload = $this->benefitGrantPayload(Data\WebhookBenefitGrantCreatedPayload::class, $data, $timestamp, $type);
         BenefitGrantCreated::dispatch($billable, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -282,7 +271,7 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $billable = $this->resolveBillable($data);
 
-        $payload = $this->createBenefitGrantUpdatedPayload($data, $timestamp, $type);
+        $payload = $this->benefitGrantPayload(Data\WebhookBenefitGrantUpdatedPayload::class, $data, $timestamp, $type);
         BenefitGrantUpdated::dispatch($billable, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -295,7 +284,7 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $billable = $this->resolveBillable($data);
 
-        $payload = $this->createBenefitGrantRevokedPayload($data, $timestamp, $type);
+        $payload = $this->benefitGrantPayload(Data\WebhookBenefitGrantRevokedPayload::class, $data, $timestamp, $type);
         BenefitGrantRevoked::dispatch($billable, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
     }
 
@@ -383,133 +372,43 @@ class ProcessWebhook extends ProcessWebhookJob
     }
 
     /**
-     * Create WebhookOrderCreatedPayload from array data.
+     * Build a typed webhook payload from the raw event.
+     *
+     * Polar's webhook envelope is `{type, timestamp, data}`, which is exactly the shape of the
+     * generated payload classes, so the whole event hydrates in one step.
+     *
+     * @template TPayload of \Spatie\LaravelData\Data
+     *
+     * @param  class-string<TPayload>  $payloadClass
+     * @param  array<string, mixed>  $data
+     * @return TPayload
      */
-    private function createOrderCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookOrderCreatedPayload
+    private function payload(string $payloadClass, array $data, \DateTimeInterface $timestamp, string $type): mixed
     {
-        $order = $this->arrayToOrder($data);
-        return new Components\WebhookOrderCreatedPayload($timestamp, $order, $type);
+        return $payloadClass::from([
+            'type' => $type,
+            'timestamp' => $timestamp->format(\DateTimeInterface::ATOM),
+            'data' => $data,
+        ]);
     }
 
     /**
-     * Create WebhookOrderUpdatedPayload from array data.
+     * Benefit grants are discriminated by their nested benefit type, so the grant is resolved
+     * before the envelope is assembled.
+     *
+     * @template TPayload of \Spatie\LaravelData\Data
+     *
+     * @param  class-string<TPayload>  $payloadClass
+     * @param  array<string, mixed>  $data
+     * @return TPayload
      */
-    private function createOrderUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookOrderUpdatedPayload
+    private function benefitGrantPayload(string $payloadClass, array $data, \DateTimeInterface $timestamp, string $type): mixed
     {
-        $order = $this->arrayToOrder($data);
-        return new Components\WebhookOrderUpdatedPayload($timestamp, $order, $type);
-    }
-
-    /**
-     * Create WebhookSubscriptionCreatedPayload from array data.
-     */
-    private function createSubscriptionCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookSubscriptionCreatedPayload
-    {
-        $subscription = $this->arrayToSubscription($data);
-        return new Components\WebhookSubscriptionCreatedPayload($timestamp, $subscription, $type);
-    }
-
-    /**
-     * Create WebhookSubscriptionUpdatedPayload from array data.
-     */
-    private function createSubscriptionUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookSubscriptionUpdatedPayload
-    {
-        $subscription = $this->arrayToSubscription($data);
-        return new Components\WebhookSubscriptionUpdatedPayload($timestamp, $subscription, $type);
-    }
-
-    /**
-     * Create WebhookSubscriptionActivePayload from array data.
-     */
-    private function createSubscriptionActivePayload(array $data, \DateTime $timestamp, string $type): Components\WebhookSubscriptionActivePayload
-    {
-        $subscription = $this->arrayToSubscription($data);
-        return new Components\WebhookSubscriptionActivePayload($timestamp, $subscription, $type);
-    }
-
-    /**
-     * Create WebhookSubscriptionCanceledPayload from array data.
-     */
-    private function createSubscriptionCanceledPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookSubscriptionCanceledPayload
-    {
-        $subscription = $this->arrayToSubscription($data);
-        return new Components\WebhookSubscriptionCanceledPayload($timestamp, $subscription, $type);
-    }
-
-    /**
-     * Create WebhookSubscriptionRevokedPayload from array data.
-     */
-    private function createSubscriptionRevokedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookSubscriptionRevokedPayload
-    {
-        $subscription = $this->arrayToSubscription($data);
-        return new Components\WebhookSubscriptionRevokedPayload($timestamp, $subscription, $type);
-    }
-
-    /**
-     * Create WebhookBenefitGrantCreatedPayload from array data.
-     */
-    private function createBenefitGrantCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookBenefitGrantCreatedPayload
-    {
-        $benefitGrant = $this->arrayToBenefitGrant($data);
-        return new Components\WebhookBenefitGrantCreatedPayload($timestamp, $benefitGrant, $type);
-    }
-
-    /**
-     * Create WebhookBenefitGrantUpdatedPayload from array data.
-     */
-    private function createBenefitGrantUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookBenefitGrantUpdatedPayload
-    {
-        $benefitGrant = $this->arrayToBenefitGrant($data);
-        return new Components\WebhookBenefitGrantUpdatedPayload($timestamp, $benefitGrant, $type);
-    }
-
-    /**
-     * Create WebhookBenefitGrantRevokedPayload from array data.
-     */
-    private function createBenefitGrantRevokedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookBenefitGrantRevokedPayload
-    {
-        $benefitGrant = $this->arrayToBenefitGrant($data);
-        return new Components\WebhookBenefitGrantRevokedPayload($timestamp, $benefitGrant, $type);
-    }
-
-    private function arrayToComponent(array $data, string $class): mixed
-    {
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException("Failed to encode data to JSON for {$class}: " . json_last_error_msg());
-        }
-        return $this->getSerializer()->deserialize($json, $class, 'json');
-    }
-
-    private function arrayToOrder(array $data): Components\Order
-    {
-        return $this->arrayToComponent($data, Components\Order::class);
-    }
-
-    private function arrayToSubscription(array $data): Components\Subscription
-    {
-        return $this->arrayToComponent($data, Components\Subscription::class);
-    }
-
-    private function arrayToBenefitGrant(array $data): Components\BenefitGrantDiscordWebhook|Components\BenefitGrantCustomWebhook|Components\BenefitGrantGitHubRepositoryWebhook|Components\BenefitGrantDownloadablesWebhook|Components\BenefitGrantLicenseKeysWebhook|Components\BenefitGrantMeterCreditWebhook
-    {
-        $type = $data['type'] ?? $data['benefit']['type'] ?? 'custom';
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException('Failed to encode benefit grant data to JSON: ' . json_last_error_msg());
-        }
-
-        $serializer = $this->getSerializer();
-
-        return match ($type) {
-            'discord' => $serializer->deserialize($json, Components\BenefitGrantDiscordWebhook::class, 'json'),
-            'custom' => $serializer->deserialize($json, Components\BenefitGrantCustomWebhook::class, 'json'),
-            'github_repository' => $serializer->deserialize($json, Components\BenefitGrantGitHubRepositoryWebhook::class, 'json'),
-            'downloadables' => $serializer->deserialize($json, Components\BenefitGrantDownloadablesWebhook::class, 'json'),
-            'license_keys' => $serializer->deserialize($json, Components\BenefitGrantLicenseKeysWebhook::class, 'json'),
-            'meter_credit' => $serializer->deserialize($json, Components\BenefitGrantMeterCreditWebhook::class, 'json'),
-            default => $serializer->deserialize($json, Components\BenefitGrantCustomWebhook::class, 'json'),
-        };
+        return $payloadClass::from([
+            'type' => $type,
+            'timestamp' => $timestamp->format(\DateTimeInterface::ATOM),
+            'data' => Data\BenefitGrantWebhook::resolve($data),
+        ]);
     }
 
     /**
@@ -519,8 +418,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCheckoutCreated(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createCheckoutCreatedPayload($data, $timestamp, $type);
-        CheckoutCreated::dispatch($payload);
+        CheckoutCreated::dispatch($this->payload(Data\WebhookCheckoutCreatedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -530,8 +428,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCheckoutUpdated(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createCheckoutUpdatedPayload($data, $timestamp, $type);
-        CheckoutUpdated::dispatch($payload);
+        CheckoutUpdated::dispatch($this->payload(Data\WebhookCheckoutUpdatedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -541,8 +438,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCheckoutExpired(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createCheckoutExpiredPayload($data, $timestamp, $type);
-        CheckoutExpired::dispatch($payload);
+        CheckoutExpired::dispatch($this->payload(Data\WebhookCheckoutExpiredPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -552,8 +448,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCustomerCreated(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createCustomerCreatedPayload($data, $timestamp, $type);
-        CustomerCreated::dispatch($payload);
+        CustomerCreated::dispatch($this->payload(Data\WebhookCustomerCreatedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -563,8 +458,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCustomerUpdated(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createCustomerUpdatedPayload($data, $timestamp, $type);
-        CustomerUpdated::dispatch($payload);
+        CustomerUpdated::dispatch($this->payload(Data\WebhookCustomerUpdatedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -574,8 +468,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCustomerDeleted(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createCustomerDeletedPayload($data, $timestamp, $type);
-        CustomerDeleted::dispatch($payload);
+        CustomerDeleted::dispatch($this->payload(Data\WebhookCustomerDeletedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -585,8 +478,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCustomerStateChanged(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createCustomerStateChangedPayload($data, $timestamp, $type);
-        CustomerStateChanged::dispatch($payload);
+        CustomerStateChanged::dispatch($this->payload(Data\WebhookCustomerStateChangedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -596,8 +488,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleProductCreated(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createProductCreatedPayload($data, $timestamp, $type);
-        ProductCreated::dispatch($payload);
+        ProductCreated::dispatch($this->payload(Data\WebhookProductCreatedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -607,8 +498,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleProductUpdated(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createProductUpdatedPayload($data, $timestamp, $type);
-        ProductUpdated::dispatch($payload);
+        ProductUpdated::dispatch($this->payload(Data\WebhookProductUpdatedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -618,8 +508,7 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleBenefitCreated(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createBenefitCreatedPayload($data, $timestamp, $type);
-        BenefitCreated::dispatch($payload);
+        BenefitCreated::dispatch($this->payload(Data\WebhookBenefitCreatedPayload::class, $data, $timestamp, $type));
     }
 
     /**
@@ -629,165 +518,6 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleBenefitUpdated(array $data, \DateTime $timestamp, string $type): void
     {
-        $payload = $this->createBenefitUpdatedPayload($data, $timestamp, $type);
-        BenefitUpdated::dispatch($payload);
-    }
-
-    /**
-     * Create WebhookCheckoutCreatedPayload from array data.
-     */
-    private function createCheckoutCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCheckoutCreatedPayload
-    {
-        $checkout = $this->arrayToCheckout($data);
-        return new Components\WebhookCheckoutCreatedPayload($timestamp, $checkout, $type);
-    }
-
-    /**
-     * Create WebhookCheckoutUpdatedPayload from array data.
-     */
-    private function createCheckoutUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCheckoutUpdatedPayload
-    {
-        $checkout = $this->arrayToCheckout($data);
-        return new Components\WebhookCheckoutUpdatedPayload($timestamp, $checkout, $type);
-    }
-
-    /**
-     * Create WebhookCheckoutExpiredPayload from array data.
-     */
-    private function createCheckoutExpiredPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCheckoutExpiredPayload
-    {
-        $checkout = $this->arrayToCheckout($data);
-        return new Components\WebhookCheckoutExpiredPayload($timestamp, $checkout, $type);
-    }
-
-    /**
-     * Create WebhookCustomerCreatedPayload from array data.
-     */
-    private function createCustomerCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCustomerCreatedPayload
-    {
-        $customer = $this->arrayToCustomer($data);
-        return new Components\WebhookCustomerCreatedPayload($timestamp, $customer, $type);
-    }
-
-    /**
-     * Create WebhookCustomerUpdatedPayload from array data.
-     */
-    private function createCustomerUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCustomerUpdatedPayload
-    {
-        $customer = $this->arrayToCustomer($data);
-        return new Components\WebhookCustomerUpdatedPayload($timestamp, $customer, $type);
-    }
-
-    /**
-     * Create WebhookCustomerDeletedPayload from array data.
-     */
-    private function createCustomerDeletedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCustomerDeletedPayload
-    {
-        $customer = $this->arrayToCustomer($data);
-        return new Components\WebhookCustomerDeletedPayload($timestamp, $customer, $type);
-    }
-
-    /**
-     * Create WebhookCustomerStateChangedPayload from array data.
-     */
-    private function createCustomerStateChangedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookCustomerStateChangedPayload
-    {
-        $customerState = $this->arrayToCustomerState($data);
-        return new Components\WebhookCustomerStateChangedPayload($timestamp, $customerState, $type);
-    }
-
-    /**
-     * Create WebhookProductCreatedPayload from array data.
-     */
-    private function createProductCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookProductCreatedPayload
-    {
-        $product = $this->arrayToProduct($data);
-        return new Components\WebhookProductCreatedPayload($timestamp, $product, $type);
-    }
-
-    /**
-     * Create WebhookProductUpdatedPayload from array data.
-     */
-    private function createProductUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookProductUpdatedPayload
-    {
-        $product = $this->arrayToProduct($data);
-        return new Components\WebhookProductUpdatedPayload($timestamp, $product, $type);
-    }
-
-    /**
-     * Create WebhookBenefitCreatedPayload from array data.
-     */
-    private function createBenefitCreatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookBenefitCreatedPayload
-    {
-        $benefit = $this->arrayToBenefit($data);
-        return new Components\WebhookBenefitCreatedPayload($timestamp, $benefit, $type);
-    }
-
-    /**
-     * Create WebhookBenefitUpdatedPayload from array data.
-     */
-    private function createBenefitUpdatedPayload(array $data, \DateTime $timestamp, string $type): Components\WebhookBenefitUpdatedPayload
-    {
-        $benefit = $this->arrayToBenefit($data);
-        return new Components\WebhookBenefitUpdatedPayload($timestamp, $benefit, $type);
-    }
-
-    private function arrayToCheckout(array $data): Components\Checkout
-    {
-        return $this->arrayToComponent($data, Components\Checkout::class);
-    }
-
-    private function arrayToCustomer(array $data): Components\CustomerIndividual|Components\CustomerTeam
-    {
-        $type = $data['type'] ?? null;
-        if ($type === null) {
-            throw new \InvalidArgumentException('Customer data is missing the required "type" discriminator field (expected "individual" or "team").');
-        }
-
-        return match ($type) {
-            'individual' => $this->arrayToComponent($data, Components\CustomerIndividual::class),
-            'team' => $this->arrayToComponent($data, Components\CustomerTeam::class),
-            default => throw new \InvalidArgumentException("Unknown customer type: \"{$type}\". Expected \"individual\" or \"team\"."),
-        };
-    }
-
-    private function arrayToCustomerState(array $data): Components\CustomerStateIndividual|Components\CustomerStateTeam
-    {
-        $type = $data['type'] ?? null;
-        if ($type === null) {
-            throw new \InvalidArgumentException('Customer state data is missing the required "type" discriminator field (expected "individual" or "team").');
-        }
-
-        return match ($type) {
-            'individual' => $this->arrayToComponent($data, Components\CustomerStateIndividual::class),
-            'team' => $this->arrayToComponent($data, Components\CustomerStateTeam::class),
-            default => throw new \InvalidArgumentException("Unknown customer state type: \"{$type}\". Expected \"individual\" or \"team\"."),
-        };
-    }
-
-    private function arrayToProduct(array $data): Components\Product
-    {
-        return $this->arrayToComponent($data, Components\Product::class);
-    }
-
-    private function arrayToBenefit(array $data): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
-    {
-        $type = $data['type'] ?? 'custom';
-        $json = json_encode($data);
-        if ($json === false) {
-            throw new \RuntimeException('Failed to encode benefit data to JSON: ' . json_last_error_msg());
-        }
-
-        $serializer = $this->getSerializer();
-
-        return match ($type) {
-            'discord' => $serializer->deserialize($json, Components\BenefitDiscord::class, 'json'),
-            'custom' => $serializer->deserialize($json, Components\BenefitCustom::class, 'json'),
-            'github_repository' => $serializer->deserialize($json, Components\BenefitGitHubRepository::class, 'json'),
-            'downloadables' => $serializer->deserialize($json, Components\BenefitDownloadables::class, 'json'),
-            'license_keys' => $serializer->deserialize($json, Components\BenefitLicenseKeys::class, 'json'),
-            'meter_credit' => $serializer->deserialize($json, Components\BenefitMeterCredit::class, 'json'),
-            default => $serializer->deserialize($json, Components\BenefitCustom::class, 'json'),
-        };
+        BenefitUpdated::dispatch($this->payload(Data\WebhookBenefitUpdatedPayload::class, $data, $timestamp, $type));
     }
 }

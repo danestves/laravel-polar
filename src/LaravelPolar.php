@@ -2,20 +2,20 @@
 
 namespace Danestves\LaravelPolar;
 
+use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Danestves\LaravelPolar\Http\Page;
+use Danestves\LaravelPolar\Http\PolarClient;
 use Exception;
-use Polar\Models\Components;
-use Polar\Models\Errors;
-use Polar\Models\Operations;
-use Polar\Polar;
+use Spatie\LaravelData\Data as SpatieData;
 
 class LaravelPolar
 {
-    public const string VERSION = '2.13.2';
+    public const string VERSION = '3.0.0';
 
     /**
-     * The cached Polar SDK instance.
+     * The cached HTTP client.
      */
-    private static ?Polar $sdkInstance = null;
+    private static ?PolarClient $client = null;
 
     /**
      * The customer model class name.
@@ -32,600 +32,692 @@ class LaravelPolar
      */
     public static string $orderModel = Order::class;
 
+    // -- checkouts ----------------------------------------------------------
+
     /**
      * Create a checkout session.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  Data\CheckoutCreate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
      */
-    public static function createCheckoutSession(Components\CheckoutCreate $request): Components\Checkout
+    public static function createCheckoutSession(Data\CheckoutCreate|array $request): Data\Checkout
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->checkouts->create(request: $request);
-
-        if ($response->statusCode === 201 && $response->checkout !== null) {
-            return $response->checkout;
-        }
-
-        throw new Errors\APIException('Failed to create checkout session', $response->statusCode ?? 500, '', null);
+        return Data\Checkout::from(self::client()->post('/v1/checkouts/', $request));
     }
+
+    // -- subscriptions ------------------------------------------------------
 
     /**
      * Update a subscription.
      *
-     * @param Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request
+     * Polar treats an absent key as "leave unchanged" and an explicit null as "clear", so pass
+     * `$keepNulls` when you mean to clear a field (removing a discount, for instance).
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  Data\SubscriptionUpdate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
      */
-    public static function updateSubscription(string $subscriptionId, Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request): Components\Subscription
+    public static function updateSubscription(string $subscriptionId, Data\SubscriptionUpdate|array $request, bool $keepNulls = false): Data\Subscription
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->subscriptions->update(
-            id: $subscriptionId,
-            subscriptionUpdate: $request,
-        );
-
-        if ($response->statusCode === 200 && $response->subscription !== null) {
-            return $response->subscription;
-        }
-
-        throw new Errors\APIException('Failed to update subscription', 500, '', null);
+        return Data\Subscription::from(self::client()->patch(
+            '/v1/subscriptions/' . urlencode($subscriptionId),
+            $request,
+            keepNulls: $keepNulls,
+        ));
     }
+
+    // -- products -----------------------------------------------------------
 
     /**
-     * List all products.
+     * List products.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Product>
+     *
+     * @throws PolarApiError
      */
-    public static function listProducts(?Operations\ProductsListRequest $request = null): Operations\ProductsListResponse
+    public static function listProducts(array $query = []): Page
     {
-        $sdk = self::sdk();
-
-        if ($request === null) {
-            $request = new Operations\ProductsListRequest();
-        }
-
-        $generator = $sdk->products->list(request: $request);
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list products', 500, '', null);
+        return self::client()->page('/v1/products/', Data\Product::class, $query);
     }
+
+    // -- customer sessions --------------------------------------------------
 
     /**
-     * Create a customer session.
+     * Create a customer session, used to authenticate against the customer portal API.
      *
-     * @param Components\CustomerSessionCustomerIDCreate|Components\CustomerSessionCustomerExternalIDCreate $request
+     * @param  Data\CustomerSessionCustomerIDCreate|Data\CustomerSessionCustomerExternalIDCreate|array<string, mixed>  $request
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function createCustomerSession(Components\CustomerSessionCustomerIDCreate|Components\CustomerSessionCustomerExternalIDCreate $request): Components\CustomerSession
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->customerSessions->create(request: $request);
-
-        if ($response->statusCode === 201 && $response->customerSession !== null) {
-            return $response->customerSession;
-        }
-
-        throw new Errors\APIException('Failed to create customer session', 500, '', null);
+    public static function createCustomerSession(
+        Data\CustomerSessionCustomerIDCreate|Data\CustomerSessionCustomerExternalIDCreate|array $request,
+    ): Data\CustomerSession {
+        return Data\CustomerSession::from(self::client()->post('/v1/customer-sessions/', $request));
     }
+
+    // -- benefits -----------------------------------------------------------
 
     /**
      * Create a benefit.
      *
-     * @param Components\BenefitCustomCreate|Components\BenefitDiscordCreate|Components\BenefitGitHubRepositoryCreate|Components\BenefitDownloadablesCreate|Components\BenefitLicenseKeysCreate|Components\BenefitMeterCreditCreate $request
+     * @param  Data\BenefitCreate|array<string, mixed>  $request
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function createBenefit(Components\BenefitCustomCreate|Components\BenefitDiscordCreate|Components\BenefitGitHubRepositoryCreate|Components\BenefitDownloadablesCreate|Components\BenefitLicenseKeysCreate|Components\BenefitMeterCreditCreate $request): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
+    public static function createBenefit(Data\BenefitCreate|array $request): Data\Benefit
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->benefits->create(request: $request);
-
-        if ($response->statusCode === 201 && $response->benefit !== null) {
-            return $response->benefit;
-        }
-
-        throw new Errors\APIException('Failed to create benefit', 500, '', null);
+        return Data\Benefit::from(self::client()->post('/v1/benefits/', $request));
     }
 
     /**
      * Update a benefit.
      *
-     * @param Components\BenefitCustomUpdate|Components\BenefitDiscordUpdate|Components\BenefitGitHubRepositoryUpdate|Components\BenefitDownloadablesUpdate|Components\BenefitLicenseKeysUpdate|Components\BenefitMeterCreditUpdate $request
+     * @param  SpatieData|array<string, mixed>  $request
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function updateBenefit(string $benefitId, Components\BenefitCustomUpdate|Components\BenefitDiscordUpdate|Components\BenefitGitHubRepositoryUpdate|Components\BenefitDownloadablesUpdate|Components\BenefitLicenseKeysUpdate|Components\BenefitMeterCreditUpdate $request): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
+    public static function updateBenefit(string $benefitId, SpatieData|array $request): Data\Benefit
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->benefits->update(id: $benefitId, requestBody: $request);
-
-        if ($response->statusCode === 200 && $response->benefit !== null) {
-            return $response->benefit;
-        }
-
-        throw new Errors\APIException('Failed to update benefit', 500, '', null);
+        return Data\Benefit::from(self::client()->patch('/v1/benefits/' . urlencode($benefitId), $request));
     }
 
     /**
      * Delete a benefit.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
     public static function deleteBenefit(string $benefitId): void
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->benefits->delete(id: $benefitId);
-
-        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
-            throw new Errors\APIException('Failed to delete benefit', 500, '', null);
-        }
+        self::client()->delete('/v1/benefits/' . urlencode($benefitId));
     }
 
     /**
-     * List all benefits.
+     * List benefits.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Benefit>
+     *
+     * @throws PolarApiError
      */
-    public static function listBenefits(Operations\BenefitsListRequest $request): Operations\BenefitsListResponse
+    public static function listBenefits(array $query = []): Page
     {
-        $sdk = self::sdk();
-
-        $generator = $sdk->benefits->list(request: $request);
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list benefits', 500, '', null);
+        return self::client()->page('/v1/benefits/', Data\Benefit::class, $query);
     }
 
     /**
      * Get a specific benefit by ID.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function getBenefit(string $benefitId): Components\BenefitCustom|Components\BenefitDiscord|Components\BenefitGitHubRepository|Components\BenefitDownloadables|Components\BenefitLicenseKeys|Components\BenefitMeterCredit
+    public static function getBenefit(string $benefitId): Data\Benefit
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->benefits->get(id: $benefitId);
-
-        if ($response->statusCode === 200 && $response->benefit !== null) {
-            return $response->benefit;
-        }
-
-        throw new Errors\APIException('Failed to get benefit', 500, '', null);
+        return Data\Benefit::from(self::client()->get('/v1/benefits/' . urlencode($benefitId)));
     }
 
     /**
      * List all grants for a specific benefit.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\BenefitGrant>
+     *
+     * @throws PolarApiError
      */
-    public static function listBenefitGrants(Operations\BenefitsGrantsRequest $request): Operations\BenefitsGrantsResponse
+    public static function listBenefitGrants(string $benefitId, array $query = []): Page
     {
-        $sdk = self::sdk();
-
-        $generator = $sdk->benefits->grants(request: $request);
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list benefit grants', 500, '', null);
+        return self::client()->page(
+            '/v1/benefits/' . urlencode($benefitId) . '/grants',
+            Data\BenefitGrant::class,
+            $query,
+        );
     }
+
+    // -- events & meters ----------------------------------------------------
 
     /**
      * Ingest usage events for metered billing.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  Data\EventsIngest|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
      */
-    public static function ingestEvents(Components\EventsIngest $request): void
+    public static function ingestEvents(Data\EventsIngest|array $request): Data\EventsIngestResponse
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->events->ingest(request: $request);
-
-        if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            throw new Errors\APIException('Failed to ingest events', 500, '', null);
-        }
+        return Data\EventsIngestResponse::from(self::client()->post('/v1/events/ingest', $request));
     }
 
     /**
      * List customer meters.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\CustomerMeter>
+     *
+     * @throws PolarApiError
      */
-    public static function listCustomerMeters(Operations\CustomerMetersListRequest $request): Operations\CustomerMetersListResponse
+    public static function listCustomerMeters(array $query = []): Page
     {
-        $sdk = self::sdk();
-
-        $generator = $sdk->customerMeters->list(request: $request);
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list customer meters', 500, '', null);
+        return self::client()->page('/v1/customer-meters/', Data\CustomerMeter::class, $query);
     }
 
     /**
      * Get a specific customer meter by ID.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function getCustomerMeter(string $meterId): Components\CustomerMeter
+    public static function getCustomerMeter(string $meterId): Data\CustomerMeter
     {
-        $sdk = self::sdk();
+        return Data\CustomerMeter::from(self::client()->get('/v1/customer-meters/' . urlencode($meterId)));
+    }
 
-        $response = $sdk->customerMeters->get(id: $meterId);
+    // -- analytics ----------------------------------------------------------
 
-        if ($response->statusCode === 200 && $response->customerMeter !== null) {
-            return $response->customerMeter;
-        }
+    /**
+     * Fetch Polar metrics for a period.
+     *
+     * `start_date`, `end_date` and `interval` are required by the API.
+     *
+     * @param  array<string, mixed>  $query
+     *
+     * @throws PolarApiError
+     */
+    public static function getMetrics(array $query): Data\MetricsResponse
+    {
+        return Data\MetricsResponse::from(self::client()->get('/v1/metrics/', $query));
+    }
 
-        throw new Errors\APIException('Failed to get customer meter', 500, '', null);
+    // -- files & organizations ----------------------------------------------
+
+    /**
+     * List files.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\FileRead>
+     *
+     * @throws PolarApiError
+     */
+    public static function listFiles(array $query = []): Page
+    {
+        return self::client()->page('/v1/files/', Data\FileRead::class, $query);
     }
 
     /**
-     * Fetch Polar metrics (analytics) for a given period. Wraps the SDK's
-     * MetricsGetRequest with all original parameters.
+     * List organizations the access token can reach.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Organization>
+     *
+     * @throws PolarApiError
      */
-    public static function getMetrics(Operations\MetricsGetRequest $request): Components\MetricsResponse
+    public static function listOrganizations(array $query = []): Page
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->metrics->get(request: $request);
-
-        if ($response->statusCode === 200 && $response->metricsResponse !== null) {
-            return $response->metricsResponse;
-        }
-
-        throw new Errors\APIException('Failed to get metrics', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * List files (admin-scoped).
-     *
-     * @param  string|array<string>|null  $organizationId
-     * @param  string|array<string>|null  $ids
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function listFiles(string|array|null $organizationId = null, string|array|null $ids = null, ?int $page = null, ?int $limit = null): Operations\FilesListResponse
-    {
-        $sdk = self::sdk();
-
-        $generator = $sdk->files->list(
-            organizationId: $organizationId,
-            ids: $ids,
-            page: $page,
-            limit: $limit,
-        );
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list files', 500, '', null);
-    }
-
-    /**
-     * List organizations the authenticated access token has access to.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function listOrganizations(?string $slug = null, ?int $page = null, ?int $limit = null): Operations\OrganizationsListResponse
-    {
-        $sdk = self::sdk();
-
-        $generator = $sdk->organizations->list(
-            slug: $slug,
-            page: $page,
-            limit: $limit,
-        );
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list organizations', 500, '', null);
+        return self::client()->page('/v1/organizations/', Data\Organization::class, $query);
     }
 
     /**
      * Get a single organization by ID.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function getOrganization(string $organizationId): Components\Organization
+    public static function getOrganization(string $organizationId): Data\Organization
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->organizations->get(id: $organizationId);
-
-        if ($response->statusCode === 200 && $response->organization !== null) {
-            return $response->organization;
-        }
-
-        throw new Errors\APIException('Failed to get organization', $response->statusCode ?? 500, '', null);
+        return Data\Organization::from(self::client()->get('/v1/organizations/' . urlencode($organizationId)));
     }
+
+    // -- seats --------------------------------------------------------------
 
     /**
      * List the seats on a subscription or order.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function listSeats(?string $subscriptionId = null, ?string $orderId = null): Components\SeatsList
+    public static function listSeats(?string $subscriptionId = null, ?string $orderId = null): Data\SeatsList
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->customerSeats->listSeats(subscriptionId: $subscriptionId, orderId: $orderId);
-
-        if ($response->statusCode === 200 && $response->seatsList !== null) {
-            return $response->seatsList;
-        }
-
-        throw new Errors\APIException('Failed to list seats', $response->statusCode ?? 500, '', null);
+        return Data\SeatsList::from(self::client()->get('/v1/customer-seats', [
+            'subscription_id' => $subscriptionId,
+            'order_id' => $orderId,
+        ]));
     }
 
     /**
      * Assign a seat to a member by email, customer id, or external id.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @param  Data\SeatAssign|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
      */
-    public static function assignSeat(Components\SeatAssign $request): Components\CustomerSeat
+    public static function assignSeat(Data\SeatAssign|array $request): Data\CustomerSeat
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->customerSeats->assignSeat(request: $request);
-
-        if ($response->statusCode === 200 && $response->customerSeat !== null) {
-            return $response->customerSeat;
-        }
-
-        throw new Errors\APIException('Failed to assign seat', $response->statusCode ?? 500, '', null);
+        return Data\CustomerSeat::from(self::client()->post('/v1/customer-seats', $request));
     }
 
     /**
      * Revoke a seat from a member.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function revokeSeat(string $seatId): Components\CustomerSeat
+    public static function revokeSeat(string $seatId): Data\CustomerSeat
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->customerSeats->revokeSeat(seatId: $seatId);
-
-        if ($response->statusCode === 200 && $response->customerSeat !== null) {
-            return $response->customerSeat;
-        }
-
-        throw new Errors\APIException('Failed to revoke seat', $response->statusCode ?? 500, '', null);
+        return Data\CustomerSeat::from(self::client()->delete('/v1/customer-seats/' . urlencode($seatId)));
     }
 
     /**
      * Resend the invitation email for a pending seat.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function resendSeatInvitation(string $seatId): Components\CustomerSeat
+    public static function resendSeatInvitation(string $seatId): Data\CustomerSeat
     {
-        $sdk = self::sdk();
+        return Data\CustomerSeat::from(self::client()->post('/v1/customer-seats/' . urlencode($seatId) . '/resend'));
+    }
 
-        $response = $sdk->customerSeats->resendInvitation(seatId: $seatId);
+    // -- license keys -------------------------------------------------------
 
-        if ($response->statusCode === 200 && $response->customerSeat !== null) {
-            return $response->customerSeat;
-        }
-
-        throw new Errors\APIException('Failed to resend seat invitation', $response->statusCode ?? 500, '', null);
+    /**
+     * List license keys (requires an organization-scoped access token).
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\LicenseKeyRead>
+     *
+     * @throws PolarApiError
+     */
+    public static function listLicenseKeys(array $query = []): Page
+    {
+        return self::client()->page('/v1/license-keys/', Data\LicenseKeyRead::class, $query);
     }
 
     /**
-     * List license keys (admin-scoped, requires an org-scoped access token).
+     * Get a license key by ID.
      *
-     * @param  string|array<string>|null  $organizationId
-     * @param  string|array<string>|null  $benefitId
-     *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function listLicenseKeys(string|array|null $organizationId = null, string|array|null $benefitId = null, ?int $page = null, ?int $limit = null): Operations\LicenseKeysListResponse
+    public static function getLicenseKey(string $licenseKeyId): Data\LicenseKeyWithActivations
     {
-        $sdk = self::sdk();
-
-        $generator = $sdk->licenseKeys->list(
-            organizationId: $organizationId,
-            benefitId: $benefitId,
-            page: $page,
-            limit: $limit,
+        return Data\LicenseKeyWithActivations::from(
+            self::client()->get('/v1/license-keys/' . urlencode($licenseKeyId)),
         );
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list license keys', 500, '', null);
     }
 
     /**
-     * Get a license key by ID (admin-scoped).
+     * Update a license key.
      *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function getLicenseKey(string $licenseKeyId): Components\LicenseKeyWithActivations
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->licenseKeys->get(id: $licenseKeyId);
-
-        if ($response->statusCode === 200 && $response->licenseKeyWithActivations !== null) {
-            return $response->licenseKeyWithActivations;
-        }
-
-        throw new Errors\APIException('Failed to get license key', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * Update a license key (admin-scoped).
+     * @param  Data\LicenseKeyUpdate|array<string, mixed>  $request
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function updateLicenseKey(string $licenseKeyId, Components\LicenseKeyUpdate $request): Components\LicenseKeyRead
+    public static function updateLicenseKey(string $licenseKeyId, Data\LicenseKeyUpdate|array $request): Data\LicenseKeyRead
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->licenseKeys->update(licenseKeyUpdate: $request, id: $licenseKeyId);
-
-        if ($response->statusCode === 200 && $response->licenseKeyRead !== null) {
-            return $response->licenseKeyRead;
-        }
-
-        throw new Errors\APIException('Failed to update license key', $response->statusCode ?? 500, '', null);
+        return Data\LicenseKeyRead::from(
+            self::client()->patch('/v1/license-keys/' . urlencode($licenseKeyId), $request),
+        );
     }
 
     /**
-     * Validate a license key. Public-facing — does not require an org-scoped
-     * access token but does require an organization id (passed as arg or
-     * configured via polar.organization_id).
+     * Validate a license key.
+     *
+     * This uses Polar's public customer-portal route, so it needs no access token — but it does
+     * need an organization id, either passed here or set as `polar.organization_id`.
      *
      * @param  array<string, mixed>|null  $conditions
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function validateLicenseKey(string $key, ?string $organizationId = null, ?string $activationId = null, ?array $conditions = null, ?string $benefitId = null, ?string $customerId = null, ?int $incrementUsage = null): Components\ValidatedLicenseKey
-    {
-        $sdk = self::sdk();
-
-        $request = new Components\LicenseKeyValidate(
-            key: $key,
-            organizationId: self::resolveOrganizationId($organizationId),
-            conditions: $conditions,
-            activationId: $activationId,
-            benefitId: $benefitId,
-            customerId: $customerId,
-            incrementUsage: $incrementUsage,
-        );
-
-        $response = $sdk->licenseKeys->validate(request: $request);
-
-        if ($response->statusCode === 200 && $response->validatedLicenseKey !== null) {
-            return $response->validatedLicenseKey;
-        }
-
-        throw new Errors\APIException('Failed to validate license key', $response->statusCode ?? 500, '', null);
+    public static function validateLicenseKey(
+        string $key,
+        ?string $organizationId = null,
+        ?string $activationId = null,
+        ?array $conditions = null,
+        ?string $benefitId = null,
+        ?string $customerId = null,
+        ?int $incrementUsage = null,
+    ): Data\ValidatedLicenseKey {
+        return Data\ValidatedLicenseKey::from(self::client()->post('/v1/customer-portal/license-keys/validate', [
+            'key' => $key,
+            'organization_id' => self::resolveOrganizationId($organizationId),
+            'activation_id' => $activationId,
+            'conditions' => $conditions,
+            'benefit_id' => $benefitId,
+            'customer_id' => $customerId,
+            'increment_usage' => $incrementUsage,
+        ]));
     }
 
     /**
-     * Activate a license key. Public-facing — does not require an org-scoped
-     * access token but does require an organization id (passed as arg or
-     * configured via polar.organization_id).
+     * Activate a license key. Public route; see {@see self::validateLicenseKey()} for auth.
      *
      * @param  array<string, mixed>|null  $conditions
      * @param  array<string, mixed>|null  $meta
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
-    public static function activateLicenseKey(string $key, string $label, ?string $organizationId = null, ?array $conditions = null, ?array $meta = null): Components\LicenseKeyActivationRead
-    {
-        $sdk = self::sdk();
-
-        $request = new Components\LicenseKeyActivate(
-            key: $key,
-            organizationId: self::resolveOrganizationId($organizationId),
-            label: $label,
-            conditions: $conditions,
-            meta: $meta,
-        );
-
-        $response = $sdk->licenseKeys->activate(request: $request);
-
-        if ($response->statusCode === 200 && $response->licenseKeyActivationRead !== null) {
-            return $response->licenseKeyActivationRead;
-        }
-
-        throw new Errors\APIException('Failed to activate license key', $response->statusCode ?? 500, '', null);
+    public static function activateLicenseKey(
+        string $key,
+        string $label,
+        ?string $organizationId = null,
+        ?array $conditions = null,
+        ?array $meta = null,
+    ): Data\LicenseKeyActivationRead {
+        return Data\LicenseKeyActivationRead::from(self::client()->post('/v1/customer-portal/license-keys/activate', [
+            'key' => $key,
+            'organization_id' => self::resolveOrganizationId($organizationId),
+            'label' => $label,
+            'conditions' => $conditions,
+            'meta' => $meta,
+        ]));
     }
 
     /**
-     * Deactivate a license key activation. Public-facing — same auth pattern
-     * as activate/validate.
+     * Deactivate a license key activation. Public route; see {@see self::validateLicenseKey()}.
      *
-     * @throws Errors\APIException
-     * @throws Exception
+     * @throws PolarApiError
      */
     public static function deactivateLicenseKey(string $key, string $activationId, ?string $organizationId = null): void
     {
-        $sdk = self::sdk();
+        self::client()->post('/v1/customer-portal/license-keys/deactivate', [
+            'key' => $key,
+            'organization_id' => self::resolveOrganizationId($organizationId),
+            'activation_id' => $activationId,
+        ]);
+    }
 
-        $request = new Components\LicenseKeyDeactivate(
-            key: $key,
-            organizationId: self::resolveOrganizationId($organizationId),
-            activationId: $activationId,
-        );
+    // -- custom fields ------------------------------------------------------
 
-        $response = $sdk->licenseKeys->deactivate(request: $request);
-
-        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
-            throw new Errors\APIException('Failed to deactivate license key', $response->statusCode, '', null);
-        }
+    /**
+     * Create a custom field.
+     *
+     * @param  Data\CustomFieldCreate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function createCustomField(Data\CustomFieldCreate|array $request): Data\CustomField
+    {
+        return Data\CustomField::from(self::client()->post('/v1/custom-fields/', $request));
     }
 
     /**
-     * Resolve an organization id from an explicit argument or the config
-     * fallback. Throws when neither is set.
+     * Update a custom field.
+     *
+     * @param  Data\CustomFieldUpdate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function updateCustomField(string $customFieldId, Data\CustomFieldUpdate|array $request): Data\CustomField
+    {
+        return Data\CustomField::from(
+            self::client()->patch('/v1/custom-fields/' . urlencode($customFieldId), $request),
+        );
+    }
+
+    /**
+     * Delete a custom field.
+     *
+     * @throws PolarApiError
+     */
+    public static function deleteCustomField(string $customFieldId): void
+    {
+        self::client()->delete('/v1/custom-fields/' . urlencode($customFieldId));
+    }
+
+    /**
+     * List custom fields.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\CustomField>
+     *
+     * @throws PolarApiError
+     */
+    public static function listCustomFields(array $query = []): Page
+    {
+        return self::client()->page('/v1/custom-fields/', Data\CustomField::class, $query);
+    }
+
+    /**
+     * Get a specific custom field by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getCustomField(string $customFieldId): Data\CustomField
+    {
+        return Data\CustomField::from(self::client()->get('/v1/custom-fields/' . urlencode($customFieldId)));
+    }
+
+    // -- checkout links -----------------------------------------------------
+
+    /**
+     * Create a checkout link.
+     *
+     * @param  Data\CheckoutLinkCreate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function createCheckoutLink(Data\CheckoutLinkCreate|array $request): Data\CheckoutLink
+    {
+        return Data\CheckoutLink::from(self::client()->post('/v1/checkout-links/', $request));
+    }
+
+    /**
+     * Update a checkout link.
+     *
+     * @param  Data\CheckoutLinkUpdate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function updateCheckoutLink(string $checkoutLinkId, Data\CheckoutLinkUpdate|array $request): Data\CheckoutLink
+    {
+        return Data\CheckoutLink::from(
+            self::client()->patch('/v1/checkout-links/' . urlencode($checkoutLinkId), $request),
+        );
+    }
+
+    /**
+     * Delete a checkout link.
+     *
+     * @throws PolarApiError
+     */
+    public static function deleteCheckoutLink(string $checkoutLinkId): void
+    {
+        self::client()->delete('/v1/checkout-links/' . urlencode($checkoutLinkId));
+    }
+
+    /**
+     * List checkout links.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\CheckoutLink>
+     *
+     * @throws PolarApiError
+     */
+    public static function listCheckoutLinks(array $query = []): Page
+    {
+        return self::client()->page('/v1/checkout-links/', Data\CheckoutLink::class, $query);
+    }
+
+    /**
+     * Get a specific checkout link by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getCheckoutLink(string $checkoutLinkId): Data\CheckoutLink
+    {
+        return Data\CheckoutLink::from(self::client()->get('/v1/checkout-links/' . urlencode($checkoutLinkId)));
+    }
+
+    // -- discounts ----------------------------------------------------------
+
+    /**
+     * Create a discount.
+     *
+     * @param  Data\DiscountCreate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function createDiscount(Data\DiscountCreate|array $request): Data\Discount
+    {
+        return Data\Discount::from(self::client()->post('/v1/discounts/', $request));
+    }
+
+    /**
+     * Update a discount.
+     *
+     * @param  Data\DiscountUpdate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function updateDiscount(string $discountId, Data\DiscountUpdate|array $request): Data\Discount
+    {
+        return Data\Discount::from(self::client()->patch('/v1/discounts/' . urlencode($discountId), $request));
+    }
+
+    /**
+     * Delete a discount.
+     *
+     * @throws PolarApiError
+     */
+    public static function deleteDiscount(string $discountId): void
+    {
+        self::client()->delete('/v1/discounts/' . urlencode($discountId));
+    }
+
+    /**
+     * List discounts.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Discount>
+     *
+     * @throws PolarApiError
+     */
+    public static function listDiscounts(array $query = []): Page
+    {
+        return self::client()->page('/v1/discounts/', Data\Discount::class, $query);
+    }
+
+    /**
+     * Get a specific discount by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getDiscount(string $discountId): Data\Discount
+    {
+        return Data\Discount::from(self::client()->get('/v1/discounts/' . urlencode($discountId)));
+    }
+
+    // -- orders & refunds ---------------------------------------------------
+
+    /**
+     * Get an order by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getOrder(string $orderId): Data\Order
+    {
+        return Data\Order::from(self::client()->get('/v1/orders/' . urlencode($orderId)));
+    }
+
+    /**
+     * Create a refund for an order.
+     *
+     * @param  Data\RefundCreate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function createRefund(Data\RefundCreate|array $request): Data\Refund
+    {
+        return Data\Refund::from(self::client()->post('/v1/refunds/', $request));
+    }
+
+    /**
+     * List refunds.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Refund>
+     *
+     * @throws PolarApiError
+     */
+    public static function listRefunds(array $query = []): Page
+    {
+        return self::client()->page('/v1/refunds/', Data\Refund::class, $query);
+    }
+
+    // -- customer portal ----------------------------------------------------
+
+    /**
+     * List a customer's saved payment methods, using a customer session token.
+     *
+     * @return Page<Data\CustomerPaymentMethod>
+     *
+     * @throws PolarApiError
+     */
+    public static function listCustomerPaymentMethods(string $customerSessionToken, array $query = []): Page
+    {
+        return self::client()->page(
+            '/v1/customer-portal/customers/me/payment-methods',
+            Data\CustomerPaymentMethod::class,
+            $query,
+            token: $customerSessionToken,
+        );
+    }
+
+    /**
+     * Delete one of a customer's saved payment methods.
+     *
+     * @throws PolarApiError
+     */
+    public static function deleteCustomerPaymentMethod(string $customerSessionToken, string $paymentMethodId): void
+    {
+        self::client()->delete(
+            '/v1/customer-portal/customers/me/payment-methods/' . urlencode($paymentMethodId),
+            token: $customerSessionToken,
+        );
+    }
+
+    /**
+     * List a customer's license keys, using a customer session token.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\LicenseKeyRead>
+     *
+     * @throws PolarApiError
+     */
+    public static function listCustomerLicenseKeys(string $customerSessionToken, array $query = []): Page
+    {
+        return self::client()->page(
+            '/v1/customer-portal/license-keys/',
+            Data\LicenseKeyRead::class,
+            $query,
+            token: $customerSessionToken,
+        );
+    }
+
+    /**
+     * Trigger generation of an order's invoice and return its URL.
+     *
+     * Polar generates invoices asynchronously: the POST only queues the work, so the URL is
+     * read back separately. Returns null while generation is still pending.
+     *
+     * @throws PolarApiError
+     */
+    public static function getOrderInvoiceUrl(string $customerSessionToken, string $orderId): ?string
+    {
+        $path = '/v1/customer-portal/orders/' . urlencode($orderId) . '/invoice';
+
+        try {
+            self::client()->post($path, token: $customerSessionToken);
+        } catch (PolarApiError $e) {
+            // 409 means the invoice already exists, which is exactly what we want.
+            if ($e->status !== 409) {
+                throw $e;
+            }
+        }
+
+        $invoice = self::client()->get($path, token: $customerSessionToken);
+
+        return is_string($invoice['url'] ?? null) ? $invoice['url'] : null;
+    }
+
+    // -- configuration ------------------------------------------------------
+
+    /**
+     * Resolve an organization id from an explicit argument or the config fallback.
      */
     private static function resolveOrganizationId(?string $organizationId): string
     {
@@ -639,383 +731,46 @@ class LaravelPolar
     }
 
     /**
-     * Create a custom field.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
+     * Reset the cached client (useful for testing).
      */
-    public static function createCustomField(Components\CustomFieldCreateText|Components\CustomFieldCreateNumber|Components\CustomFieldCreateDate|Components\CustomFieldCreateCheckbox|Components\CustomFieldCreateSelect $request): Components\CustomFieldText|Components\CustomFieldNumber|Components\CustomFieldDate|Components\CustomFieldCheckbox|Components\CustomFieldSelect
+    public static function resetClient(): void
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->customFields->create(request: $request);
-
-        if ($response->statusCode === 201 && $response->customField !== null) {
-            return $response->customField;
-        }
-
-        throw new Errors\APIException('Failed to create custom field', $response->statusCode ?? 500, '', null);
+        self::$client = null;
     }
 
     /**
-     * Update a custom field.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
+     * Swap in a client instance (useful for testing).
      */
-    public static function updateCustomField(string $customFieldId, Components\CustomFieldUpdateText|Components\CustomFieldUpdateNumber|Components\CustomFieldUpdateDate|Components\CustomFieldUpdateCheckbox|Components\CustomFieldUpdateSelect $request): Components\CustomFieldText|Components\CustomFieldNumber|Components\CustomFieldDate|Components\CustomFieldCheckbox|Components\CustomFieldSelect
+    public static function setClient(?PolarClient $client): void
     {
-        $sdk = self::sdk();
-
-        $response = $sdk->customFields->update(customFieldUpdate: $request, id: $customFieldId);
-
-        if ($response->statusCode === 200 && $response->customField !== null) {
-            return $response->customField;
-        }
-
-        throw new Errors\APIException('Failed to update custom field', $response->statusCode ?? 500, '', null);
+        self::$client = $client;
     }
 
     /**
-     * Delete a custom field.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function deleteCustomField(string $customFieldId): void
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->customFields->delete(id: $customFieldId);
-
-        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
-            throw new Errors\APIException('Failed to delete custom field', $response->statusCode, '', null);
-        }
-    }
-
-    /**
-     * List custom fields.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function listCustomFields(?Operations\CustomFieldsListRequest $request = null): Operations\CustomFieldsListResponse
-    {
-        $sdk = self::sdk();
-
-        if ($request === null) {
-            $request = new Operations\CustomFieldsListRequest();
-        }
-
-        $generator = $sdk->customFields->list(request: $request);
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list custom fields', 500, '', null);
-    }
-
-    /**
-     * Get a specific custom field by ID.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function getCustomField(string $customFieldId): Components\CustomFieldText|Components\CustomFieldNumber|Components\CustomFieldDate|Components\CustomFieldCheckbox|Components\CustomFieldSelect
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->customFields->get(id: $customFieldId);
-
-        if ($response->statusCode === 200 && $response->customField !== null) {
-            return $response->customField;
-        }
-
-        throw new Errors\APIException('Failed to get custom field', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * Create a checkout link.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function createCheckoutLink(Components\CheckoutLinkCreateProductPrice|Components\CheckoutLinkCreateProduct|Components\CheckoutLinkCreateProducts $request): Components\CheckoutLink
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->checkoutLinks->create(request: $request);
-
-        if ($response->statusCode === 201 && $response->checkoutLink !== null) {
-            return $response->checkoutLink;
-        }
-
-        throw new Errors\APIException('Failed to create checkout link', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * Update a checkout link.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function updateCheckoutLink(string $checkoutLinkId, Components\CheckoutLinkUpdate $request): Components\CheckoutLink
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->checkoutLinks->update(checkoutLinkUpdate: $request, id: $checkoutLinkId);
-
-        if ($response->statusCode === 200 && $response->checkoutLink !== null) {
-            return $response->checkoutLink;
-        }
-
-        throw new Errors\APIException('Failed to update checkout link', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * Delete a checkout link.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function deleteCheckoutLink(string $checkoutLinkId): void
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->checkoutLinks->delete(id: $checkoutLinkId);
-
-        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
-            throw new Errors\APIException('Failed to delete checkout link', $response->statusCode, '', null);
-        }
-    }
-
-    /**
-     * List checkout links.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function listCheckoutLinks(?Operations\CheckoutLinksListRequest $request = null): Operations\CheckoutLinksListResponse
-    {
-        $sdk = self::sdk();
-
-        if ($request === null) {
-            $request = new Operations\CheckoutLinksListRequest();
-        }
-
-        $generator = $sdk->checkoutLinks->list(request: $request);
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list checkout links', 500, '', null);
-    }
-
-    /**
-     * Get a specific checkout link by ID.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function getCheckoutLink(string $checkoutLinkId): Components\CheckoutLink
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->checkoutLinks->get(id: $checkoutLinkId);
-
-        if ($response->statusCode === 200 && $response->checkoutLink !== null) {
-            return $response->checkoutLink;
-        }
-
-        throw new Errors\APIException('Failed to get checkout link', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * Create a discount.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function createDiscount(Components\DiscountFixedOnceForeverDurationCreate|Components\DiscountFixedRepeatDurationCreate|Components\DiscountPercentageOnceForeverDurationCreate|Components\DiscountPercentageRepeatDurationCreate $request): Components\DiscountFixedOnceForeverDuration|Components\DiscountFixedRepeatDuration|Components\DiscountPercentageOnceForeverDuration|Components\DiscountPercentageRepeatDuration
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->discounts->create(request: $request);
-
-        if ($response->statusCode === 201 && $response->discount !== null) {
-            return $response->discount;
-        }
-
-        throw new Errors\APIException('Failed to create discount', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * Update a discount.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function updateDiscount(string $discountId, Components\DiscountUpdate $request): Components\DiscountFixedOnceForeverDuration|Components\DiscountFixedRepeatDuration|Components\DiscountPercentageOnceForeverDuration|Components\DiscountPercentageRepeatDuration
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->discounts->update(discountUpdate: $request, id: $discountId);
-
-        if ($response->statusCode === 200 && $response->discount !== null) {
-            return $response->discount;
-        }
-
-        throw new Errors\APIException('Failed to update discount', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * Delete a discount.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function deleteDiscount(string $discountId): void
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->discounts->delete(id: $discountId);
-
-        if ($response->statusCode !== 200 && $response->statusCode !== 204) {
-            throw new Errors\APIException('Failed to delete discount', $response->statusCode, '', null);
-        }
-    }
-
-    /**
-     * List discounts.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function listDiscounts(?Operations\DiscountsListRequest $request = null): Operations\DiscountsListResponse
-    {
-        $sdk = self::sdk();
-
-        if ($request === null) {
-            $request = new Operations\DiscountsListRequest();
-        }
-
-        $generator = $sdk->discounts->list(request: $request);
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list discounts', 500, '', null);
-    }
-
-    /**
-     * Get a specific discount by ID.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function getDiscount(string $discountId): Components\DiscountFixedOnceForeverDuration|Components\DiscountFixedRepeatDuration|Components\DiscountPercentageOnceForeverDuration|Components\DiscountPercentageRepeatDuration
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->discounts->get(id: $discountId);
-
-        if ($response->statusCode === 200 && $response->discount !== null) {
-            return $response->discount;
-        }
-
-        throw new Errors\APIException('Failed to get discount', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * Create a refund for an order.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function createRefund(Components\RefundCreate $request): Components\Refund
-    {
-        $sdk = self::sdk();
-
-        $response = $sdk->refunds->create(request: $request);
-
-        if ($response->statusCode === 200 && $response->refund !== null) {
-            return $response->refund;
-        }
-
-        throw new Errors\APIException('Failed to create refund', $response->statusCode ?? 500, '', null);
-    }
-
-    /**
-     * List refunds.
-     *
-     * @throws Errors\APIException
-     * @throws Exception
-     */
-    public static function listRefunds(?Operations\RefundsListRequest $request = null): Operations\RefundsListResponse
-    {
-        $sdk = self::sdk();
-
-        if ($request === null) {
-            $request = new Operations\RefundsListRequest();
-        }
-
-        $generator = $sdk->refunds->list(request: $request);
-
-        foreach ($generator as $response) {
-            if ($response->statusCode === 200) {
-                return $response;
-            }
-        }
-
-        throw new Errors\APIException('Failed to list refunds', 500, '', null);
-    }
-
-    /**
-     * Reset the cached SDK instance (useful for testing).
-     */
-    public static function resetSdk(): void
-    {
-        self::$sdkInstance = null;
-    }
-
-    /**
-     * Set the SDK instance (useful for testing).
-     */
-    public static function setSdk(?Polar $sdk): void
-    {
-        self::$sdkInstance = $sdk;
-    }
-
-    /**
-     * Get or create a cached Polar SDK instance.
+     * Get or create the cached HTTP client.
      *
      * @throws Exception
      */
-    public static function sdk(): Polar
+    public static function client(): PolarClient
     {
-        if (self::$sdkInstance !== null) {
-            return self::$sdkInstance;
+        if (self::$client !== null) {
+            return self::$client;
         }
 
-        if (empty($apiKey = config('polar.access_token'))) {
+        $accessToken = config('polar.access_token');
+
+        if (! is_string($accessToken) || $accessToken === '') {
             throw new Exception('Polar API key not set.');
         }
 
-        self::$sdkInstance = Polar::builder()
-            ->setSecurity($apiKey)
-            ->setServer(config('polar.server', 'sandbox'))
-            ->build();
+        $timeout = config('polar.timeout');
 
-        return self::$sdkInstance;
+        return self::$client = new PolarClient(
+            accessToken: $accessToken,
+            baseUrl: PolarClient::resolveBaseUrl(config('polar.server')),
+            version: (string) config('polar.version', PolarClient::API_VERSION),
+            timeout: is_numeric($timeout) ? (int) $timeout : null,
+        );
     }
 
     /**

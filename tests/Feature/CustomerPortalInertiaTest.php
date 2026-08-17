@@ -6,44 +6,16 @@ namespace Tests\Feature;
 
 use Danestves\LaravelPolar\Customer;
 use Danestves\LaravelPolar\Tests\Fixtures\User;
-use Illuminate\Support\Facades\Config;
-use Mockery;
-use Polar\Models\Components;
-use Polar\Models\Operations;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
-});
-
-afterEach(function () {
-    resetLaravelPolarSdk();
-    Mockery::close();
-});
-
+/**
+ * Fake the customer-session endpoint that backs the portal redirect.
+ */
 function stubCustomerSessionForPortal(string $portalUrl = 'https://polar.sh/portal/cs_token'): void
 {
-    $base = createBaseMockedSdk();
-    setLaravelPolarSdk($base['sdk']);
-
-    $customerSessions = Mockery::mock(\Polar\CustomerSessions::class);
-    $reflectionSdk = new \ReflectionClass($base['sdk']);
-    $property = $reflectionSdk->getProperty('customerSessions');
-    $property->setAccessible(true);
-    $property->setValue($base['sdk'], $customerSessions);
-
-    $session = Mockery::mock(Components\CustomerSession::class);
-    $session->token = 'cs_token';
-    $session->customerPortalUrl = $portalUrl;
-
-    $response = new Operations\CustomerSessionsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 201,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customerSession: $session,
-    );
-
-    $customerSessions->shouldReceive('create')->andReturn($response);
+    fakePolar('v1/customer-sessions/', polarFixture('CustomerSession', [
+        'token' => 'cs_token',
+        'customer_portal_url' => $portalUrl,
+    ]), 201);
 }
 
 it('redirectToCustomerPortal returns Inertia::location when called from an Inertia request', function () {

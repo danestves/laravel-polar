@@ -5,7 +5,7 @@ namespace Danestves\LaravelPolar\Events;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Polar\Models\Components\WebhookBenefitGrantUpdatedPayload;
+use Danestves\LaravelPolar\Data\WebhookBenefitGrantUpdatedPayload;
 
 class BenefitGrantUpdated
 {

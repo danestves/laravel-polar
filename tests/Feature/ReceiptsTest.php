@@ -3,152 +3,88 @@
 namespace Tests\Feature;
 
 use Danestves\LaravelPolar\Order;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Config;
-use Mockery;
-use Polar\Models\Components;
-use Polar\Models\Operations;
+use Illuminate\Support\Facades\Http;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
-});
-
-afterEach(function () {
-    resetLaravelPolarSdk();
-    Mockery::close();
-});
-
-function createMockedSdkWithCustomerPortalOrders(): array
+/**
+ * Fake the customer-session mint plus the invoice generate/read pair behind it.
+ */
+function fakeInvoice(?string $url, int $generateStatus = 202): void
 {
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
-
-    $customerPortal = Mockery::mock(\Polar\CustomerPortal::class);
-    $customerPortalOrders = Mockery::mock(\Polar\PolarOrders::class);
-    $customerPortal->orders = $customerPortalOrders;
-
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $cpProperty = $reflectionSdk->getProperty('customerPortal');
-    $cpProperty->setAccessible(true);
-    $cpProperty->setValue($sdk, $customerPortal);
-
-    $customerSessions = Mockery::mock(\Polar\CustomerSessions::class);
-    $csProperty = $reflectionSdk->getProperty('customerSessions');
-    $csProperty->setAccessible(true);
-    $csProperty->setValue($sdk, $customerSessions);
-
-    return [
-        'sdk' => $sdk,
-        'customerPortalOrders' => $customerPortalOrders,
-        'customerSessions' => $customerSessions,
-    ];
+    Http::fake([
+        polarUrl('v1/customer-sessions/') => Http::response(
+            polarFixture('CustomerSession', ['token' => 'cst_token']),
+            201,
+        ),
+        polarUrl('v1/customer-portal/orders/order_1/invoice') => Http::sequence()
+            ->push([], $generateStatus)
+            ->push($url === null ? [] : polarFixture('CustomerOrderInvoice', ['url' => $url])),
+    ]);
 }
 
-function stubCustomerSession(\Mockery\MockInterface $customerSessions, string $token = 'cs_token'): void
-{
-    $session = Mockery::mock(Components\CustomerSession::class);
-    $session->token = $token;
-    $session->customerPortalUrl = 'https://polar.sh/portal';
-
-    $response = new Operations\CustomerSessionsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 201,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customerSession: $session,
-    );
-
-    $customerSessions->shouldReceive('create')->andReturn($response);
-}
-
-it('$order->receiptUrl returns the URL from the generateInvoice response', function () {
-    $mocked = createMockedSdkWithCustomerPortalOrders();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    stubCustomerSession($mocked['customerSessions']);
+it('returns the invoice URL for an order', function () {
+    fakeInvoice('https://polar.sh/invoices/inv_1.pdf');
 
     $order = Order::factory()->paid()->create([
-        'polar_id' => 'ord_with_invoice',
-        'customer_id' => 'cust_xyz',
+        'polar_id' => 'order_1',
+        'customer_id' => 'cus_1',
     ]);
 
-    $invoiceResponse = new Operations\CustomerPortalOrdersGenerateInvoiceResponse(
-        contentType: 'application/json',
-        statusCode: 202,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        any: ['url' => 'https://polar.sh/i/abc.pdf'],
-    );
-
-    $mocked['customerPortalOrders']->shouldReceive('generateInvoice')
-        ->once() // memoization: second call should hit the cache
-        ->withArgs(function ($security, string $id) {
-            return $id === 'ord_with_invoice'
-                && $security instanceof Operations\CustomerPortalOrdersGenerateInvoiceSecurity
-                && $security->customerSession === 'cs_token';
-        })
-        ->andReturn($invoiceResponse);
-
-    expect($order->receiptUrl())->toBe('https://polar.sh/i/abc.pdf');
-    expect($order->receiptUrl())->toBe('https://polar.sh/i/abc.pdf'); // memoized
+    expect($order->receiptUrl())->toBe('https://polar.sh/invoices/inv_1.pdf');
 });
 
-it('$order->receiptUrl returns null when polar_id is missing', function () {
-    $order = Order::factory()->paid()->create(['polar_id' => null]);
+it('triggers generation before reading the invoice back', function () {
+    fakeInvoice('https://polar.sh/invoices/inv_1.pdf');
+
+    $order = Order::factory()->paid()->create(['polar_id' => 'order_1', 'customer_id' => 'cus_1']);
+    $order->receiptUrl();
+
+    // Polar generates invoices asynchronously: POST queues the work, GET reads the result.
+    $methods = [];
+    Http::assertSent(function ($request) use (&$methods) {
+        if (str_contains($request->url(), '/invoice')) {
+            $methods[] = $request->method();
+        }
+
+        return true;
+    });
+
+    expect($methods)->toBe(['POST', 'GET']);
+});
+
+it('tolerates a 409 from generation, meaning the invoice already exists', function () {
+    fakeInvoice('https://polar.sh/invoices/inv_1.pdf', generateStatus: 409);
+
+    $order = Order::factory()->paid()->create(['polar_id' => 'order_1', 'customer_id' => 'cus_1']);
+
+    expect($order->receiptUrl())->toBe('https://polar.sh/invoices/inv_1.pdf');
+});
+
+it('returns null while the invoice has no URL yet', function () {
+    fakeInvoice(null);
+
+    $order = Order::factory()->paid()->create(['polar_id' => 'order_1', 'customer_id' => 'cus_1']);
 
     expect($order->receiptUrl())->toBeNull();
 });
 
-it('$order->receiptUrl returns null when the response body has no url field', function () {
-    $mocked = createMockedSdkWithCustomerPortalOrders();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    stubCustomerSession($mocked['customerSessions']);
-
-    $order = Order::factory()->paid()->create([
-        'polar_id' => 'ord_no_url',
-        'customer_id' => 'cust_xyz',
-    ]);
-
-    $invoiceResponse = new Operations\CustomerPortalOrdersGenerateInvoiceResponse(
-        contentType: 'application/json',
-        statusCode: 202,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        any: ['status' => 'pending'],
-    );
-
-    $mocked['customerPortalOrders']->shouldReceive('generateInvoice')->andReturn($invoiceResponse);
+it('returns null for an order that was never synced', function () {
+    $order = Order::factory()->paid()->create(['polar_id' => null, 'customer_id' => 'cus_1']);
 
     expect($order->receiptUrl())->toBeNull();
+
+    Http::assertNothingSent();
 });
 
-it('$order->downloadInvoice returns a redirect to the URL', function () {
-    $mocked = createMockedSdkWithCustomerPortalOrders();
-    setLaravelPolarSdk($mocked['sdk']);
+it('redirects to the invoice when downloading', function () {
+    fakeInvoice('https://polar.sh/invoices/inv_1.pdf');
 
-    stubCustomerSession($mocked['customerSessions']);
+    $order = Order::factory()->paid()->create(['polar_id' => 'order_1', 'customer_id' => 'cus_1']);
 
-    $order = Order::factory()->paid()->create([
-        'polar_id' => 'ord_dl',
-        'customer_id' => 'cust_xyz',
-    ]);
-
-    $invoiceResponse = new Operations\CustomerPortalOrdersGenerateInvoiceResponse(
-        contentType: 'application/json',
-        statusCode: 202,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        any: ['url' => 'https://polar.sh/i/xyz.pdf'],
-    );
-
-    $mocked['customerPortalOrders']->shouldReceive('generateInvoice')->andReturn($invoiceResponse);
-
-    $redirect = $order->downloadInvoice();
-
-    expect($redirect)->toBeInstanceOf(RedirectResponse::class);
-    expect($redirect->getTargetUrl())->toBe('https://polar.sh/i/xyz.pdf');
+    expect($order->downloadInvoice()->getTargetUrl())->toBe('https://polar.sh/invoices/inv_1.pdf');
 });
 
-it('$order->downloadInvoice throws when no URL is available', function () {
-    $order = Order::factory()->paid()->create(['polar_id' => null]);
+it('refuses to download an invoice that does not exist', function () {
+    $order = Order::factory()->paid()->create(['polar_id' => null, 'customer_id' => 'cus_1']);
 
     expect(fn() => $order->downloadInvoice())
         ->toThrow(\RuntimeException::class, 'No receipt URL available');

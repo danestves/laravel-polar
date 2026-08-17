@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Polar\Models\Components\WebhookProductUpdatedPayload;
+use Danestves\LaravelPolar\Data\WebhookProductUpdatedPayload;
 
 class ProductUpdated extends WebhookEvent
 {
