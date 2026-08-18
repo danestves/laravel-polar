@@ -78,6 +78,9 @@ class TestCase extends Orchestra
         $migrations = require __DIR__ . '/../database/migrations/create_polar_subscriptions_table.php.stub';
         $migrations->up();
 
+        $migrations = require __DIR__ . '/../database/migrations/make_polar_orders_product_id_nullable.php.stub';
+        $migrations->up();
+
         $migrations = require __DIR__ . '/../database/migrations/create_webhook_calls_table.php.stub';
         $migrations->up();
     }

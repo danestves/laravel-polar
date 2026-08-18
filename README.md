@@ -15,7 +15,7 @@
 Seamlessly integrate Polar.sh subscriptions and payments into your Laravel application. This package provides an elegant way to handle subscriptions, manage recurring payments, and interact with Polar's API. With built-in support for webhooks, subscription management, and a fluent API, you can focus on building your application while we handle the complexities of subscription billing.
 
 > [!IMPORTANT]
-> **Upgrading from v2?** `v3.0.0` drops the deprecated `polar-sh/sdk` dependency and talks to the Polar API over plain HTTP. Your `Polar\Models\Components\*` imports become `Danestves\LaravelPolar\Data\*`, and list endpoints return a `Page` instead of an SDK response object. See the [v2 → v3 migration guide](docs/migration-v2-to-v3.md).
+> **Upgrading from v2?** `v3.0.0` drops the deprecated `polar-sh/sdk` dependency and talks to the Polar API over plain HTTP. Your `Polar\Models\Components\*` imports become `Danestves\LaravelPolar\Data\*`, list endpoints return a `Page` instead of an SDK response object, and there is one migration to publish and run. See the [v2 → v3 migration guide](docs/migration-v2-to-v3.md).
 
 ## Installation
 

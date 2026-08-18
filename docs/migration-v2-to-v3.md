@@ -15,7 +15,7 @@ Everything the SDK used to give you — typed request bodies, typed responses, t
 5. Replace `LaravelPolar::sdk()` with `LaravelPolar::client()`.
 6. Catch `Danestves\LaravelPolar\Exceptions\PolarApiError` instead of `Polar\Models\Errors\APIException`.
 
-Nothing changes in your database, your webhook route, your `Billable` trait usage, or your config — apart from two new optional config keys.
+Your webhook route, your `Billable` trait usage, and your config are unchanged apart from two new optional config keys. There is one small migration to publish and run — see [Database changes](#database-changes).
 
 ## Namespaces
 
@@ -94,6 +94,19 @@ try {
 ```
 
 In v2 several wrappers turned a failed call into a generic `APIException` with a fixed `500`. They now surface the real status.
+
+## Database changes
+
+One column changes. Polar allows an order to have no product — `product_id` is nullable on their side — but `polar_orders.product_id` was declared `NOT NULL`, so such an order would fail to sync with a constraint violation rather than being recorded.
+
+Publish and run the migration:
+
+```bash
+php artisan vendor:publish --tag="polar-migrations"
+php artisan migrate
+```
+
+Existing rows are untouched; the column simply starts accepting null. `$order->hasProduct()` and `$billable->hasPurchasedProduct()` already return false for an order with no product, so no application code needs to change. `$order->product_id` is now `?string`, which is worth knowing if you pass it somewhere that expects a string.
 
 ## API shape changes
 

@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $currency
  * @property string $billing_reason
  * @property string $customer_id
- * @property string $product_id
+ * @property string|null $product_id
  * @property \Carbon\CarbonInterface|null $refunded_at
  * @property \Carbon\CarbonInterface $ordered_at
  * @property \Carbon\CarbonInterface|null $created_at

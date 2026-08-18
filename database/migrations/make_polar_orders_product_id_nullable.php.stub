@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Polar allows an order to have no product — `product_id` is nullable on their side — but
+     * this table declared the column NOT NULL, so such an order would fail to sync with a
+     * constraint violation instead of being recorded.
+     */
+    public function up(): void
+    {
+        Schema::table('polar_orders', function (Blueprint $table) {
+            $table->string('product_id')->nullable()->change();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * Rows recorded without a product cannot satisfy a NOT NULL column, so they are dropped
+     * rather than silently given a fabricated product id.
+     */
+    public function down(): void
+    {
+        DB::table('polar_orders')->whereNull('product_id')->delete();
+
+        Schema::table('polar_orders', function (Blueprint $table) {
+            $table->string('product_id')->nullable(false)->change();
+        });
+    }
+};

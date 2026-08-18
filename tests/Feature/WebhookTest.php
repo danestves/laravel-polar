@@ -817,6 +817,41 @@ it('handles benefit.updated webhook', function () {
  * Polar can add a required field or a new enum value at any time; a package released before
  * that change still has to keep billing state correct.
  */
+it('records an order that has no product, which Polar allows', function () {
+    $user = User::factory()->create();
+
+    $payload = [
+        'type' => 'order.created',
+        'data' => polarFixture('Order', [
+            'id' => 'order_no_product',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'product_id' => null,
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    $order = Order::where('polar_id', 'order_no_product')->first();
+
+    expect($order)->not->toBeNull()
+        ->and($order->product_id)->toBeNull()
+        ->and($order->amount)->toBe(1000)
+        ->and($order->hasProduct('product_123'))->toBeFalse()
+        ->and($user->hasPurchasedProduct('product_123'))->toBeFalse();
+
+    Event::assertDispatched(OrderCreated::class);
+});
+
 describe('payloads this package cannot yet parse', function () {
     beforeEach(function () {
         Log::spy();
