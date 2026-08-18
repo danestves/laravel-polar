@@ -2,6 +2,50 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v3.0.0 - 2026-08-18
+
+`v3.0.0` removes the deprecated `polar-sh/sdk` dependency. Polar [deprecated their PHP SDK](https://github.com/polarsource/polar-php) in July 2026 and now recommend calling the API directly over HTTP, so that is what this package does.
+
+Everything the SDK gave you — typed request bodies, typed responses, typed webhook payloads — is still here. The classes moved namespace, and a few shapes changed because the package is now generated against Polar's current API version (`2026-04`).
+
+**Upgrading:** see the [v2 → v3 migration guide](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2-to-v3.md). There is one migration to publish and run.
+
+### What's new
+
+- **No abandoned dependency.** `composer require danestves/laravel-polar` no longer pulls in a deprecated package.
+- **Typed data objects** under `Danestves\LaravelPolar\Data` and enums under `Danestves\LaravelPolar\Enums`, generated from [Polar's published OpenAPI document](https://api.polar.sh/openapi.json) and refreshed with `composer generate-data`. Polar API changes are now a one-command regeneration.
+- **The API version is pinned** (`Polar-Version: 2026-04`) and sent on every request, so a change to Polar's default cannot silently reshape your responses.
+- **Real errors.** `PolarApiError` carries the actual status and Polar's own error body, where several v2 wrappers reported a fixed `500`.
+- **`Http::fake()` works** on Polar calls in your own test suite.
+- New optional config keys: `polar.version` and `polar.timeout`.
+
+### Fixes
+
+Three defects surfaced while auditing the code against Polar's current schema:
+
+- **Every `order.created` webhook would have failed.** Polar removed `Order.amount` in favour of a `subtotal_amount` / `net_amount` / `total_amount` breakdown. `polar_orders.amount` is now filled from `net_amount`, the exact equivalent of the old field, so `$order->amount` and `$order->refund()` behave as before.
+- **`Order.refunded_at` no longer exists.** Refund timestamps live on the refund now; the column falls back to the order's `modified_at` when it is in a refunded state.
+- **Orders with no product could not be recorded.** `product_id` is nullable in Polar's schema but the column was `NOT NULL`. Publish and run the migration to widen it.
+
+### Webhooks survive schema drift
+
+Local records now sync from the raw webhook payload first. If a payload cannot be typed — Polar adding a required field, or an enum value this release predates — the failure is logged and only the typed event is skipped, rather than taking your billing sync down. `WebhookReceived` and `WebhookHandled` still fire. Watch for `Polar webhook payload could not be parsed` in your logs; the fix is `composer generate-data`.
+
+Unknown order/subscription statuses and a missing order amount still fail loudly, because silently storing a wrong status or amount is worse than stopping.
+
+### Breaking changes
+
+- `Polar\Models\Components\*` → `Danestves\LaravelPolar\Data\*`; enums → `Danestves\LaravelPolar\Enums\*`.
+- List endpoints take an array of query parameters and return a `Page` instead of an SDK response object.
+- `LaravelPolar::sdk()` → `LaravelPolar::client()`.
+- `Polar\Models\Errors\APIException` → `Danestves\LaravelPolar\Exceptions\PolarApiError`.
+- Discount create variants collapsed from four to two; subscription update bodies merged into `SubscriptionUpdateBase`; `CheckoutStatus::Completed` is now `Succeeded`.
+- One database migration to publish and run.
+
+Full detail, including every rename, is in the [migration guide](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2-to-v3.md).
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v2.13.2...v3.0.0
+
 ## v2.13.2 - 2026-05-22
 
 ### What's Fixed
@@ -27,6 +71,7 @@ See [`docs/migration-v2.13.1-to-v2.13.2.md`](https://github.com/danestves/larave
 ```
 Access to XMLHttpRequest at 'https://sandbox.polar.sh/checkout/...'
 ... has been blocked by CORS policy
+
 
 ```
 No setup needed — works out of the box when `inertiajs/inertia-laravel` is installed. The package has zero hard dependency on Inertia (detection is gated behind `class_exists()`).
@@ -55,6 +100,7 @@ LaravelPolar::getOrganization('org_xxx');
 LaravelPolar::sdk()->...
 
 
+
 ```
 See [`docs/migration-v2.11-to-v2.12.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.11-to-v2.12.md) for the escape-hatch recipe.
 
@@ -81,6 +127,7 @@ LaravelPolar::resendSeatInvitation('seat_xxx');
 
 
 
+
 ```
 See [`docs/migration-v2.10-to-v2.11.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.10-to-v2.11.md).
 
@@ -97,6 +144,7 @@ Adds Cashier-style invoice/receipt access on the Order model.
 ```php
 $order->receiptUrl();       // ?string, memoized per instance
 $order->downloadInvoice();  // RedirectResponse — strict (throws on null)
+
 
 
 
@@ -129,6 +177,7 @@ $user->licenseKeys();
 
 
 
+
 ```
 New optional config: `polar.organization_id` / `POLAR_ORGANIZATION_ID` for the public-facing methods.
 
@@ -147,6 +196,7 @@ Closes the Cashier-parallel gap from the v2.5 admin Discount CRUD: the package c
 ```php
 $subscription->applyDiscount('disc_xxx');
 $subscription->removeDiscount();
+
 
 
 
@@ -184,6 +234,7 @@ $order->customFieldData();
 
 
 
+
 ```
 See [`docs/migration-v2.6-to-v2.7.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.6-to-v2.7.md).
 
@@ -206,6 +257,7 @@ LaravelPolar::updateCheckoutLink('cl_xxx', new Components\CheckoutLinkUpdate(lab
 LaravelPolar::deleteCheckoutLink('cl_xxx');
 LaravelPolar::listCheckoutLinks();
 LaravelPolar::getCheckoutLink('cl_xxx');
+
 
 
 
@@ -242,6 +294,7 @@ LaravelPolar::getDiscount('disc_xxx');
 
 
 
+
 ```
 See [`docs/migration-v2.4-to-v2.5.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.4-to-v2.5.md).
 
@@ -261,6 +314,7 @@ use Polar\Models\Components\RefundReason;
 $order->refund();                                              // refund the remaining unrefunded amount
 $order->refund(amount: 2500, reason: RefundReason::Fraudulent); // partial refund with custom reason
 $order->refunds();                                             // Collection of Refund items for this order
+
 
 
 
@@ -446,6 +500,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -471,11 +526,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
