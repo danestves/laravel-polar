@@ -33,6 +33,7 @@ use Danestves\LaravelPolar\Order;
 use Danestves\LaravelPolar\Subscription;
 use Danestves\LaravelPolar\Tests\Fixtures\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Spatie\WebhookClient\Models\WebhookCall;
 
 class TestProcessWebhook extends ProcessWebhook
@@ -113,7 +114,7 @@ it('handles order.created webhook', function () {
         'data' => polarFixture('Order', [
             'id' => 'order_123',
             'status' => OrderStatus::Paid->value,
-            'amount' => 1000,
+            'net_amount' => 1000,
             'tax_amount' => 100,
             'refunded_amount' => 0,
             'refunded_tax_amount' => 0,
@@ -161,7 +162,7 @@ it('handles order.updated webhook', function () {
         'data' => polarFixture('Order', [
             'id' => 'order_123',
             'status' => OrderStatus::Refunded->value,
-            'amount' => 1000,
+            'net_amount' => 1000,
             'tax_amount' => 100,
             'refunded_amount' => 1000,
             'refunded_tax_amount' => 100,
@@ -509,7 +510,7 @@ it('throws exception when metadata is missing', function () {
         'data' => polarFixture('Order', [
             'id' => 'order_123',
             'status' => OrderStatus::Paid->value,
-            'amount' => 1000,
+            'net_amount' => 1000,
             'tax_amount' => 100,
             'refunded_amount' => 0,
             'refunded_tax_amount' => 0,
@@ -556,7 +557,7 @@ it('handles order.updated when order does not exist', function () {
         'data' => polarFixture('Order', [
             'id' => 'nonexistent_order',
             'status' => OrderStatus::Paid->value,
-            'amount' => 1000,
+            'net_amount' => 1000,
             'tax_amount' => 100,
             'refunded_amount' => 0,
             'refunded_tax_amount' => 0,
@@ -808,4 +809,138 @@ it('handles benefit.updated webhook', function () {
     Event::assertDispatched(BenefitUpdated::class);
     Event::assertDispatched(WebhookReceived::class);
     Event::assertDispatched(WebhookHandled::class);
+});
+
+/**
+ * A payload the package cannot type must never cost us the database sync.
+ *
+ * Polar can add a required field or a new enum value at any time; a package released before
+ * that change still has to keep billing state correct.
+ */
+describe('payloads this package cannot yet parse', function () {
+    beforeEach(function () {
+        Log::spy();
+    });
+
+    it('still syncs the order when a nested field is missing from the payload', function () {
+        $user = User::factory()->create();
+
+        $data = polarFixture('Order', [
+            'id' => 'order_unparseable',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'product_id' => 'product_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]);
+
+        // A field the schema requires but the database sync never reads — the same shape as
+        // Polar adding a required field this package predates.
+        unset($data['subtotal_amount']);
+
+        $job = createWebhookCall(['type' => 'order.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        $order = Order::where('polar_id', 'order_unparseable')->first();
+
+        expect($order)->not->toBeNull()
+            ->and($order->status)->toBe(OrderStatus::Paid)
+            ->and($order->amount)->toBe(1000)
+            ->and($order->billable_id)->toBe($user->getKey());
+    });
+
+    it('still syncs the order when a nested enum gains a value we do not know', function () {
+        $user = User::factory()->create();
+
+        $data = polarFixture('Order', [
+            'id' => 'order_future_enum',
+            'status' => OrderStatus::Paid->value,
+            'product_id' => 'product_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+            'billing_reason' => 'some_future_billing_reason',
+        ]);
+
+        $job = createWebhookCall(['type' => 'order.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        expect(Order::where('polar_id', 'order_future_enum')->exists())->toBeTrue();
+    });
+
+    it('skips the typed event rather than dispatching a half-built payload', function () {
+        $user = User::factory()->create();
+
+        $data = polarFixture('Order', [
+            'id' => 'order_unparseable',
+            'status' => OrderStatus::Paid->value,
+            'product_id' => 'product_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]);
+        unset($data['subtotal_amount']);
+
+        $job = createWebhookCall(['type' => 'order.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        Event::assertNotDispatched(OrderCreated::class);
+
+        // The generic webhook events still fire, so listeners on the raw payload are unaffected.
+        Event::assertDispatched(WebhookReceived::class);
+        Event::assertDispatched(WebhookHandled::class);
+    });
+
+    it('logs the failure with the event type so it can be diagnosed', function () {
+        $user = User::factory()->create();
+
+        $data = polarFixture('Order', [
+            'id' => 'order_unparseable',
+            'status' => OrderStatus::Paid->value,
+            'product_id' => 'product_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]);
+        unset($data['subtotal_amount']);
+
+        $job = createWebhookCall(['type' => 'order.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        Log::shouldHaveReceived('error')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return str_contains($message, 'could not be parsed')
+                    && $context['event_type'] === 'order.created'
+                    && isset($context['reason']);
+            });
+    });
+
+    it('does not dispatch an event when a payload-only webhook cannot be parsed', function () {
+        $data = polarFixture('Product', ['id' => 'product_123']);
+        unset($data['name']);
+
+        $job = createWebhookCall(['type' => 'product.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        Event::assertNotDispatched(ProductCreated::class);
+        Event::assertDispatched(WebhookHandled::class);
+    });
 });

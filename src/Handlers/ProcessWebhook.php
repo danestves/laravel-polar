@@ -92,7 +92,7 @@ class ProcessWebhook extends ProcessWebhookJob
         $order = $billable->orders()->create([ // @phpstan-ignore-line class.notFound - the property is found in the billable model
             'polar_id' => $data['id'],
             'status' => \is_string($data['status']) ? OrderStatus::from($data['status']) : $data['status'],
-            'amount' => $data['amount'],
+            'amount' => EloquentOrder::netAmount($data),
             'tax_amount' => $data['tax_amount'],
             'refunded_amount' => $data['refunded_amount'],
             'refunded_tax_amount' => $data['refunded_tax_amount'],
@@ -103,8 +103,11 @@ class ProcessWebhook extends ProcessWebhookJob
             'ordered_at' => Carbon::make($data['created_at']),
         ]);
 
-        $payload = $this->payload(Data\WebhookOrderCreatedPayload::class, $data, $timestamp, $type);
-        OrderCreated::dispatch($billable, $order, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookOrderCreatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => OrderCreated::dispatch($billable, $order, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -127,14 +130,13 @@ class ProcessWebhook extends ProcessWebhookJob
         $status = $data['status'];
         $isRefunded = $status === OrderStatus::Refunded->value || $status === OrderStatus::PartiallyRefunded->value;
 
-        $order->sync([
-            ...$data,
-            'status' => $status,
-            'refunded_at' => $isRefunded ? Carbon::make($data['refunded_at']) : null,
-        ]);
+        $order->sync([...$data, 'status' => $status]);
 
-        $payload = $this->payload(Data\WebhookOrderUpdatedPayload::class, $data, $timestamp, $type);
-        OrderUpdated::dispatch($billable, $order, $payload, $isRefunded); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookOrderUpdatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => OrderUpdated::dispatch($billable, $order, $payload, $isRefunded), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -161,8 +163,11 @@ class ProcessWebhook extends ProcessWebhookJob
             $billable->customer->update(['polar_id' => $data['customer_id']]); // @phpstan-ignore-line property.notFound - the property is found in the billable model
         }
 
-        $payload = $this->payload(Data\WebhookSubscriptionCreatedPayload::class, $data, $timestamp, $type);
-        SubscriptionCreated::dispatch($billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookSubscriptionCreatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => SubscriptionCreated::dispatch($billable, $subscription, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -182,8 +187,11 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $subscription->sync($data);
 
-        $payload = $this->payload(Data\WebhookSubscriptionUpdatedPayload::class, $data, $timestamp, $type);
-        SubscriptionUpdated::dispatch($subscription->billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookSubscriptionUpdatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => SubscriptionUpdated::dispatch($subscription->billable, $subscription, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -203,8 +211,11 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $subscription->sync($data);
 
-        $payload = $this->payload(Data\WebhookSubscriptionActivePayload::class, $data, $timestamp, $type);
-        SubscriptionActive::dispatch($subscription->billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookSubscriptionActivePayload::class, $data, $timestamp, $type),
+            fn($payload) => SubscriptionActive::dispatch($subscription->billable, $subscription, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -224,8 +235,11 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $subscription->sync($data);
 
-        $payload = $this->payload(Data\WebhookSubscriptionCanceledPayload::class, $data, $timestamp, $type);
-        SubscriptionCanceled::dispatch($subscription->billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookSubscriptionCanceledPayload::class, $data, $timestamp, $type),
+            fn($payload) => SubscriptionCanceled::dispatch($subscription->billable, $subscription, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -245,8 +259,11 @@ class ProcessWebhook extends ProcessWebhookJob
 
         $subscription->sync($data);
 
-        $payload = $this->payload(Data\WebhookSubscriptionRevokedPayload::class, $data, $timestamp, $type);
-        SubscriptionRevoked::dispatch($subscription->billable, $subscription, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookSubscriptionRevokedPayload::class, $data, $timestamp, $type),
+            fn($payload) => SubscriptionRevoked::dispatch($subscription->billable, $subscription, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -258,8 +275,11 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $billable = $this->resolveBillable($data);
 
-        $payload = $this->benefitGrantPayload(Data\WebhookBenefitGrantCreatedPayload::class, $data, $timestamp, $type);
-        BenefitGrantCreated::dispatch($billable, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->benefitGrantPayload(Data\WebhookBenefitGrantCreatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => BenefitGrantCreated::dispatch($billable, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -271,8 +291,11 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $billable = $this->resolveBillable($data);
 
-        $payload = $this->benefitGrantPayload(Data\WebhookBenefitGrantUpdatedPayload::class, $data, $timestamp, $type);
-        BenefitGrantUpdated::dispatch($billable, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->benefitGrantPayload(Data\WebhookBenefitGrantUpdatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => BenefitGrantUpdated::dispatch($billable, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -284,8 +307,11 @@ class ProcessWebhook extends ProcessWebhookJob
     {
         $billable = $this->resolveBillable($data);
 
-        $payload = $this->benefitGrantPayload(Data\WebhookBenefitGrantRevokedPayload::class, $data, $timestamp, $type);
-        BenefitGrantRevoked::dispatch($billable, $payload); // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->benefitGrantPayload(Data\WebhookBenefitGrantRevokedPayload::class, $data, $timestamp, $type),
+            fn($payload) => BenefitGrantRevoked::dispatch($billable, $payload), // @phpstan-ignore-line argument.type - Billable is a instance of a model
+        );
     }
 
     /**
@@ -372,6 +398,42 @@ class ProcessWebhook extends ProcessWebhookJob
     }
 
     /**
+     * Build a typed payload and hand it to the event dispatcher, tolerating payloads this
+     * package cannot yet parse.
+     *
+     * Local records are synced from the raw webhook array before this runs, and that sync is the
+     * part your application cannot afford to lose. Typing the payload is strict by design — it is
+     * what makes listeners safe to write — but Polar can add a required field or a new enum value
+     * at any time, and a package that predates the change should not take billing sync down with
+     * it. So a payload that will not build is logged loudly and its event is skipped; the record
+     * is already correct.
+     *
+     * The event is not retried, because retrying cannot help: the fix is to regenerate the data
+     * objects (`composer generate-data`) against Polar's current schema.
+     *
+     * @template TPayload of \Spatie\LaravelData\Data
+     *
+     * @param  callable(): TPayload  $build
+     * @param  callable(TPayload): void  $dispatch
+     */
+    private function dispatchEvent(string $type, callable $build, callable $dispatch): void
+    {
+        try {
+            $payload = $build();
+        } catch (\Throwable $e) {
+            Log::error('Polar webhook payload could not be parsed, so its event was not dispatched. Any local record was still synced. Run "composer generate-data" to refresh the data objects against Polar\'s current schema.', [
+                'event_type' => $type,
+                'exception' => $e::class,
+                'reason' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        $dispatch($payload);
+    }
+
+    /**
      * Build a typed webhook payload from the raw event.
      *
      * Polar's webhook envelope is `{type, timestamp, data}`, which is exactly the shape of the
@@ -418,7 +480,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCheckoutCreated(array $data, \DateTime $timestamp, string $type): void
     {
-        CheckoutCreated::dispatch($this->payload(Data\WebhookCheckoutCreatedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookCheckoutCreatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => CheckoutCreated::dispatch($payload),
+        );
     }
 
     /**
@@ -428,7 +494,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCheckoutUpdated(array $data, \DateTime $timestamp, string $type): void
     {
-        CheckoutUpdated::dispatch($this->payload(Data\WebhookCheckoutUpdatedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookCheckoutUpdatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => CheckoutUpdated::dispatch($payload),
+        );
     }
 
     /**
@@ -438,7 +508,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCheckoutExpired(array $data, \DateTime $timestamp, string $type): void
     {
-        CheckoutExpired::dispatch($this->payload(Data\WebhookCheckoutExpiredPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookCheckoutExpiredPayload::class, $data, $timestamp, $type),
+            fn($payload) => CheckoutExpired::dispatch($payload),
+        );
     }
 
     /**
@@ -448,7 +522,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCustomerCreated(array $data, \DateTime $timestamp, string $type): void
     {
-        CustomerCreated::dispatch($this->payload(Data\WebhookCustomerCreatedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookCustomerCreatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => CustomerCreated::dispatch($payload),
+        );
     }
 
     /**
@@ -458,7 +536,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCustomerUpdated(array $data, \DateTime $timestamp, string $type): void
     {
-        CustomerUpdated::dispatch($this->payload(Data\WebhookCustomerUpdatedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookCustomerUpdatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => CustomerUpdated::dispatch($payload),
+        );
     }
 
     /**
@@ -468,7 +550,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCustomerDeleted(array $data, \DateTime $timestamp, string $type): void
     {
-        CustomerDeleted::dispatch($this->payload(Data\WebhookCustomerDeletedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookCustomerDeletedPayload::class, $data, $timestamp, $type),
+            fn($payload) => CustomerDeleted::dispatch($payload),
+        );
     }
 
     /**
@@ -478,7 +564,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleCustomerStateChanged(array $data, \DateTime $timestamp, string $type): void
     {
-        CustomerStateChanged::dispatch($this->payload(Data\WebhookCustomerStateChangedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookCustomerStateChangedPayload::class, $data, $timestamp, $type),
+            fn($payload) => CustomerStateChanged::dispatch($payload),
+        );
     }
 
     /**
@@ -488,7 +578,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleProductCreated(array $data, \DateTime $timestamp, string $type): void
     {
-        ProductCreated::dispatch($this->payload(Data\WebhookProductCreatedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookProductCreatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => ProductCreated::dispatch($payload),
+        );
     }
 
     /**
@@ -498,7 +592,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleProductUpdated(array $data, \DateTime $timestamp, string $type): void
     {
-        ProductUpdated::dispatch($this->payload(Data\WebhookProductUpdatedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookProductUpdatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => ProductUpdated::dispatch($payload),
+        );
     }
 
     /**
@@ -508,7 +606,11 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleBenefitCreated(array $data, \DateTime $timestamp, string $type): void
     {
-        BenefitCreated::dispatch($this->payload(Data\WebhookBenefitCreatedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookBenefitCreatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => BenefitCreated::dispatch($payload),
+        );
     }
 
     /**
@@ -518,6 +620,10 @@ class ProcessWebhook extends ProcessWebhookJob
      */
     private function handleBenefitUpdated(array $data, \DateTime $timestamp, string $type): void
     {
-        BenefitUpdated::dispatch($this->payload(Data\WebhookBenefitUpdatedPayload::class, $data, $timestamp, $type));
+        $this->dispatchEvent(
+            $type,
+            fn() => $this->payload(Data\WebhookBenefitUpdatedPayload::class, $data, $timestamp, $type),
+            fn($payload) => BenefitUpdated::dispatch($payload),
+        );
     }
 }

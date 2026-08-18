@@ -138,9 +138,32 @@ new Data\DiscountPercentageCreate(
 
 **`CheckoutStatus::Completed` is gone**, replaced by `Succeeded`.
 
+**Order amounts were renamed.** Polar dropped `amount` from the order resource in favour of a fuller breakdown: `subtotal_amount` (before discounts and taxes), `net_amount` (after discounts, before taxes), and `total_amount` (after discounts and taxes). The `polar_orders.amount` column keeps its meaning and is now filled from `net_amount`, which is the exact equivalent of the old field — so `$order->amount` and `$order->refund()` behave as they did. If you build order payloads yourself (replaying stored webhooks, say), both spellings are accepted.
+
+**`Order.refunded_at` is gone.** Refund timestamps now live on the refund itself. The `polar_orders.refunded_at` column is filled from the order's `modified_at` when the order is in a refunded state, which is the closest the current API gets, and stays null otherwise.
+
 **Invoices are fetched in two steps.** `$order->receiptUrl()` now asks Polar to generate the invoice and then reads the URL back, because generation is asynchronous on their side. It returns `null` while generation is still pending — call it again shortly after. Behaviour is otherwise unchanged.
 
 **License key verification uses the public routes.** `validateLicenseKey`, `activateLicenseKey`, and `deactivateLicenseKey` now call `/v1/customer-portal/license-keys/*`, which need no access token — only an organization id, exactly as documented in v2. These routes are rate limited to 3 requests per second.
+
+## Webhooks are resilient to schema drift
+
+Typed payloads are strict: they are what makes a listener safe to write. But Polar can add a required field or a new enum value at any time, and a release of this package that predates the change should not take your billing sync down with it.
+
+So the handler syncs your `polar_orders` / `polar_subscriptions` records from the raw webhook array first, and only then builds the typed payload. If that payload cannot be built, the failure is logged with the event type and the reason, and **only the typed event is skipped** — the record is already correct, and `WebhookReceived` / `WebhookHandled` still fire, so any listener working off the raw payload is unaffected.
+
+The event is not retried, because a retry cannot help. The fix is to regenerate against Polar's current schema:
+
+```bash
+composer generate-data
+```
+
+Watch your logs for `Polar webhook payload could not be parsed` — that message is the signal to do so.
+
+Two things still fail loudly on purpose, because guessing would be worse than stopping:
+
+- An unknown `OrderStatus` or `SubscriptionStatus`, since silently storing the wrong status could grant or revoke access incorrectly.
+- An order payload with no `net_amount` or `amount`, since recording an order with an unknown amount is worse than recording none.
 
 ## Reaching unwrapped endpoints
 

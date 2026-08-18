@@ -2,6 +2,7 @@
 
 namespace Danestves\LaravelPolar;
 
+use Carbon\Carbon;
 use Danestves\LaravelPolar\Database\Factories\OrderFactory;
 use Danestves\LaravelPolar\Enums\OrderStatus;
 use Danestves\LaravelPolar\Enums\RefundCreateReason;
@@ -272,7 +273,7 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
         $this->update([
             'polar_id' => $attributes['id'],
             'status' => \is_string($attributes['status']) ? OrderStatus::from($attributes['status']) : $attributes['status'],
-            'amount' => $attributes['amount'],
+            'amount' => static::netAmount($attributes),
             'tax_amount' => $attributes['tax_amount'],
             'refunded_amount' => $attributes['refunded_amount'],
             'refunded_tax_amount' => $attributes['refunded_tax_amount'],
@@ -280,11 +281,58 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
             'billing_reason' => $attributes['billing_reason'],
             'customer_id' => $attributes['customer_id'],
             'product_id' => $attributes['product_id'],
-            'refunded_at' => $attributes['refunded_at'],
+            'refunded_at' => static::refundedAt($attributes),
             'ordered_at' => $attributes['created_at'],
         ]);
 
         return $this;
+    }
+
+    /**
+     * The order's amount after discounts but before taxes, in cents.
+     *
+     * Polar renamed this field from `amount` to `net_amount`. Both are read so that replayed
+     * webhooks and payloads captured before the rename still sync.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function netAmount(array $attributes): int
+    {
+        $amount = $attributes['net_amount'] ?? $attributes['amount'] ?? null;
+
+        if ($amount === null) {
+            throw new \RuntimeException(
+                'Polar order payload is missing both "net_amount" and "amount"; refusing to record an order with an unknown amount.',
+            );
+        }
+
+        return (int) $amount;
+    }
+
+    /**
+     * When the order was refunded, as far as the payload can tell us.
+     *
+     * Polar dropped `refunded_at` from the order resource; refund timestamps now live on the
+     * refund itself. `modified_at` is the closest stand-in, since a refund is what just changed
+     * the order. Returns null for an order that is not in a refunded state.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public static function refundedAt(array $attributes): ?\Carbon\CarbonInterface
+    {
+        $status = $attributes['status'] ?? null;
+        $status = $status instanceof OrderStatus ? $status->value : $status;
+
+        $isRefunded = \in_array($status, [
+            OrderStatus::Refunded->value,
+            OrderStatus::PartiallyRefunded->value,
+        ], true);
+
+        if (! $isRefunded) {
+            return null;
+        }
+
+        return Carbon::make($attributes['refunded_at'] ?? $attributes['modified_at'] ?? null);
     }
 
     /**
