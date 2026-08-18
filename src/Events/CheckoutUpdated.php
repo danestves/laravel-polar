@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Polar\Models\Components\WebhookCheckoutUpdatedPayload;
+use Danestves\LaravelPolar\Data\WebhookCheckoutUpdatedPayload;
 
 class CheckoutUpdated extends WebhookEvent
 {

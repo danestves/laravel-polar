@@ -1,360 +1,181 @@
 <?php
 
 use Danestves\LaravelPolar\Checkout;
-use Illuminate\Support\Facades\Config;
-use Polar\Models\Errors;
-use Polar\Models\Operations;
-use Psr\Http\Message\ResponseInterface;
+use Danestves\LaravelPolar\Data\AddressInput;
+use Danestves\LaravelPolar\Enums\CountryAlpha2;
+use Danestves\LaravelPolar\Enums\PresentmentCurrency;
+use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Illuminate\Support\Facades\Http;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
-});
-
-afterEach(function () {
-    resetLaravelPolarSdk();
-
-    Mockery::close();
-});
-
-function createMockedSdkWithCheckouts(): array
+/**
+ * Fake the checkout-create endpoint and return the URL it hands back.
+ */
+function fakeCheckoutCreate(string $url = 'https://polar.sh/checkout/123'): string
 {
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
+    fakePolar('v1/checkouts/', polarFixture('Checkout', ['url' => $url]), 201);
 
-    $checkouts = Mockery::mock(\Polar\Checkouts::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $checkoutsProperty = $reflectionSdk->getProperty('checkouts');
-    $checkoutsProperty->setAccessible(true);
-    $checkoutsProperty->setValue($sdk, $checkouts);
-
-    return ['sdk' => $sdk, 'checkouts' => $checkouts];
+    return $url;
 }
 
-it('can initiate a new checkout', function () {
-    // Note: This test verifies internal state via reflection. A future improvement
-    // would be to verify the SDK request payload when url() or redirect() is called.
-    $checkout = Checkout::make(['product_123']);
+/**
+ * The JSON body of the checkout-create request the builder just made.
+ *
+ * @return array<string, mixed>
+ */
+function sentCheckoutPayload(): array
+{
+    $payload = [];
 
-    expect($checkout)->toBeInstanceOf(Checkout::class);
+    Http::assertSent(function ($request) use (&$payload) {
+        $payload = $request->data();
 
-    $reflection = new \ReflectionClass($checkout);
-    $productsProperty = $reflection->getProperty('products');
-    $productsProperty->setAccessible(true);
+        return true;
+    });
 
-    expect($productsProperty->getValue($checkout))->toBe(['product_123']);
+    return $payload;
+}
+
+it('sends the products it was built with', function () {
+    fakeCheckoutCreate();
+
+    Checkout::make(['product_123'])->url();
+
+    expect(sentCheckoutPayload()['products'])->toBe(['product_123']);
 });
 
-it('can be redirected successfully', function () {
-    $mocked = createMockedSdkWithCheckouts();
-    $sdk = $mocked['sdk'];
-    $checkouts = $mocked['checkouts'];
+it('returns the URL Polar responds with', function () {
+    $url = fakeCheckoutCreate();
 
-    $mockCheckout = Mockery::mock(\Polar\Models\Components\Checkout::class);
-    $mockCheckout->url = 'https://polar.sh/checkout/123';
-
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\CheckoutsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 201,
-        rawResponse: $mockRawResponse,
-        checkout: $mockCheckout,
-    );
-    $checkouts->shouldReceive('create')->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $checkout = Checkout::make(['product_123']);
-    $redirect = $checkout->redirect();
-
-    expect($redirect->getTargetUrl())->toBe('https://polar.sh/checkout/123');
+    expect(Checkout::make(['product_123'])->url())->toBe($url);
 });
 
-it('throws exception when redirect fails due to API error', function () {
-    $mocked = createMockedSdkWithCheckouts();
-    $sdk = $mocked['sdk'];
-    $checkouts = $mocked['checkouts'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\CheckoutsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 500,
-        rawResponse: $mockRawResponse,
-        checkout: null,
-    );
-    $checkouts->shouldReceive('create')->andReturn($response);
+it('redirects to the checkout URL with a 303', function () {
+    $url = fakeCheckoutCreate();
 
-    setLaravelPolarSdk($sdk);
+    $redirect = Checkout::make(['product_123'])->redirect();
 
-    $checkout = Checkout::make(['product_123']);
-
-    expect(fn() => $checkout->redirect())
-        ->toThrow(Errors\APIException::class);
+    expect($redirect->getTargetUrl())->toBe($url)
+        ->and($redirect->getStatusCode())->toBe(303);
 });
 
-it('can set prefilled fields with dedicated methods', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withCustomerName('John Doe')
-        ->withCustomerEmail('john@doe.com');
+it('is responsable, redirecting to the checkout URL', function () {
+    $url = fakeCheckoutCreate();
 
-    $reflection = new \ReflectionClass($checkout);
+    $response = Checkout::make(['product_123'])->toResponse(request());
 
-    $nameProperty = $reflection->getProperty('customerName');
-    $nameProperty->setAccessible(true);
-    expect($nameProperty->getValue($checkout))->toBe('John Doe');
-
-    $emailProperty = $reflection->getProperty('customerEmail');
-    $emailProperty->setAccessible(true);
-    expect($emailProperty->getValue($checkout))->toBe('john@doe.com');
+    expect($response)->toBeInstanceOf(\Illuminate\Http\RedirectResponse::class)
+        ->and($response->getTargetUrl())->toBe($url);
 });
 
-it('can include metadata', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withMetadata(['batch_id' => '789']);
+it('surfaces a Polar error when the checkout cannot be created', function () {
+    fakePolar('v1/checkouts/', ['detail' => 'Product not found'], 404);
 
-    $reflection = new \ReflectionClass($checkout);
-    $metadataProperty = $reflection->getProperty('metadata');
-    $metadataProperty->setAccessible(true);
+    expect(fn() => Checkout::make(['product_123'])->url())
+        ->toThrow(PolarApiError::class);
 
-    expect($metadataProperty->getValue($checkout))->toBe(['batch_id' => '789']);
+    expect(fn() => Checkout::make(['product_123'])->redirect())
+        ->toThrow(PolarApiError::class);
 });
 
-it('can include prefilled fields and metadata', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withCustomerName('John Doe')
-        ->withMetadata(['batch_id' => '789']);
+it('raises a clear error when Polar returns a checkout without a URL', function () {
+    fakePolar('v1/checkouts/', polarFixture('Checkout', ['url' => '']), 201);
 
-    $reflection = new \ReflectionClass($checkout);
-
-    $nameProperty = $reflection->getProperty('customerName');
-    $nameProperty->setAccessible(true);
-    expect($nameProperty->getValue($checkout))->toBe('John Doe');
-
-    $metadataProperty = $reflection->getProperty('metadata');
-    $metadataProperty->setAccessible(true);
-    expect($metadataProperty->getValue($checkout))->toBe(['batch_id' => '789']);
+    expect(fn() => Checkout::make(['product_123'])->url())
+        ->toThrow(PolarApiError::class, 'without a URL');
 });
 
-it('can generate checkout URL', function () {
-    $mocked = createMockedSdkWithCheckouts();
-    $sdk = $mocked['sdk'];
-    $checkouts = $mocked['checkouts'];
+it('sends every configured option using Polar field names', function () {
+    fakeCheckoutCreate();
 
-    $mockCheckout = Mockery::mock(\Polar\Models\Components\Checkout::class);
-    $mockCheckout->url = 'https://polar.sh/checkout/123';
-
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\CheckoutsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 201,
-        rawResponse: $mockRawResponse,
-        checkout: $mockCheckout,
-    );
-    $checkouts->shouldReceive('create')->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $checkout = Checkout::make(['product_123']);
-
-    expect($checkout->url())->toBe('https://polar.sh/checkout/123');
-});
-
-it('throws exception when URL generation fails', function () {
-    $mocked = createMockedSdkWithCheckouts();
-    $sdk = $mocked['sdk'];
-    $checkouts = $mocked['checkouts'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\CheckoutsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 500,
-        rawResponse: $mockRawResponse,
-        checkout: null,
-    );
-    $checkouts->shouldReceive('create')->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $checkout = Checkout::make(['product_123']);
-
-    expect(fn() => $checkout->url())
-        ->toThrow(Errors\APIException::class);
-});
-
-it('implements Responsable contract successfully', function () {
-    $mocked = createMockedSdkWithCheckouts();
-    $sdk = $mocked['sdk'];
-    $checkouts = $mocked['checkouts'];
-
-    $mockCheckout = Mockery::mock(\Polar\Models\Components\Checkout::class);
-    $mockCheckout->url = 'https://polar.sh/checkout/123';
-
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\CheckoutsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 201,
-        rawResponse: $mockRawResponse,
-        checkout: $mockCheckout,
-    );
-    $checkouts->shouldReceive('create')->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $checkout = Checkout::make(['product_123']);
-    $response = $checkout->toResponse(request());
-
-    expect($response)->toBeInstanceOf(\Illuminate\Http\RedirectResponse::class);
-    expect($response->getTargetUrl())->toBe('https://polar.sh/checkout/123');
-});
-
-it('throws exception when Responsable contract fails', function () {
-    $mocked = createMockedSdkWithCheckouts();
-    $sdk = $mocked['sdk'];
-    $checkouts = $mocked['checkouts'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\CheckoutsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 500,
-        rawResponse: $mockRawResponse,
-        checkout: null,
-    );
-    $checkouts->shouldReceive('create')->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $checkout = Checkout::make(['product_123']);
-
-    expect(fn() => $checkout->toResponse(request()))
-        ->toThrow(Errors\APIException::class);
-});
-
-it('can set all checkout options', function () {
-    $checkout = Checkout::make(['product_123'])
+    Checkout::make(['product_123'])
         ->withCustomerName('John Doe')
         ->withCustomerEmail('john@doe.com')
+        ->withCustomerId('cus_123')
+        ->withCustomerExternalId('ext_123')
+        ->withCustomerIpAddress('203.0.113.4')
         ->withCustomerTaxId('TAX123')
+        ->withCustomerBillingAddress(new AddressInput(country: CountryAlpha2::US, city: 'Austin'))
         ->withDiscountId('discount_123')
+        ->withoutDiscountCodes()
         ->withAmount(5000)
+        ->withCurrency(PresentmentCurrency::Usd)
+        ->withSubscriptionId('sub_123')
         ->withMetadata(['key' => 'value'])
         ->withCustomFieldData(['field1' => 'data1'])
+        ->withCustomerMetadata(['plan' => 'pro'])
         ->withSuccessUrl('https://example.com/success')
+        ->withReturnUrl('https://example.com/back')
         ->withEmbedOrigin('https://example.com')
-        ->withoutDiscountCodes();
+        ->url();
 
-    $reflection = new \ReflectionClass($checkout);
-
-    $customerNameProperty = $reflection->getProperty('customerName');
-    $customerNameProperty->setAccessible(true);
-    expect($customerNameProperty->getValue($checkout))->toBe('John Doe');
-
-    $customerEmailProperty = $reflection->getProperty('customerEmail');
-    $customerEmailProperty->setAccessible(true);
-    expect($customerEmailProperty->getValue($checkout))->toBe('john@doe.com');
-
-    $customerTaxIdProperty = $reflection->getProperty('customerTaxId');
-    $customerTaxIdProperty->setAccessible(true);
-    expect($customerTaxIdProperty->getValue($checkout))->toBe('TAX123');
-
-    $discountIdProperty = $reflection->getProperty('discountId');
-    $discountIdProperty->setAccessible(true);
-    expect($discountIdProperty->getValue($checkout))->toBe('discount_123');
-
-    $amountProperty = $reflection->getProperty('amount');
-    $amountProperty->setAccessible(true);
-    expect($amountProperty->getValue($checkout))->toBe(5000);
-
-    $metadataProperty = $reflection->getProperty('metadata');
-    $metadataProperty->setAccessible(true);
-    expect($metadataProperty->getValue($checkout))->toBe(['key' => 'value']);
-
-    $customFieldDataProperty = $reflection->getProperty('customFieldData');
-    $customFieldDataProperty->setAccessible(true);
-    expect($customFieldDataProperty->getValue($checkout))->toBe(['field1' => 'data1']);
-
-    $successUrlProperty = $reflection->getProperty('successUrl');
-    $successUrlProperty->setAccessible(true);
-    expect($successUrlProperty->getValue($checkout))->toBe('https://example.com/success');
-
-    $embedOriginProperty = $reflection->getProperty('embedOrigin');
-    $embedOriginProperty->setAccessible(true);
-    expect($embedOriginProperty->getValue($checkout))->toBe('https://example.com');
-
-    $allowDiscountCodesProperty = $reflection->getProperty('allowDiscountCodes');
-    $allowDiscountCodesProperty->setAccessible(true);
-    expect($allowDiscountCodesProperty->getValue($checkout))->toBeFalse();
+    expect(sentCheckoutPayload())->toMatchArray([
+        'products' => ['product_123'],
+        'customer_name' => 'John Doe',
+        'customer_email' => 'john@doe.com',
+        'customer_id' => 'cus_123',
+        'external_customer_id' => 'ext_123',
+        'customer_ip_address' => '203.0.113.4',
+        'customer_tax_id' => 'TAX123',
+        'discount_id' => 'discount_123',
+        'allow_discount_codes' => false,
+        'amount' => 5000,
+        'currency' => 'usd',
+        'subscription_id' => 'sub_123',
+        'metadata' => ['key' => 'value'],
+        'custom_field_data' => ['field1' => 'data1'],
+        'customer_metadata' => ['plan' => 'pro'],
+        'success_url' => 'https://example.com/success',
+        'return_url' => 'https://example.com/back',
+        'embed_origin' => 'https://example.com',
+    ]);
 });
 
-it('converts empty metadata array to null', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withMetadata([]);
+it('serialises a billing address into Polar field names', function () {
+    fakeCheckoutCreate();
 
-    $reflection = new \ReflectionClass($checkout);
-    $metadataProperty = $reflection->getProperty('metadata');
-    $metadataProperty->setAccessible(true);
+    Checkout::make(['product_123'])
+        ->withCustomerBillingAddress(new AddressInput(
+            country: CountryAlpha2::GB,
+            line1: '1 High Street',
+            postalCode: 'SW1A 1AA',
+            city: 'London',
+        ))
+        ->url();
 
-    expect($metadataProperty->getValue($checkout))->toBeNull();
+    expect(sentCheckoutPayload()['customer_billing_address'])->toMatchArray([
+        'country' => 'GB',
+        'line1' => '1 High Street',
+        'postal_code' => 'SW1A 1AA',
+        'city' => 'London',
+    ]);
 });
 
-it('converts empty custom field data array to null', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withCustomFieldData([]);
+it('omits empty metadata rather than sending an empty object', function (string $method, string $field) {
+    fakeCheckoutCreate();
 
-    $reflection = new \ReflectionClass($checkout);
-    $customFieldDataProperty = $reflection->getProperty('customFieldData');
-    $customFieldDataProperty->setAccessible(true);
+    Checkout::make(['product_123'])->{$method}([])->url();
 
-    expect($customFieldDataProperty->getValue($checkout))->toBeNull();
+    expect(sentCheckoutPayload())->not->toHaveKey($field);
+})->with([
+    ['withMetadata', 'metadata'],
+    ['withCustomFieldData', 'custom_field_data'],
+    ['withCustomerMetadata', 'customer_metadata'],
+]);
+
+it('omits metadata when explicitly given null', function () {
+    fakeCheckoutCreate();
+
+    Checkout::make(['product_123'])->withMetadata(null)->url();
+
+    expect(sentCheckoutPayload())->not->toHaveKey('metadata');
 });
 
-it('converts empty customer metadata array to null', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withCustomerMetadata([]);
+it('trims whitespace from customer metadata values', function () {
+    fakeCheckoutCreate();
 
-    $reflection = new \ReflectionClass($checkout);
-    $customerMetadataProperty = $reflection->getProperty('customerMetadata');
-    $customerMetadataProperty->setAccessible(true);
+    Checkout::make(['product_123'])
+        ->withCustomerMetadata(['name' => '  John Doe  '])
+        ->url();
 
-    expect($customerMetadataProperty->getValue($checkout))->toBeNull();
-});
-
-it('converts customer metadata to null after filtering leaves empty array', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withCustomerMetadata(['key1' => null, 'key2' => null]);
-
-    $reflection = new \ReflectionClass($checkout);
-    $customerMetadataProperty = $reflection->getProperty('customerMetadata');
-    $customerMetadataProperty->setAccessible(true);
-
-    expect($customerMetadataProperty->getValue($checkout))->toBeNull();
-});
-
-it('preserves null metadata input', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withMetadata(null);
-
-    $reflection = new \ReflectionClass($checkout);
-    $metadataProperty = $reflection->getProperty('metadata');
-    $metadataProperty->setAccessible(true);
-
-    expect($metadataProperty->getValue($checkout))->toBeNull();
-});
-
-it('preserves non-empty metadata array', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withMetadata(['key' => 'value']);
-
-    $reflection = new \ReflectionClass($checkout);
-    $metadataProperty = $reflection->getProperty('metadata');
-    $metadataProperty->setAccessible(true);
-
-    expect($metadataProperty->getValue($checkout))->toBe(['key' => 'value']);
-});
-
-it('trims customer metadata string values', function () {
-    $checkout = Checkout::make(['product_123'])
-        ->withCustomerMetadata(['name' => '  John Doe  ']);
-
-    $reflection = new \ReflectionClass($checkout);
-    $customerMetadataProperty = $reflection->getProperty('customerMetadata');
-    $customerMetadataProperty->setAccessible(true);
-
-    expect($customerMetadataProperty->getValue($checkout))->toBe(['name' => 'John Doe']);
+    expect(sentCheckoutPayload()['customer_metadata'])->toBe(['name' => 'John Doe']);
 });

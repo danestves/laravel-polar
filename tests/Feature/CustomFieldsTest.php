@@ -2,229 +2,80 @@
 
 namespace Tests\Feature;
 
+use Danestves\LaravelPolar\Data;
 use Danestves\LaravelPolar\LaravelPolar;
 use Danestves\LaravelPolar\Order;
-use Illuminate\Support\Facades\Config;
-use Mockery;
-use Polar\Models\Components;
-use Polar\Models\Errors;
-use Polar\Models\Operations;
+use Illuminate\Support\Facades\Http;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
+it('creates a custom field', function () {
+    fakePolar('v1/custom-fields/', polarFixture('CustomFieldText', [
+        'id' => 'cf_1',
+        'slug' => 'company',
+    ]), 201);
+
+    $field = LaravelPolar::createCustomField([
+        'type' => 'text',
+        'slug' => 'company',
+        'name' => 'Company',
+        'organization_id' => 'org_1',
+    ]);
+
+    expect($field)->toBeInstanceOf(Data\CustomFieldText::class)
+        ->and($field->slug)->toBe('company');
+
+    Http::assertSent(fn($request) => $request->method() === 'POST' && $request['slug'] === 'company');
 });
 
-afterEach(function () {
-    resetLaravelPolarSdk();
-    Mockery::close();
+it('updates a custom field', function () {
+    fakePolar('v1/custom-fields/cf_1', polarFixture('CustomFieldText', [
+        'id' => 'cf_1',
+        'name' => 'Renamed',
+    ]));
+
+    expect(LaravelPolar::updateCustomField('cf_1', ['name' => 'Renamed'])->name)->toBe('Renamed');
+
+    Http::assertSent(fn($request) => $request->method() === 'PATCH');
 });
 
-function createMockedSdkWithCustomFields(): array
-{
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
+it('deletes a custom field', function () {
+    fakePolar('v1/custom-fields/cf_1', [], 204);
 
-    $customFields = Mockery::mock(\Polar\CustomFields::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $customFieldsProperty = $reflectionSdk->getProperty('customFields');
-    $customFieldsProperty->setAccessible(true);
-    $customFieldsProperty->setValue($sdk, $customFields);
+    LaravelPolar::deleteCustomField('cf_1');
 
-    return ['sdk' => $sdk, 'customFields' => $customFields];
-}
-
-function createMockedSdkWithOrders(): array
-{
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
-
-    $orders = Mockery::mock(\Polar\Orders::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $ordersProperty = $reflectionSdk->getProperty('orders');
-    $ordersProperty->setAccessible(true);
-    $ordersProperty->setValue($sdk, $orders);
-
-    return ['sdk' => $sdk, 'orders' => $orders];
-}
-
-it('createCustomField forwards to SDK and returns the custom field on 201', function () {
-    $mocked = createMockedSdkWithCustomFields();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $cfMock = Mockery::mock(Components\CustomFieldText::class);
-    $response = new Operations\CustomFieldsCreateResponse(
-        contentType: 'application/json',
-        statusCode: 201,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customField: $cfMock,
-    );
-
-    $mocked['customFields']->shouldReceive('create')->once()->andReturn($response);
-
-    $request = new Components\CustomFieldCreateText(
-        slug: 'company',
-        name: 'Company name',
-        properties: new Components\CustomFieldTextProperties(),
-    );
-
-    expect(LaravelPolar::createCustomField($request))->toBe($cfMock);
+    Http::assertSent(fn($request) => $request->method() === 'DELETE');
 });
 
-it('updateCustomField forwards to SDK and returns the updated custom field on 200', function () {
-    $mocked = createMockedSdkWithCustomFields();
-    setLaravelPolarSdk($mocked['sdk']);
+it('lists custom fields', function () {
+    fakePolarList('v1/custom-fields/*', [polarFixture('CustomFieldText', ['id' => 'cf_1'])]);
 
-    $cfMock = Mockery::mock(Components\CustomFieldText::class);
-    $response = new Operations\CustomFieldsUpdateResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customField: $cfMock,
-    );
-
-    $mocked['customFields']->shouldReceive('update')
-        ->once()
-        ->withArgs(fn($body, string $id) => $id === 'cf_xyz' && $body instanceof Components\CustomFieldUpdateText)
-        ->andReturn($response);
-
-    $request = new Components\CustomFieldUpdateText(name: 'Updated label');
-
-    expect(LaravelPolar::updateCustomField('cf_xyz', $request))->toBe($cfMock);
+    expect(LaravelPolar::listCustomFields()->first()->id)->toBe('cf_1');
 });
 
-it('deleteCustomField accepts 200 or 204 and throws otherwise', function () {
-    $mocked = createMockedSdkWithCustomFields();
-    setLaravelPolarSdk($mocked['sdk']);
+it('gets a custom field by id', function () {
+    fakePolar('v1/custom-fields/cf_1', polarFixture('CustomFieldText', ['id' => 'cf_1']));
 
-    $ok = new Operations\CustomFieldsDeleteResponse(
-        contentType: 'application/json',
-        statusCode: 204,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-    );
-
-    $mocked['customFields']->shouldReceive('delete')->once()->andReturn($ok);
-    LaravelPolar::deleteCustomField('cf_ok');
-
-    $err = new Operations\CustomFieldsDeleteResponse(
-        contentType: 'application/json',
-        statusCode: 500,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-    );
-
-    $mocked['customFields']->shouldReceive('delete')->once()->andReturn($err);
-    expect(fn() => LaravelPolar::deleteCustomField('cf_bad'))
-        ->toThrow(Errors\APIException::class);
+    expect(LaravelPolar::getCustomField('cf_1'))->toBeInstanceOf(Data\CustomFieldText::class);
 });
 
-it('listCustomFields returns the first 200 page from the generator', function () {
-    $mocked = createMockedSdkWithCustomFields();
-    setLaravelPolarSdk($mocked['sdk']);
+it('reads an order\'s custom field data from Polar and memoizes it', function () {
+    fakePolar('v1/orders/order_1', polarFixture('Order', [
+        'id' => 'order_1',
+        'custom_field_data' => ['company' => 'Acme'],
+    ]));
 
-    $list = new Components\ListResourceCustomField(
-        items: [Mockery::mock(Components\CustomFieldText::class)],
-        pagination: new Components\Pagination(totalCount: 1, maxPage: 1),
-    );
+    $order = Order::factory()->paid()->create(['polar_id' => 'order_1']);
 
-    $response = new Operations\CustomFieldsListResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        listResourceCustomField: $list,
-    );
+    expect($order->customFieldData())->toBe(['company' => 'Acme'])
+        ->and($order->customFieldData())->toBe(['company' => 'Acme']);
 
-    $mocked['customFields']->shouldReceive('list')->andReturn((function () use ($response) {
-        yield $response;
-    })());
-
-    $result = LaravelPolar::listCustomFields();
-
-    expect($result)->toBe($response);
-    expect($result->listResourceCustomField?->items)->toHaveCount(1);
+    // Memoized: the second read must not hit the API again.
+    Http::assertSentCount(1);
 });
 
-it('getCustomField returns the custom field on 200', function () {
-    $mocked = createMockedSdkWithCustomFields();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $cfMock = Mockery::mock(Components\CustomFieldText::class);
-    $response = new Operations\CustomFieldsGetResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customField: $cfMock,
-    );
-
-    $mocked['customFields']->shouldReceive('get')->once()->with('cf_abc')->andReturn($response);
-
-    expect(LaravelPolar::getCustomField('cf_abc'))->toBe($cfMock);
-});
-
-it('getCustomField throws when SDK returns non-200', function () {
-    $mocked = createMockedSdkWithCustomFields();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $response = new Operations\CustomFieldsGetResponse(
-        contentType: 'application/json',
-        statusCode: 404,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customField: null,
-    );
-
-    $mocked['customFields']->shouldReceive('get')->andReturn($response);
-
-    expect(fn() => LaravelPolar::getCustomField('cf_missing'))
-        ->toThrow(Errors\APIException::class);
-});
-
-it('Order::customFieldData fetches from Polar and memoizes', function () {
-    $mocked = createMockedSdkWithOrders();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $order = Order::factory()->paid()->create(['polar_id' => 'ord_with_cf']);
-
-    $sdkOrder = Mockery::mock(Components\Order::class);
-    $sdkOrder->customFieldData = ['company' => 'Acme', 'volume' => 42];
-
-    $response = new Operations\OrdersGetResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        order: $sdkOrder,
-    );
-
-    $mocked['orders']->shouldReceive('get')
-        ->once() // Memoization: only called once even if accessed twice
-        ->withArgs(fn(string $id) => $id === 'ord_with_cf')
-        ->andReturn($response);
-
-    $first = $order->customFieldData();
-    $second = $order->customFieldData();
-
-    expect($first)->toBe(['company' => 'Acme', 'volume' => 42]);
-    expect($second)->toBe($first);
-});
-
-it('Order::customFieldData returns an empty array when the order has no polar_id', function () {
+it('returns no custom field data for an order that was never synced', function () {
     $order = Order::factory()->paid()->create(['polar_id' => null]);
 
     expect($order->customFieldData())->toBe([]);
-});
 
-it('Order::customFieldData returns an empty array when the SDK returns no order', function () {
-    $mocked = createMockedSdkWithOrders();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $order = Order::factory()->paid()->create(['polar_id' => 'ord_phantom']);
-
-    $response = new Operations\OrdersGetResponse(
-        contentType: 'application/json',
-        statusCode: 404,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        order: null,
-    );
-
-    $mocked['orders']->shouldReceive('get')->andReturn($response);
-
-    expect($order->customFieldData())->toBe([]);
+    Http::assertNothingSent();
 });

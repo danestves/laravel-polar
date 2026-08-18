@@ -2,223 +2,95 @@
 
 namespace Tests\Feature;
 
+use Danestves\LaravelPolar\Data;
 use Danestves\LaravelPolar\LaravelPolar;
 use Danestves\LaravelPolar\Subscription;
-use Illuminate\Support\Facades\Config;
-use Mockery;
-use Polar\Models\Components;
-use Polar\Models\Errors;
-use Polar\Models\Operations;
+use Illuminate\Support\Facades\Http;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
+it('lists the seats on a subscription', function () {
+    fakePolar('v1/customer-seats*', polarFixture('SeatsList', [
+        'available_seats' => 3,
+        'total_seats' => 5,
+    ]));
+
+    $seats = LaravelPolar::listSeats(subscriptionId: 'sub_1');
+
+    expect($seats)->toBeInstanceOf(Data\SeatsList::class)
+        ->and($seats->availableSeats)->toBe(3)
+        ->and($seats->totalSeats)->toBe(5);
+
+    Http::assertSent(fn($request) => str_contains($request->url(), 'subscription_id=sub_1'));
 });
 
-afterEach(function () {
-    resetLaravelPolarSdk();
-    Mockery::close();
+it('assigns a seat', function () {
+    fakePolar('v1/customer-seats', polarFixture('CustomerSeat', ['id' => 'seat_1']));
+
+    $seat = LaravelPolar::assignSeat(new Data\SeatAssign(
+        subscriptionId: 'sub_1',
+        email: 'member@example.com',
+    ));
+
+    expect($seat->id)->toBe('seat_1');
+
+    Http::assertSent(fn($request) => $request->method() === 'POST'
+        && $request['subscription_id'] === 'sub_1'
+        && $request['email'] === 'member@example.com');
 });
 
-function createMockedSdkWithCustomerSeats(): array
-{
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
+it('revokes a seat', function () {
+    fakePolar('v1/customer-seats/seat_1', polarFixture('CustomerSeat', ['id' => 'seat_1']));
 
-    $customerSeats = Mockery::mock(\Polar\CustomerSeats::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $property = $reflectionSdk->getProperty('customerSeats');
-    $property->setAccessible(true);
-    $property->setValue($sdk, $customerSeats);
+    expect(LaravelPolar::revokeSeat('seat_1')->id)->toBe('seat_1');
 
-    return ['sdk' => $sdk, 'customerSeats' => $customerSeats];
-}
-
-it('listSeats returns the SeatsList on 200', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $list = new Components\SeatsList(seats: [], availableSeats: 5, totalSeats: 10);
-    $response = new Operations\CustomerSeatsListSeatsResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        seatsList: $list,
-    );
-
-    $mocked['customerSeats']->shouldReceive('listSeats')
-        ->once()
-        ->andReturn($response);
-
-    expect(LaravelPolar::listSeats(subscriptionId: 'sub_xxx'))->toBe($list);
+    Http::assertSent(fn($request) => $request->method() === 'DELETE'
+        && str_ends_with($request->url(), '/v1/customer-seats/seat_1'));
 });
 
-it('assignSeat returns the CustomerSeat on 200', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
+it('resends a seat invitation', function () {
+    fakePolar('v1/customer-seats/seat_1/resend', polarFixture('CustomerSeat', ['id' => 'seat_1']));
 
-    $seat = Mockery::mock(Components\CustomerSeat::class);
-    $response = new Operations\CustomerSeatsAssignSeatResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customerSeat: $seat,
-    );
+    expect(LaravelPolar::resendSeatInvitation('seat_1')->id)->toBe('seat_1');
 
-    $mocked['customerSeats']->shouldReceive('assignSeat')
-        ->once()
-        ->withArgs(fn(Components\SeatAssign $body) => $body->subscriptionId === 'sub_xxx' && $body->email === 'alice@example.com')
-        ->andReturn($response);
-
-    expect(LaravelPolar::assignSeat(new Components\SeatAssign(subscriptionId: 'sub_xxx', email: 'alice@example.com')))->toBe($seat);
+    Http::assertSent(fn($request) => $request->method() === 'POST'
+        && str_ends_with($request->url(), '/v1/customer-seats/seat_1/resend'));
 });
 
-it('revokeSeat returns the CustomerSeat on 200', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
+it('scopes a subscription\'s seat calls to that subscription', function () {
+    fakePolar('v1/customer-seats*', polarFixture('SeatsList'));
 
-    $seat = Mockery::mock(Components\CustomerSeat::class);
-    $response = new Operations\CustomerSeatsRevokeSeatResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customerSeat: $seat,
-    );
+    $subscription = Subscription::factory()->create(['polar_id' => 'sub_1']);
+    $subscription->seats();
 
-    $mocked['customerSeats']->shouldReceive('revokeSeat')->once()->andReturn($response);
-
-    expect(LaravelPolar::revokeSeat('seat_xxx'))->toBe($seat);
+    Http::assertSent(fn($request) => str_contains($request->url(), 'subscription_id=sub_1'));
 });
 
-it('resendSeatInvitation returns the CustomerSeat on 200', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
+it('assigns a seat through the subscription, forwarding every identifier', function () {
+    fakePolar('v1/customer-seats', polarFixture('CustomerSeat', ['id' => 'seat_1']));
 
-    $seat = Mockery::mock(Components\CustomerSeat::class);
-    $response = new Operations\CustomerSeatsResendInvitationResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customerSeat: $seat,
-    );
-
-    $mocked['customerSeats']->shouldReceive('resendInvitation')->once()->andReturn($response);
-
-    expect(LaravelPolar::resendSeatInvitation('seat_xxx'))->toBe($seat);
-});
-
-it('Subscription::seats calls listSeats with this subscription id', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $subscription = Subscription::factory()->active()->create(['polar_id' => 'sub_team']);
-
-    $list = new Components\SeatsList(seats: [], availableSeats: 3, totalSeats: 5);
-    $response = new Operations\CustomerSeatsListSeatsResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        seatsList: $list,
-    );
-
-    $mocked['customerSeats']->shouldReceive('listSeats')
-        ->once()
-        ->withArgs(fn(?string $subId, ?string $orderId) => $subId === 'sub_team' && $orderId === null)
-        ->andReturn($response);
-
-    expect($subscription->seats())->toBe($list);
-});
-
-it('Subscription::assignSeat forwards email, customerId, externalCustomerId, and metadata', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $subscription = Subscription::factory()->active()->create(['polar_id' => 'sub_team']);
-
-    $seat = Mockery::mock(Components\CustomerSeat::class);
-    $response = new Operations\CustomerSeatsAssignSeatResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customerSeat: $seat,
-    );
-
-    $mocked['customerSeats']->shouldReceive('assignSeat')
-        ->once()
-        ->withArgs(function (Components\SeatAssign $body) {
-            return $body->subscriptionId === 'sub_team'
-                && $body->email === 'alice@example.com'
-                && $body->customerId === 'cust_xx'
-                && $body->externalCustomerId === 'ext_yy'
-                && $body->metadata === ['role' => 'admin'];
-        })
-        ->andReturn($response);
+    $subscription = Subscription::factory()->create(['polar_id' => 'sub_1']);
 
     $subscription->assignSeat(
-        email: 'alice@example.com',
-        customerId: 'cust_xx',
-        externalCustomerId: 'ext_yy',
-        metadata: ['role' => 'admin'],
+        email: 'member@example.com',
+        customerId: 'cus_1',
+        externalCustomerId: 'ext_1',
+        metadata: ['team' => 'growth'],
     );
+
+    Http::assertSent(fn($request) => $request['subscription_id'] === 'sub_1'
+        && $request['email'] === 'member@example.com'
+        && $request['customer_id'] === 'cus_1'
+        && $request['external_customer_id'] === 'ext_1'
+        && $request['metadata'] === ['team' => 'growth']);
 });
 
-it('Subscription::revokeSeat proxies to LaravelPolar::revokeSeat', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
+it('revokes and resends through the subscription', function () {
+    Http::fake([
+        polarUrl('v1/customer-seats/seat_1') => Http::response(polarFixture('CustomerSeat', ['id' => 'seat_1'])),
+        polarUrl('v1/customer-seats/seat_1/resend') => Http::response(polarFixture('CustomerSeat', ['id' => 'seat_1'])),
+    ]);
 
-    $subscription = Subscription::factory()->active()->create(['polar_id' => 'sub_team']);
+    $subscription = Subscription::factory()->create(['polar_id' => 'sub_1']);
 
-    $seat = Mockery::mock(Components\CustomerSeat::class);
-    $response = new Operations\CustomerSeatsRevokeSeatResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customerSeat: $seat,
-    );
-
-    $mocked['customerSeats']->shouldReceive('revokeSeat')
-        ->once()
-        ->withArgs(fn(string $seatId) => $seatId === 'seat_revoke')
-        ->andReturn($response);
-
-    expect($subscription->revokeSeat('seat_revoke'))->toBe($seat);
-});
-
-it('Subscription::resendSeatInvitation proxies to LaravelPolar::resendSeatInvitation', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $subscription = Subscription::factory()->active()->create(['polar_id' => 'sub_team']);
-
-    $seat = Mockery::mock(Components\CustomerSeat::class);
-    $response = new Operations\CustomerSeatsResendInvitationResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        customerSeat: $seat,
-    );
-
-    $mocked['customerSeats']->shouldReceive('resendInvitation')
-        ->once()
-        ->withArgs(fn(string $seatId) => $seatId === 'seat_resend')
-        ->andReturn($response);
-
-    expect($subscription->resendSeatInvitation('seat_resend'))->toBe($seat);
-});
-
-it('listSeats throws when SDK returns non-200', function () {
-    $mocked = createMockedSdkWithCustomerSeats();
-    setLaravelPolarSdk($mocked['sdk']);
-
-    $response = new Operations\CustomerSeatsListSeatsResponse(
-        contentType: 'application/json',
-        statusCode: 500,
-        rawResponse: Mockery::mock(\Psr\Http\Message\ResponseInterface::class),
-        seatsList: null,
-    );
-
-    $mocked['customerSeats']->shouldReceive('listSeats')->andReturn($response);
-
-    expect(fn() => LaravelPolar::listSeats(subscriptionId: 'sub_xxx'))
-        ->toThrow(Errors\APIException::class);
+    expect($subscription->revokeSeat('seat_1')->id)->toBe('seat_1')
+        ->and($subscription->resendSeatInvitation('seat_1')->id)->toBe('seat_1');
 });

@@ -44,6 +44,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Polar API Version
+    |--------------------------------------------------------------------------
+    |
+    | Polar versions its API by date and sends the resolved version back in the
+    | "polar-version" response header. This package's data objects are generated
+    | from a specific version, which is pinned here and sent on every request so
+    | a change to Polar's default cannot silently reshape your responses.
+    |
+    | Only change this if you have regenerated the data objects against another
+    | version (see tools/generate-data.php).
+    |
+    */
+    'version' => env('POLAR_API_VERSION', \Danestves\LaravelPolar\Http\PolarClient::API_VERSION),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Request Timeout
+    |--------------------------------------------------------------------------
+    |
+    | Optional. Seconds to wait on a Polar API request before giving up. Leave
+    | null to use the default timeout of Laravel's HTTP client.
+    |
+    */
+    'timeout' => env('POLAR_TIMEOUT'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Polar Webhook Secret
     |--------------------------------------------------------------------------
     |

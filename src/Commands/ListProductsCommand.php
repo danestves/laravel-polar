@@ -4,9 +4,10 @@ namespace Danestves\LaravelPolar\Commands;
 
 use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Console\Command;
+use Danestves\LaravelPolar\Data;
+use Danestves\LaravelPolar\Enums\ProductSortProperty;
+use Danestves\LaravelPolar\Http\Page;
 use Illuminate\Support\Facades\Validator;
-use Polar\Models\Components;
-use Polar\Models\Operations;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputOption;
 
@@ -46,20 +47,18 @@ class ListProductsCommand extends Command
         }
 
         $options = $this->options();
-        $request = new Operations\ProductsListRequest(
-            id: $this->normalizeArrayOption($options['id'] ?? []),
-            organizationId: $this->normalizeArrayOption($options['organization-id'] ?? []),
-            query: $options['query'] ?? null,
-            isArchived: $options['archived'] ?? null ? true : null,
-            isRecurring: $options['recurring'] ?? null ? true : null,
-            benefitId: $this->normalizeArrayOption($options['benefit-id'] ?? []),
-            sorting: !empty($options['sorting']) ? $this->mapSorting($options['sorting']) : null,
-            metadata: null,
-            page: isset($options['page']) && is_numeric($options['page']) ? (int) $options['page'] : null,
-            limit: isset($options['limit']) && is_numeric($options['limit']) ? (int) $options['limit'] : null,
-        );
 
-        return $this->handleProducts($request);
+        return $this->handleProducts([
+            'id' => $this->normalizeArrayOption($options['id'] ?? []),
+            'organization_id' => $this->normalizeArrayOption($options['organization-id'] ?? []),
+            'query' => $options['query'] ?? null,
+            'is_archived' => ($options['archived'] ?? null) ? true : null,
+            'is_recurring' => ($options['recurring'] ?? null) ? true : null,
+            'benefit_id' => $this->normalizeArrayOption($options['benefit-id'] ?? []),
+            'sorting' => empty($options['sorting']) ? null : $this->mapSorting($options['sorting']),
+            'page' => isset($options['page']) && is_numeric($options['page']) ? (int) $options['page'] : null,
+            'limit' => isset($options['limit']) && is_numeric($options['limit']) ? (int) $options['limit'] : null,
+        ]);
     }
 
     protected function validate(): bool
@@ -85,30 +84,32 @@ class ListProductsCommand extends Command
         return false;
     }
 
-    protected function handleProducts(Operations\ProductsListRequest $request): int
+    /**
+     * @param  array<string, mixed>  $query
+     */
+    protected function handleProducts(array $query): int
     {
-        $productsResponse = spin(
-            fn() => LaravelPolar::listProducts($request),
+        /** @var Page<Data\Product> $products */
+        $products = spin(
+            fn() => LaravelPolar::listProducts($query),
             '⚪ Fetching products information...',
         );
 
-        if ($productsResponse->listResourceProduct === null) {
+        if (count($products) === 0) {
             $this->error('No products found.');
 
             return static::FAILURE;
         }
 
-        $products = collect($productsResponse->listResourceProduct->items);
-
         $this->newLine();
         $this->displayTitle();
         $this->newLine();
 
-        $products->each(function (Components\Product $product) {
+        foreach ($products as $product) {
             $this->displayProduct($product);
 
             $this->newLine();
-        });
+        }
 
         return static::SUCCESS;
     }
@@ -118,7 +119,7 @@ class ListProductsCommand extends Command
         $this->components->twoColumnDetail('<fg=gray>Product</>', '<fg=gray>ID</>');
     }
 
-    protected function displayProduct(Components\Product $product): void
+    protected function displayProduct(Data\Product $product): void
     {
         $this->components->twoColumnDetail(
             sprintf('<fg=green;options=bold>%s</>', $product->name),
@@ -145,14 +146,14 @@ class ListProductsCommand extends Command
      * Map sorting strings to ProductSortProperty enum values.
      *
      * @param  array<string>  $sorting
-     * @return array<Components\ProductSortProperty>
+     * @return list<ProductSortProperty>
      */
     protected function mapSorting(array $sorting): array
     {
         $mapped = [];
 
         foreach ($sorting as $sort) {
-            $property = Components\ProductSortProperty::tryFrom($sort);
+            $property = ProductSortProperty::tryFrom($sort);
 
             if ($property !== null) {
                 $mapped[] = $property;

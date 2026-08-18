@@ -1,39 +1,71 @@
 <?php
 
+use Danestves\LaravelPolar\Http\PolarClient;
 use Danestves\LaravelPolar\LaravelPolar;
+use Danestves\LaravelPolar\Tests\Fixtures\PolarFixtures;
 use Danestves\LaravelPolar\Tests\TestCase;
+use Illuminate\Support\Facades\Http;
 
 uses(TestCase::class)->in(__DIR__);
 
-function setLaravelPolarSdk(\Polar\Polar $sdk): void
+/**
+ * Absolute URL for a Polar API path, matching the sandbox base URL the tests configure.
+ */
+function polarUrl(string $path): string
 {
-    LaravelPolar::setSdk($sdk);
+    return PolarClient::SANDBOX_URL . '/' . ltrim($path, '/');
 }
 
-function resetLaravelPolarSdk(): void
+/**
+ * Fake a single Polar endpoint.
+ *
+ * The path may contain a `*` wildcard, as `Http::fake()` matches on the whole URL.
+ *
+ * @param  array<string, mixed>|list<mixed>  $body
+ */
+function fakePolar(string $path, array $body = [], int $status = 200): void
 {
-    LaravelPolar::resetSdk();
+    Http::fake([
+        polarUrl($path) => Http::response($body, $status),
+    ]);
 }
 
-function createBaseMockedSdk(): array
+/**
+ * Fake a Polar list endpoint, wrapping the items in Polar's `{items, pagination}` envelope.
+ *
+ * @param  list<array<string, mixed>>  $items
+ */
+function fakePolarList(string $path, array $items, ?int $totalCount = null, int $maxPage = 1): void
 {
-    // The Polar SDK uses private properties for hooks/client configuration,
-    // requiring reflection to inject mocks for testing.
-    $sdkConfig = Mockery::mock(\Polar\SDKConfiguration::class);
-    $sdkConfig->shouldReceive('getTemplatedServerUrl')->andReturn('https://sandbox-api.polar.sh');
-    $hooks = Mockery::mock(\Polar\Hooks\SDKHooks::class);
-    $mockClient = Mockery::mock(\GuzzleHttp\ClientInterface::class);
-    $sdkRequestContext = new \Polar\Hooks\SDKRequestContext('https://sandbox-api.polar.sh', $mockClient);
-    $hooks->shouldReceive('sdkInit')->andReturn($sdkRequestContext);
+    fakePolar($path, [
+        'items' => $items,
+        'pagination' => [
+            'total_count' => $totalCount ?? count($items),
+            'max_page' => $maxPage,
+        ],
+    ]);
+}
 
-    $reflectionConfig = new \ReflectionClass($sdkConfig);
-    $hooksProperty = $reflectionConfig->getProperty('hooks');
-    $hooksProperty->setAccessible(true);
-    $hooksProperty->setValue($sdkConfig, $hooks);
+/**
+ * Build a spec-valid payload for a Polar schema. See tests/Fixtures/PolarFixtures.php.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function polarFixture(string $schema, array $overrides = []): array
+{
+    return PolarFixtures::make($schema, $overrides);
+}
 
-    $clientProperty = $reflectionConfig->getProperty('client');
-    $clientProperty->setAccessible(true);
-    $clientProperty->setValue($sdkConfig, $mockClient);
+/**
+ * Swap in a specific client instance (rarely needed — prefer `Http::fake()`).
+ */
+function setLaravelPolarClient(?PolarClient $client): void
+{
+    LaravelPolar::setClient($client);
+}
 
-    return ['sdkConfig' => $sdkConfig, 'sdk' => new \Polar\Polar($sdkConfig)];
+function resetLaravelPolarClient(): void
+{
+    LaravelPolar::resetClient();
 }

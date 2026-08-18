@@ -2,348 +2,128 @@
 
 namespace Tests\Feature;
 
-use Danestves\LaravelPolar\Customer;
+use Danestves\LaravelPolar\Data;
 use Danestves\LaravelPolar\LaravelPolar;
 use Danestves\LaravelPolar\Tests\Fixtures\User;
-use Illuminate\Support\Facades\Config;
-use Mockery;
-use Polar\Models\Components;
-use Polar\Models\Errors;
-use Polar\Models\Operations;
-use Psr\Http\Message\ResponseInterface;
+use Illuminate\Support\Facades\Http;
 
-beforeEach(function () {
-    Config::set('polar.access_token', 'test-token');
-    Config::set('polar.server', 'sandbox');
-});
-
-afterEach(function () {
-    resetLaravelPolarSdk();
-
-    Mockery::close();
-});
-
-
-function createMockedSdkWithEvents(): array
+/**
+ * A billable with a Polar customer already attached.
+ */
+function meteredUser(?string $polarId = 'cus_1'): User
 {
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
+    $user = User::factory()->create();
+    $user->createAsCustomer(['polar_id' => $polarId]);
 
-    $events = Mockery::mock(\Polar\Events::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $eventsProperty = $reflectionSdk->getProperty('events');
-    $eventsProperty->setAccessible(true);
-    $eventsProperty->setValue($sdk, $events);
-
-    return ['sdk' => $sdk, 'events' => $events];
+    return $user->refresh();
 }
 
-function createMockedSdkWithCustomerMeters(): array
-{
-    $base = createBaseMockedSdk();
-    $sdk = $base['sdk'];
+it('ingests a single usage event for the billable', function () {
+    fakePolar('v1/events/ingest', polarFixture('EventsIngestResponse', ['inserted' => 1]));
 
-    $customerMeters = Mockery::mock(\Polar\CustomerMeters::class);
-    $reflectionSdk = new \ReflectionClass($sdk);
-    $customerMetersProperty = $reflectionSdk->getProperty('customerMeters');
-    $customerMetersProperty->setAccessible(true);
-    $customerMetersProperty->setValue($sdk, $customerMeters);
+    meteredUser()->ingestUsageEvent('api.call', ['endpoint' => '/v1/things']);
 
-    return ['sdk' => $sdk, 'customerMeters' => $customerMeters];
-}
+    Http::assertSent(function ($request) {
+        $event = $request['events'][0];
 
-it('can ingest a single usage event', function () {
-    $user = User::factory()->create();
-    Customer::factory()->create([
-        'billable_id' => $user->getKey(),
-        'billable_type' => $user->getMorphClass(),
-        'polar_id' => 'customer_123',
-    ]);
-
-    $mocked = createMockedSdkWithEvents();
-    $sdk = $mocked['sdk'];
-    $events = $mocked['events'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\EventsIngestResponse(
-        contentType: 'application/json',
-        statusCode: 202,
-        rawResponse: $mockRawResponse,
-    );
-    $events->shouldReceive('ingest')
-        ->once()
-        ->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $user->ingestUsageEvent('api_request', [
-        'endpoint' => '/api/v1/data',
-        'method' => 'GET',
-    ]);
+        return $request->method() === 'POST'
+            && str_ends_with($request->url(), '/v1/events/ingest')
+            && $event['name'] === 'api.call'
+            && $event['customer_id'] === 'cus_1'
+            && $event['metadata'] === ['endpoint' => '/v1/things']
+            && isset($event['timestamp']);
+    });
 });
 
-it('does not ingest event when customer is null', function () {
-    $user = User::factory()->create();
+it('omits metadata when none is given', function () {
+    fakePolar('v1/events/ingest', polarFixture('EventsIngestResponse'));
 
-    $mocked = createMockedSdkWithEvents();
-    $mocked['events']->shouldNotReceive('ingest');
-    setLaravelPolarSdk($mocked['sdk']);
+    meteredUser()->ingestUsageEvent('api.call');
 
-    $user->ingestUsageEvent('api_request', []);
+    Http::assertSent(fn($request) => ! array_key_exists('metadata', $request['events'][0]));
 });
 
-it('does not ingest event when customer polar_id is null', function () {
-    $user = User::factory()->create();
-    Customer::factory()->create([
-        'billable_id' => $user->getKey(),
-        'billable_type' => $user->getMorphClass(),
-        'polar_id' => null,
+it('ingests a batch of usage events', function () {
+    fakePolar('v1/events/ingest', polarFixture('EventsIngestResponse', ['inserted' => 2]));
+
+    meteredUser()->ingestUsageEvents([
+        ['eventName' => 'api.call', 'metadata' => ['endpoint' => '/a']],
+        ['eventName' => 'api.call', 'timestamp' => new \DateTimeImmutable('2026-01-01T00:00:00+00:00')],
     ]);
 
-    $mocked = createMockedSdkWithEvents();
-    $mocked['events']->shouldNotReceive('ingest');
-    setLaravelPolarSdk($mocked['sdk']);
+    Http::assertSent(function ($request) {
+        $events = $request['events'];
 
-    $user->ingestUsageEvent('api_request', []);
+        return count($events) === 2
+            && $events[0]['metadata'] === ['endpoint' => '/a']
+            && str_starts_with($events[1]['timestamp'], '2026-01-01T00:00:00');
+    });
 });
 
-it('can ingest multiple usage events in batch', function () {
-    $user = User::factory()->create();
-    $customer = Customer::factory()->create([
-        'billable_id' => $user->getKey(),
-        'billable_type' => $user->getMorphClass(),
-        'polar_id' => 'customer_123',
-    ]);
+it('skips ingestion when the billable has no Polar customer yet', function (?string $polarId) {
+    $user = $polarId === null ? User::factory()->create() : meteredUser(null);
 
-    $mocked = createMockedSdkWithEvents();
-    $sdk = $mocked['sdk'];
-    $events = $mocked['events'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\EventsIngestResponse(
-        contentType: 'application/json',
-        statusCode: 202,
-        rawResponse: $mockRawResponse,
-    );
-    $events->shouldReceive('ingest')
-        ->once()
-        ->andReturn($response);
+    $user->ingestUsageEvent('api.call');
+    $user->ingestUsageEvents([['eventName' => 'api.call']]);
 
-    setLaravelPolarSdk($sdk);
+    Http::assertNothingSent();
+})->with([
+    'no customer record' => [null],
+    'customer without polar_id' => ['unset'],
+]);
 
-    $user->ingestUsageEvents([
-        [
-            'eventName' => 'api_request',
-            'metadata' => ['endpoint' => '/api/v1/data'],
-        ],
-        [
-            'eventName' => 'storage_used',
-            'metadata' => ['bytes' => 1048576],
-            'timestamp' => new \DateTime(),
-        ],
-    ]);
+it('sends nothing for an empty batch', function () {
+    meteredUser()->ingestUsageEvents([]);
+
+    Http::assertNothingSent();
 });
 
-it('can list customer meters', function () {
-    $user = User::factory()->create();
-    $customer = Customer::factory()->create([
-        'billable_id' => $user->getKey(),
-        'billable_type' => $user->getMorphClass(),
-        'polar_id' => 'customer_123',
-    ]);
+it('lists the billable\'s customer meters', function () {
+    fakePolarList('v1/customer-meters/*', [polarFixture('CustomerMeter', ['id' => 'cm_1'])]);
 
-    $mocked = createMockedSdkWithCustomerMeters();
-    $sdk = $mocked['sdk'];
-    $customerMeters = $mocked['customerMeters'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $mockListResource = Mockery::mock(Components\ListResourceCustomerMeter::class);
-    $response = new Operations\CustomerMetersListResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: $mockRawResponse,
-        listResourceCustomerMeter: $mockListResource,
-    );
-    $generator = function () use ($response) {
-        yield $response;
-    };
-    $customerMeters->shouldReceive('list')
-        ->once()
-        ->andReturn($generator());
+    $page = meteredUser()->listCustomerMeters();
 
-    setLaravelPolarSdk($sdk);
+    expect($page->first())->toBeInstanceOf(Data\CustomerMeter::class)
+        ->and($page->first()->id)->toBe('cm_1');
 
-    $result = $user->listCustomerMeters();
-
-    expect($result)->toBeInstanceOf(Operations\CustomerMetersListResponse::class);
+    Http::assertSent(fn($request) => str_contains($request->url(), 'customer_id=cus_1'));
 });
 
-it('can list customer meters filtered by meter id', function () {
-    $user = User::factory()->create();
-    $customer = Customer::factory()->create([
-        'billable_id' => $user->getKey(),
-        'billable_type' => $user->getMorphClass(),
-        'polar_id' => 'customer_123',
-    ]);
+it('filters customer meters by meter id', function () {
+    fakePolarList('v1/customer-meters/*', []);
 
-    $mocked = createMockedSdkWithCustomerMeters();
-    $sdk = $mocked['sdk'];
-    $customerMeters = $mocked['customerMeters'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $mockListResource = Mockery::mock(Components\ListResourceCustomerMeter::class);
-    $response = new Operations\CustomerMetersListResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: $mockRawResponse,
-        listResourceCustomerMeter: $mockListResource,
-    );
-    $generator = function () use ($response) {
-        yield $response;
-    };
-    $customerMeters->shouldReceive('list')
-        ->once()
-        ->andReturn($generator());
+    meteredUser()->listCustomerMeters('meter_1');
 
-    setLaravelPolarSdk($sdk);
-
-    $result = $user->listCustomerMeters('meter_123');
-
-    expect($result)->toBeInstanceOf(Operations\CustomerMetersListResponse::class);
+    Http::assertSent(fn($request) => str_contains($request->url(), 'meter_id=meter_1'));
 });
 
-it('throws exception when listing meters without customer', function () {
-    $user = User::factory()->create();
-
-    expect(fn() => $user->listCustomerMeters())
+it('refuses to list meters before the billable has a Polar customer', function () {
+    expect(fn() => User::factory()->create()->listCustomerMeters())
         ->toThrow(\Exception::class, 'Customer not yet created in Polar.');
 });
 
-it('throws exception when listing meters without polar_id', function () {
-    $user = User::factory()->create();
-    Customer::factory()->create([
-        'billable_id' => $user->getKey(),
-        'billable_type' => $user->getMorphClass(),
-        'polar_id' => null,
-    ]);
+it('ingests events through the facade', function () {
+    fakePolar('v1/events/ingest', polarFixture('EventsIngestResponse', ['inserted' => 1]));
 
-    expect(fn() => $user->listCustomerMeters())
-        ->toThrow(\Exception::class, 'Customer not yet created in Polar.');
+    $response = LaravelPolar::ingestEvents(new Data\EventsIngest(events: [
+        new Data\EventCreateCustomer(name: 'api.call', customerId: 'cus_1'),
+    ]));
+
+    expect($response)->toBeInstanceOf(Data\EventsIngestResponse::class)
+        ->and($response->inserted)->toBe(1);
 });
 
-it('can ingest events via LaravelPolar facade', function () {
-    $event = new Components\EventCreateCustomer(
-        name: 'api_request',
-        customerId: 'customer_123',
-        timestamp: new \DateTime(),
-        metadata: ['endpoint' => '/api/v1/data'],
-    );
+it('accepts any 2xx from the ingest endpoint', function (int $status) {
+    fakePolar('v1/events/ingest', polarFixture('EventsIngestResponse'), $status);
 
-    $request = new Components\EventsIngest(events: [$event]);
+    LaravelPolar::ingestEvents(['events' => []]);
 
-    $mocked = createMockedSdkWithEvents();
-    $sdk = $mocked['sdk'];
-    $events = $mocked['events'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\EventsIngestResponse(
-        contentType: 'application/json',
-        statusCode: 202,
-        rawResponse: $mockRawResponse,
-    );
-    $events->shouldReceive('ingest')
-        ->once()
-        ->andReturn($response);
+    Http::assertSentCount(1);
+})->with([200, 202]);
 
-    setLaravelPolarSdk($sdk);
+it('raises on a failed ingest', function () {
+    fakePolar('v1/events/ingest', ['detail' => 'Bad event'], 422);
 
-    LaravelPolar::ingestEvents($request);
-});
-
-it('throws exception when ingesting events fails', function () {
-    $event = new Components\EventCreateCustomer(
-        name: 'api_request',
-        customerId: 'customer_123',
-    );
-
-    $request = new Components\EventsIngest(events: [$event]);
-
-    $mocked = createMockedSdkWithEvents();
-    $sdk = $mocked['sdk'];
-    $events = $mocked['events'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-    $response = new Operations\EventsIngestResponse(
-        contentType: 'application/json',
-        statusCode: 500,
-        rawResponse: $mockRawResponse,
-    );
-    $events->shouldReceive('ingest')
-        ->once()
-        ->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    expect(fn() => LaravelPolar::ingestEvents($request))
-        ->toThrow(Errors\APIException::class);
-});
-
-it('treats a 200 response from ingestEvents as success', function () {
-    $mocked = createMockedSdkWithEvents();
-    $sdk = $mocked['sdk'];
-    $events = $mocked['events'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-
-    $response = new Operations\EventsIngestResponse(
-        contentType: 'application/json',
-        statusCode: 200,
-        rawResponse: $mockRawResponse,
-    );
-
-    $events->shouldReceive('ingest')->once()->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $request = new Components\EventsIngest(events: []);
-
-    expect(fn() => LaravelPolar::ingestEvents($request))
-        ->not->toThrow(Errors\APIException::class);
-});
-
-it('treats a 202 response from ingestEvents as success', function () {
-    $mocked = createMockedSdkWithEvents();
-    $sdk = $mocked['sdk'];
-    $events = $mocked['events'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-
-    $response = new Operations\EventsIngestResponse(
-        contentType: 'application/json',
-        statusCode: 202,
-        rawResponse: $mockRawResponse,
-    );
-
-    $events->shouldReceive('ingest')->once()->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $request = new Components\EventsIngest(events: []);
-
-    expect(fn() => LaravelPolar::ingestEvents($request))
-        ->not->toThrow(Errors\APIException::class);
-});
-
-it('throws when ingestEvents returns a 4xx status', function () {
-    $mocked = createMockedSdkWithEvents();
-    $sdk = $mocked['sdk'];
-    $events = $mocked['events'];
-    $mockRawResponse = Mockery::mock(ResponseInterface::class);
-
-    $response = new Operations\EventsIngestResponse(
-        contentType: 'application/json',
-        statusCode: 400,
-        rawResponse: $mockRawResponse,
-    );
-
-    $events->shouldReceive('ingest')->once()->andReturn($response);
-
-    setLaravelPolarSdk($sdk);
-
-    $request = new Components\EventsIngest(events: []);
-
-    expect(fn() => LaravelPolar::ingestEvents($request))
-        ->toThrow(Errors\APIException::class);
+    expect(fn() => LaravelPolar::ingestEvents(['events' => []]))
+        ->toThrow(\Danestves\LaravelPolar\Exceptions\PolarApiError::class);
 });

@@ -6,8 +6,9 @@ use DateTime;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Redirect;
-use Polar\Models\Components;
-use Polar\Models\Errors;
+use Danestves\LaravelPolar\Data\AddressInput;
+use Danestves\LaravelPolar\Enums\PresentmentCurrency;
+use Danestves\LaravelPolar\Exceptions\PolarApiError;
 
 class Checkout implements Responsable
 {
@@ -36,7 +37,7 @@ class Checkout implements Responsable
 
     private ?string $customerIpAddress = null;
 
-    private ?Components\AddressInput $customerBillingAddress = null;
+    private ?AddressInput $customerBillingAddress = null;
 
     private ?string $customerTaxId = null;
 
@@ -46,7 +47,7 @@ class Checkout implements Responsable
 
     private ?string $returnUrl = null;
 
-    private ?Components\PresentmentCurrency $currency = null;
+    private ?PresentmentCurrency $currency = null;
 
     private ?string $embedOrigin = null;
 
@@ -194,7 +195,7 @@ class Checkout implements Responsable
         return $this;
     }
 
-    public function withCustomerBillingAddress(?Components\AddressInput $customerBillingAddress): self
+    public function withCustomerBillingAddress(?AddressInput $customerBillingAddress): self
     {
         $this->customerBillingAddress = $customerBillingAddress;
 
@@ -241,7 +242,7 @@ class Checkout implements Responsable
     /**
      * The presentment currency for the checkout.
      */
-    public function withCurrency(Components\PresentmentCurrency $currency): self
+    public function withCurrency(PresentmentCurrency $currency): self
     {
         $this->currency = $currency;
 
@@ -277,39 +278,34 @@ class Checkout implements Responsable
     /**
      * URL where the customer can access the checkout session.
      *
-     * @throws Errors\APIException
-     * @throws Errors\HTTPValidationErrorThrowable
+     * @throws PolarApiError
      */
     public function url(): string
     {
-        $billingAddress = $this->customerBillingAddress;
+        $checkout = LaravelPolar::createCheckoutSession([
+            'products' => $this->products,
+            'metadata' => $this->metadata,
+            'custom_field_data' => $this->customFieldData,
+            'discount_id' => $this->discountId,
+            'allow_discount_codes' => $this->allowDiscountCodes,
+            'amount' => $this->amount,
+            'currency' => $this->currency,
+            'customer_id' => $this->customerId,
+            'external_customer_id' => $this->customerExternalId,
+            'customer_name' => $this->customerName,
+            'customer_email' => $this->customerEmail,
+            'customer_ip_address' => $this->customerIpAddress,
+            'customer_billing_address' => $this->customerBillingAddress?->toArray(),
+            'customer_tax_id' => $this->customerTaxId,
+            'customer_metadata' => $this->customerMetadata,
+            'subscription_id' => $this->subscriptionId,
+            'success_url' => $this->successUrl,
+            'return_url' => $this->returnUrl,
+            'embed_origin' => $this->embedOrigin,
+        ]);
 
-        $request = new Components\CheckoutCreate(
-            products: $this->products,
-            metadata: $this->metadata,
-            customFieldData: $this->customFieldData,
-            discountId: $this->discountId,
-            allowDiscountCodes: $this->allowDiscountCodes,
-            amount: $this->amount,
-            currency: $this->currency,
-            customerId: $this->customerId,
-            externalCustomerId: $this->customerExternalId,
-            customerName: $this->customerName,
-            customerEmail: $this->customerEmail,
-            customerIpAddress: $this->customerIpAddress,
-            customerBillingAddress: $billingAddress,
-            customerTaxId: $this->customerTaxId,
-            customerMetadata: $this->customerMetadata,
-            subscriptionId: $this->subscriptionId,
-            successUrl: $this->successUrl,
-            returnUrl: $this->returnUrl,
-            embedOrigin: $this->embedOrigin,
-        );
-
-        $checkout = LaravelPolar::createCheckoutSession($request);
-
-        if (!$checkout->url) {
-            throw new Errors\APIException('Failed to create checkout session', 500, '', null);
+        if ($checkout->url === '') {
+            throw new PolarApiError('Polar returned a checkout session without a URL.', 500);
         }
 
         return $checkout->url;

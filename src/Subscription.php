@@ -4,14 +4,14 @@ namespace Danestves\LaravelPolar;
 
 use Danestves\LaravelPolar\Database\Factories\SubscriptionFactory;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
-use Polar\Models\Components\SubscriptionProrationBehavior;
+use Danestves\LaravelPolar\Enums\SubscriptionProrationBehavior;
+use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
-use Polar\Models\Components;
-use Polar\Models\Components\SubscriptionStatus;
 
 /**
  * @property int $id
@@ -140,11 +140,9 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function updateTrial(\DateTimeInterface $trialEnd): self
     {
-        $request = new Components\SubscriptionUpdateTrial(
-            trialEnd: \DateTime::createFromInterface($trialEnd),
-        );
-
-        return $this->updateAndSync($request);
+        return $this->updateAndSync(new Data\SubscriptionUpdateBase(
+            trialEnd: CarbonImmutable::instance($trialEnd),
+        ));
     }
 
     /**
@@ -240,12 +238,10 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function swap(string $productId, ?SubscriptionProrationBehavior $prorationBehavior = SubscriptionProrationBehavior::Prorate): self
     {
-        $request = new Components\SubscriptionUpdateProduct(
+        return $this->updateAndSync(new Data\SubscriptionUpdateBase(
             productId: $productId,
             prorationBehavior: $prorationBehavior ?? SubscriptionProrationBehavior::Prorate,
-        );
-
-        return $this->updateAndSync($request);
+        ));
     }
 
     /**
@@ -261,9 +257,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function cancel(): self
     {
-        $request = new Components\SubscriptionCancel(cancelAtPeriodEnd: true);
-
-        return $this->updateAndSync($request);
+        return $this->updateAndSync(new Data\SubscriptionCancel(cancelAtPeriodEnd: true));
     }
 
     /**
@@ -275,9 +269,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
             throw new PolarApiError('Subscription is incomplete and expired.');
         }
 
-        $request = new Components\SubscriptionCancel(cancelAtPeriodEnd: false);
-
-        return $this->updateAndSync($request);
+        return $this->updateAndSync(new Data\SubscriptionCancel(cancelAtPeriodEnd: false));
     }
 
     /**
@@ -285,13 +277,13 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function applyDiscount(string $discountId): self
     {
-        return $this->updateAndSync(new Components\SubscriptionUpdateDiscount(discountId: $discountId));
+        return $this->updateAndSync(new Data\SubscriptionUpdateBase(discountId: $discountId));
     }
 
     /**
      * List the seats on this subscription.
      */
-    public function seats(): Components\SeatsList
+    public function seats(): Data\SeatsList
     {
         return LaravelPolar::listSeats(subscriptionId: $this->polar_id);
     }
@@ -303,9 +295,9 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      *
      * @param  array<string, mixed>|null  $metadata
      */
-    public function assignSeat(?string $email = null, ?string $customerId = null, ?string $externalCustomerId = null, ?array $metadata = null, ?bool $immediateClaim = false): Components\CustomerSeat
+    public function assignSeat(?string $email = null, ?string $customerId = null, ?string $externalCustomerId = null, ?array $metadata = null, ?bool $immediateClaim = false): Data\CustomerSeat
     {
-        return LaravelPolar::assignSeat(new Components\SeatAssign(
+        return LaravelPolar::assignSeat(new Data\SeatAssign(
             subscriptionId: $this->polar_id,
             email: $email,
             customerId: $customerId,
@@ -318,7 +310,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
      * Revoke a seat from this subscription.
      */
-    public function revokeSeat(string $seatId): Components\CustomerSeat
+    public function revokeSeat(string $seatId): Data\CustomerSeat
     {
         return LaravelPolar::revokeSeat($seatId);
     }
@@ -326,7 +318,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
      * Resend the invitation email for a pending seat on this subscription.
      */
-    public function resendSeatInvitation(string $seatId): Components\CustomerSeat
+    public function resendSeatInvitation(string $seatId): Data\CustomerSeat
     {
         return LaravelPolar::resendSeatInvitation($seatId);
     }
@@ -336,37 +328,36 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     public function removeDiscount(): self
     {
-        return $this->updateAndSync(new Components\SubscriptionUpdateDiscount(discountId: null));
+        // Polar reads an absent key as "leave alone" and an explicit null as "clear", so this
+        // one update has to keep its nulls.
+        return $this->updateAndSync(new Data\SubscriptionUpdateBase(discountId: null), keepNulls: true);
     }
 
     /**
-     * Update the subscription and sync the changes.
-     *
-     * @param Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request
+     * Update the subscription on Polar and sync the local record from the response.
      */
-    private function updateAndSync(Components\SubscriptionUpdateProduct|Components\SubscriptionCancel|Components\SubscriptionUpdateDiscount|Components\SubscriptionUpdateTrial|Components\SubscriptionUpdateSeats|Components\SubscriptionRevoke $request): self
+    private function updateAndSync(Data\SubscriptionUpdate $request, bool $keepNulls = false): self
     {
-        $response = LaravelPolar::updateSubscription(
+        $this->syncFromResource(LaravelPolar::updateSubscription(
             subscriptionId: $this->polar_id,
             request: $request,
-        );
-
-        $this->syncFromSdkComponent($response);
+            keepNulls: $keepNulls,
+        ));
 
         return $this;
     }
 
     /**
-     * Sync the subscription from SDK component.
+     * Sync the local record from a Polar subscription resource.
      */
-    private function syncFromSdkComponent(Components\Subscription $subscription): self
+    private function syncFromResource(Data\Subscription $subscription): self
     {
         $this->update([
             'status' => $subscription->status,
             'product_id' => $subscription->productId,
             'current_period_end' => Carbon::make($subscription->currentPeriodEnd),
-            'trial_ends_at' => $subscription->trialEnd ? Carbon::make($subscription->trialEnd) : null,
-            'ends_at' => $subscription->endedAt ? Carbon::make($subscription->endedAt) : null,
+            'trial_ends_at' => $subscription->trialEnd !== null ? Carbon::make($subscription->trialEnd) : null,
+            'ends_at' => $subscription->endedAt !== null ? Carbon::make($subscription->endedAt) : null,
         ]);
 
         return $this;

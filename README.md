@@ -14,6 +14,9 @@
 
 Seamlessly integrate Polar.sh subscriptions and payments into your Laravel application. This package provides an elegant way to handle subscriptions, manage recurring payments, and interact with Polar's API. With built-in support for webhooks, subscription management, and a fluent API, you can focus on building your application while we handle the complexities of subscription billing.
 
+> [!IMPORTANT]
+> **Upgrading from v2?** `v3.0.0` drops the deprecated `polar-sh/sdk` dependency and talks to the Polar API over plain HTTP. Your `Polar\Models\Components\*` imports become `Danestves\LaravelPolar\Data\*`, list endpoints return a `Page` instead of an SDK response object, and there is one migration to publish and run. See the [v2 → v3 migration guide](docs/migration-v2-to-v3.md).
+
 ## Installation
 
 **Step 1:** You can install the package via composer:
@@ -97,6 +100,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Polar API Version
+    |--------------------------------------------------------------------------
+    |
+    | Polar versions its API by date and sends the resolved version back in the
+    | "polar-version" response header. This package's data objects are generated
+    | from a specific version, which is pinned here and sent on every request so
+    | a change to Polar's default cannot silently reshape your responses.
+    |
+    | Only change this if you have regenerated the data objects against another
+    | version (see tools/generate-data.php).
+    |
+    */
+    'version' => env('POLAR_API_VERSION', \Danestves\LaravelPolar\Http\PolarClient::API_VERSION),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Request Timeout
+    |--------------------------------------------------------------------------
+    |
+    | Optional. Seconds to wait on a Polar API request before giving up. Leave
+    | null to use the default timeout of Laravel's HTTP client.
+    |
+    */
+    'timeout' => env('POLAR_TIMEOUT'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Polar Webhook Secret
     |--------------------------------------------------------------------------
     |
@@ -150,6 +180,31 @@ return [
 ```
 
 ## Usage
+
+### Data Objects
+
+Responses are hydrated into typed objects under `Danestves\LaravelPolar\Data`, with enums under `Danestves\LaravelPolar\Enums`:
+
+```php
+use Danestves\LaravelPolar\Data;
+use Danestves\LaravelPolar\Enums\SubscriptionStatus;
+
+$subscription = LaravelPolar::updateSubscription('sub_xxx', ['product_id' => 'prod_xxx']);
+
+$subscription->id;                 // string
+$subscription->status;             // SubscriptionStatus enum
+$subscription->currentPeriodEnd;   // Carbon\CarbonImmutable
+$subscription->customer->email;    // nested objects are typed too
+```
+
+These classes are generated from [Polar's published OpenAPI document](https://api.polar.sh/openapi.json) and committed to the repository, so they always match the documented API. The package pins the API version it was generated against (`2026-04`) and sends it on every request, so a change to Polar's default cannot silently reshape your responses.
+
+When Polar ships API changes, regenerate with:
+
+```bash
+composer generate-data
+```
+
 
 ### Access Token
 
@@ -362,10 +417,10 @@ Checkout Links are reusable hosted URLs you can drop into marketing pages, email
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data;
 
 // Create a checkout link for a single product:
-$link = LaravelPolar::createCheckoutLink(new Components\CheckoutLinkCreateProduct(
+$link = LaravelPolar::createCheckoutLink(new Data\CheckoutLinkCreateProduct(
     productId: 'product_id_123',
     paymentProcessor: 'stripe',
 ));
@@ -373,19 +428,19 @@ $link = LaravelPolar::createCheckoutLink(new Components\CheckoutLinkCreateProduc
 echo $link->url; // share this anywhere
 
 // Or for multiple products (customer picks one):
-LaravelPolar::createCheckoutLink(new Components\CheckoutLinkCreateProducts(/* ... */));
+LaravelPolar::createCheckoutLink(new Data\CheckoutLinkCreateProducts(/* ... */));
 
 // Or pinned to a specific price:
-LaravelPolar::createCheckoutLink(new Components\CheckoutLinkCreateProductPrice(/* ... */));
+LaravelPolar::createCheckoutLink(new Data\CheckoutLinkCreateProductPrice(/* ... */));
 ```
 
 Update, delete, list, and fetch a single link:
 
 ```php
-LaravelPolar::updateCheckoutLink('cl_xxx', new Components\CheckoutLinkUpdate(label: 'Black Friday'));
+LaravelPolar::updateCheckoutLink('cl_xxx', new Data\CheckoutLinkUpdate(label: 'Black Friday'));
 LaravelPolar::deleteCheckoutLink('cl_xxx');
 LaravelPolar::listCheckoutLinks();           // optional CheckoutLinksListRequest
-LaravelPolar::getCheckoutLink('cl_xxx');     // Components\CheckoutLink
+LaravelPolar::getCheckoutLink('cl_xxx');     // Data\CheckoutLink
 ```
 
 #### Inertia.js compatibility
@@ -459,21 +514,21 @@ Create custom field definitions via the `LaravelPolar` facade:
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data;
 
-$field = LaravelPolar::createCustomField(new Components\CustomFieldCreateText(
+$field = LaravelPolar::createCustomField(new Data\CustomFieldCreateText(
     slug: 'company',
     name: 'Company name',
-    properties: new Components\CustomFieldTextProperties(),
+    properties: new Data\CustomFieldTextProperties(),
 ));
 ```
 
-The SDK exposes five create variants matching Polar's field types: `CustomFieldCreateText`, `CustomFieldCreateNumber`, `CustomFieldCreateDate`, `CustomFieldCreateCheckbox`, `CustomFieldCreateSelect`.
+There are five create variants matching Polar's field types: `CustomFieldCreateText`, `CustomFieldCreateNumber`, `CustomFieldCreateDate`, `CustomFieldCreateCheckbox`, `CustomFieldCreateSelect`.
 
 Manage existing definitions:
 
 ```php
-LaravelPolar::updateCustomField('cf_xxx', new Components\CustomFieldUpdateText(name: 'Org name'));
+LaravelPolar::updateCustomField('cf_xxx', new Data\CustomFieldUpdateText(name: 'Org name'));
 LaravelPolar::deleteCustomField('cf_xxx');
 LaravelPolar::listCustomFields();
 LaravelPolar::getCustomField('cf_xxx');
@@ -496,7 +551,7 @@ $user->checkout('product_id_123')
 After purchase, retrieve the captured values from the `Order`:
 
 ```php
-$data = $order->customFieldData(); // array<string, string|int|bool|\DateTime|null>
+$data = $order->customFieldData(); // array<string, mixed>
 ```
 
 The data is fetched from Polar on demand (not persisted in `polar_orders`) and memoized on the Order instance for the lifetime of the request, so calling it twice in the same controller only hits the API once.
@@ -511,23 +566,23 @@ Create, update, delete, list, and fetch discounts via the `LaravelPolar` facade:
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data;
+use Danestves\LaravelPolar\Enums\DiscountDuration;
 
-$discount = LaravelPolar::createDiscount(new Components\DiscountPercentageOnceForeverDurationCreate(
+$discount = LaravelPolar::createDiscount(new Data\DiscountPercentageCreate(
     name: 'Black Friday 50%',
-    type: Components\DiscountType::Percentage,
-    duration: Components\DiscountDuration::Once,
+    duration: DiscountDuration::Once,
     basisPoints: 5000,
     organizationId: 'your-org-id',
 ));
 
-LaravelPolar::updateDiscount('disc_xxx', new Components\DiscountUpdate(name: 'Black Friday extended'));
+LaravelPolar::updateDiscount('disc_xxx', new Data\DiscountUpdate(name: 'Black Friday extended'));
 LaravelPolar::deleteDiscount('disc_xxx');
 LaravelPolar::listDiscounts();
 LaravelPolar::getDiscount('disc_xxx');
 ```
 
-The SDK offers four create variants: `DiscountFixedOnceForeverDurationCreate`, `DiscountFixedRepeatDurationCreate`, `DiscountPercentageOnceForeverDurationCreate`, `DiscountPercentageRepeatDurationCreate`.
+There are two create variants — `DiscountFixedCreate` and `DiscountPercentageCreate` — each taking a `DiscountDuration` of `Once`, `Forever`, or `Repeating`.
 
 #### Applying a Discount at Checkout
 
@@ -677,11 +732,11 @@ $order->refund(amount: 2500);
 Pass a reason, comment, and metadata to fully describe a refund:
 
 ```php
-use Polar\Models\Components\RefundReason;
+use Danestves\LaravelPolar\Enums\RefundCreateReason;
 
 $order->refund(
     amount: 2500,
-    reason: RefundReason::Fraudulent,
+    reason: RefundCreateReason::Fraudulent,
     comment: 'flagged by risk team',
     metadata: ['ticket' => 'T-42'],
 );
@@ -690,23 +745,22 @@ $order->refund(
 List previous refunds for an order as a Collection:
 
 ```php
-$refunds = $order->refunds(); // Illuminate\Support\Collection<int, \Polar\Models\Components\Refund>
+$refunds = $order->refunds(); // Illuminate\Support\Collection<int, \Danestves\LaravelPolar\Data\Refund>
 ```
 
 For admin / cross-order refund management, use the facade directly:
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
-use Polar\Models\Operations;
+use Danestves\LaravelPolar\Data;
 
-LaravelPolar::createRefund(new Components\RefundCreate(
+LaravelPolar::createRefund(new Data\RefundCreate(
     orderId: 'ord_xxx',
-    reason: Components\RefundReason::Duplicate,
+    reason: RefundCreateReason::Duplicate,
     amount: 1000,
 ));
 
-LaravelPolar::listRefunds(new Operations\RefundsListRequest(orderId: 'ord_xxx'));
+LaravelPolar::listRefunds(['order_id' => 'ord_xxx']); // Page<Data\Refund>
 ```
 
 #### Receipts / Invoices
@@ -977,7 +1031,7 @@ List seats on a subscription (including counts of available and total seats):
 ```php
 $seatsList = $user->subscription()->seats();
 
-$seatsList->seats;          // array<Polar\Models\Components\CustomerSeat>
+$seatsList->seats;          // list<Danestves\LaravelPolar\Data\CustomerSeat>
 $seatsList->availableSeats; // int
 $seatsList->totalSeats;     // int
 ```
@@ -1004,10 +1058,10 @@ For admin / cross-subscription seat management, the facade variant is also avail
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data;
 
 LaravelPolar::listSeats(subscriptionId: 'sub_xxx');
-LaravelPolar::assignSeat(new Components\SeatAssign(
+LaravelPolar::assignSeat(new Data\SeatAssign(
     subscriptionId: 'sub_xxx',
     email: 'alice@example.com',
 ));
@@ -1025,13 +1079,13 @@ Create benefits programmatically using the `LaravelPolar` facade:
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data;
 
 $benefit = LaravelPolar::createBenefit(
-    new Components\BenefitCustomCreate(
+    new Data\BenefitCustomCreate(
         description: 'Premium Support',
         organizationId: 'your-org-id',
-        properties: new Components\BenefitCustomCreateProperties(),
+        properties: new Data\BenefitCustomCreateProperties(),
     )
 );
 ```
@@ -1066,13 +1120,13 @@ Update an existing benefit using the `LaravelPolar` facade:
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data;
 
 $benefit = LaravelPolar::updateBenefit(
     'benefit-id-123',
-    new Components\BenefitCustomUpdate(
+    new Data\BenefitCustomUpdate(
         description: 'Updated Premium Support',
-        properties: new Components\BenefitCustomUpdateProperties(),
+        properties: new Data\BenefitCustomUpdateProperties(),
     )
 );
 ```
@@ -1162,11 +1216,11 @@ Use the `LaravelPolar` facade with your org-scoped access token. These methods d
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
+use Danestves\LaravelPolar\Data;
 
 LaravelPolar::listLicenseKeys();                                  // optional filters
 LaravelPolar::getLicenseKey('lk_xxx');                            // LicenseKeyWithActivations
-LaravelPolar::updateLicenseKey('lk_xxx', new Components\LicenseKeyUpdate(
+LaravelPolar::updateLicenseKey('lk_xxx', new Data\LicenseKeyUpdate(
     limitActivations: 10,
 ));
 ```
@@ -1213,23 +1267,21 @@ $keys = $user->licenseKeys(benefitId: 'b_xx'); // scope to a single benefit
 
 ### Advanced
 
-Thin facade wrappers around the rest of Polar's API surface. These exist as convenience helpers for occasional use; for anything heavier, see [Reaching into the SDK directly](#reaching-into-the-sdk-directly).
+Thin facade wrappers around the rest of Polar's API surface. These exist as convenience helpers for occasional use; for anything heavier, see [Calling an unwrapped endpoint](#calling-an-unwrapped-endpoint).
 
 #### Metrics (revenue analytics)
 
 ```php
-use Brick\DateTime\LocalDate;
+use Danestves\LaravelPolar\Enums\TimeInterval;
 use Danestves\LaravelPolar\LaravelPolar;
-use Polar\Models\Components;
-use Polar\Models\Operations;
 
-$metrics = LaravelPolar::getMetrics(new Operations\MetricsGetRequest(
-    startDate: LocalDate::of(2026, 1, 1),
-    endDate:   LocalDate::of(2026, 1, 31),
-    interval:  Components\TimeInterval::Day,
-));
+$metrics = LaravelPolar::getMetrics([
+    'start_date' => '2026-01-01',
+    'end_date' => '2026-01-31',
+    'interval' => TimeInterval::Day->value,
+]);
 
-// $metrics->periods is an array of Components\MetricPeriod
+// $metrics->periods is a list of Danestves\LaravelPolar\Data\MetricPeriod
 ```
 
 #### Files
@@ -1237,33 +1289,52 @@ $metrics = LaravelPolar::getMetrics(new Operations\MetricsGetRequest(
 List downloadable assets, product media, and org avatars:
 
 ```php
-$response = LaravelPolar::listFiles();
-$items = $response->listResourceFileRead?->items ?? [];
+$files = LaravelPolar::listFiles();   // Page<Data\FileRead>
+
+foreach ($files as $file) {
+    echo $file->name;
+}
 ```
 
 #### Organizations
 
 ```php
 $orgs = LaravelPolar::listOrganizations();
-$org  = LaravelPolar::getOrganization('org_xxx'); // Components\Organization
+$org  = LaravelPolar::getOrganization('org_xxx'); // Data\Organization
 ```
 
-### Reaching into the SDK directly
+### Calling an unwrapped endpoint
 
-The package wraps the common Polar operations with Laravel-idiomatic helpers, but it does **not** wrap every endpoint. For anything not covered above — Wallets, Files create/update/delete, OAuth2 flows, Metrics dashboards, Organizations create/update, and so on — drop straight into the underlying Polar SDK client:
+The package wraps the common Polar operations with Laravel-idiomatic helpers, but it does **not** wrap every endpoint. For anything not covered above — Wallets, Files create/update/delete, OAuth2 flows, Metrics dashboards, Organizations create/update, and so on — use the HTTP client directly. It handles authentication, the base URL, the API version header, and error mapping for you:
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;
 
-$sdk = LaravelPolar::sdk(); // returns Polar\Polar — the underlying SDK client
+$client = LaravelPolar::client();
 
-$sdk->customerPortal->wallets->list(...);
-$sdk->files->create(...);
-$sdk->organizations->update(...);
-$sdk->oauth2->...;
+// GET with query parameters (list filters may be arrays; they are repeated correctly):
+$wallets = $client->get('/v1/customer-portal/wallets/', ['limit' => 20]);
+
+// POST / PATCH / DELETE with a JSON body:
+$file = $client->post('/v1/files/', ['name' => 'guide.pdf', 'organization_id' => 'org_xxx']);
+$client->patch('/v1/organizations/org_xxx', ['name' => 'New name']);
+$client->delete('/v1/files/file_xxx');
 ```
 
-This is the documented and supported way to call any unwrapped endpoint. The package keeps a thin layer for the common cases; `sdk()` covers the long tail.
+Each method returns the decoded response body as an array and throws a `PolarApiError` on any non-2xx status. To get a typed object back, hand the array to the matching data class:
+
+```php
+use Danestves\LaravelPolar\Data;
+
+$organization = Data\Organization::from($client->get('/v1/organizations/org_xxx'));
+```
+
+For a paginated endpoint, `page()` hydrates the items and returns a `Page`:
+
+```php
+// The orders list endpoint is not wrapped, but its shape is:
+$page = $client->page('/v1/orders/', Data\Order::class, ['limit' => 50]);
+```
 
 ### Handling Webhooks
 
@@ -1509,6 +1580,20 @@ Laravel v11 and v12 will automatically discover listeners and subscribers if the
 
 ```bash
 composer test
+```
+
+Because the package uses Laravel's HTTP client, you can fake Polar in your own application's tests:
+
+```php
+use Illuminate\Support\Facades\Http;
+
+Http::fake([
+    'https://sandbox-api.polar.sh/v1/checkouts/' => Http::response([
+        'url' => 'https://polar.sh/checkout/test',
+    ], 201),
+]);
+
+$url = $user->checkout(['product_xxx'])->url();
 ```
 
 ## Changelog

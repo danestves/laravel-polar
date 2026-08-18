@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use Danestves\LaravelPolar\Customer;
-use Polar\Models\Components\OrderStatus;
-use Polar\Models\Components\SubscriptionStatus;
+use Danestves\LaravelPolar\Enums\OrderStatus;
+use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Danestves\LaravelPolar\Events\BenefitCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantCreated;
 use Danestves\LaravelPolar\Events\BenefitGrantRevoked;
@@ -33,6 +33,7 @@ use Danestves\LaravelPolar\Order;
 use Danestves\LaravelPolar\Subscription;
 use Danestves\LaravelPolar\Tests\Fixtures\User;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Spatie\WebhookClient\Models\WebhookCall;
 
 class TestProcessWebhook extends ProcessWebhook
@@ -110,10 +111,10 @@ it('handles order.created webhook', function () {
 
     $payload = [
         'type' => 'order.created',
-        'data' => [
+        'data' => polarFixture('Order', [
             'id' => 'order_123',
             'status' => OrderStatus::Paid->value,
-            'amount' => 1000,
+            'net_amount' => 1000,
             'tax_amount' => 100,
             'refunded_amount' => 0,
             'refunded_tax_amount' => 0,
@@ -129,7 +130,7 @@ it('handles order.created webhook', function () {
                     'billable_type' => $user->getMorphClass(),
                 ],
             ],
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -158,10 +159,10 @@ it('handles order.updated webhook', function () {
 
     $payload = [
         'type' => 'order.updated',
-        'data' => [
+        'data' => polarFixture('Order', [
             'id' => 'order_123',
             'status' => OrderStatus::Refunded->value,
-            'amount' => 1000,
+            'net_amount' => 1000,
             'tax_amount' => 100,
             'refunded_amount' => 1000,
             'refunded_tax_amount' => 100,
@@ -178,7 +179,7 @@ it('handles order.updated webhook', function () {
                     'billable_type' => $user->getMorphClass(),
                 ],
             ],
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -198,7 +199,7 @@ it('handles subscription.created webhook', function () {
 
     $payload = [
         'type' => 'subscription.created',
-        'data' => [
+        'data' => polarFixture('Subscription', [
             'id' => 'subscription_123',
             'status' => SubscriptionStatus::Active->value,
             'product_id' => 'product_123',
@@ -213,7 +214,7 @@ it('handles subscription.created webhook', function () {
             ],
             'current_period_end' => now()->addDays(30)->toIso8601String(),
             'ends_at' => null,
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -239,7 +240,7 @@ it('handles subscription.created webhook with trial data', function () {
 
     $payload = [
         'type' => 'subscription.created',
-        'data' => [
+        'data' => polarFixture('Subscription', [
             'id' => 'subscription_trial_123',
             'status' => SubscriptionStatus::Trialing->value,
             'product_id' => 'product_123',
@@ -254,7 +255,7 @@ it('handles subscription.created webhook with trial data', function () {
             'current_period_end' => now()->addDays(30)->toIso8601String(),
             'trial_end' => $trialEnd,
             'ends_at' => null,
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -280,13 +281,13 @@ it('handles subscription.updated webhook', function () {
 
     $payload = [
         'type' => 'subscription.updated',
-        'data' => [
+        'data' => polarFixture('Subscription', [
             'id' => 'subscription_123',
             'status' => SubscriptionStatus::PastDue->value,
             'product_id' => 'product_456',
             'current_period_end' => now()->addDays(30)->toIso8601String(),
             'ends_at' => null,
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -312,14 +313,14 @@ it('handles subscription.updated webhook with trial data', function () {
 
     $payload = [
         'type' => 'subscription.updated',
-        'data' => [
+        'data' => polarFixture('Subscription', [
             'id' => 'subscription_123',
             'status' => SubscriptionStatus::Trialing->value,
             'product_id' => 'product_123',
             'current_period_end' => now()->addDays(30)->toIso8601String(),
             'trial_end' => $trialEnd,
             'ends_at' => null,
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -344,13 +345,13 @@ it('handles subscription.active webhook', function () {
 
     $payload = [
         'type' => 'subscription.active',
-        'data' => [
+        'data' => polarFixture('Subscription', [
             'id' => 'subscription_123',
             'status' => SubscriptionStatus::Active->value,
             'product_id' => 'product_123',
             'current_period_end' => now()->addDays(30)->toIso8601String(),
             'ends_at' => null,
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -373,13 +374,13 @@ it('handles subscription.canceled webhook', function () {
 
     $payload = [
         'type' => 'subscription.canceled',
-        'data' => [
+        'data' => polarFixture('Subscription', [
             'id' => 'subscription_123',
             'status' => SubscriptionStatus::Canceled->value,
             'product_id' => 'product_123',
             'current_period_end' => now()->addDays(30)->toIso8601String(),
             'ends_at' => now()->addDays(30)->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -403,13 +404,13 @@ it('handles subscription.revoked webhook', function () {
 
     $payload = [
         'type' => 'subscription.revoked',
-        'data' => [
+        'data' => polarFixture('Subscription', [
             'id' => 'subscription_123',
             'status' => SubscriptionStatus::Canceled->value,
             'product_id' => 'product_123',
             'current_period_end' => now()->addDays(30)->toIso8601String(),
             'ends_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -427,7 +428,7 @@ it('handles benefit_grant.created webhook', function () {
 
     $payload = [
         'type' => 'benefit_grant.created',
-        'data' => [
+        'data' => polarFixture('BenefitGrantCustomWebhook', [
             'id' => 'benefit_grant_123',
             'type' => 'custom',
             'customer_id' => 'customer_123',
@@ -439,7 +440,7 @@ it('handles benefit_grant.created webhook', function () {
                     'billable_type' => $user->getMorphClass(),
                 ],
             ],
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -454,7 +455,7 @@ it('handles benefit_grant.updated webhook', function () {
 
     $payload = [
         'type' => 'benefit_grant.updated',
-        'data' => [
+        'data' => polarFixture('BenefitGrantCustomWebhook', [
             'id' => 'benefit_grant_123',
             'type' => 'custom',
             'customer_id' => 'customer_123',
@@ -466,7 +467,7 @@ it('handles benefit_grant.updated webhook', function () {
                     'billable_type' => $user->getMorphClass(),
                 ],
             ],
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -481,7 +482,7 @@ it('handles benefit_grant.revoked webhook', function () {
 
     $payload = [
         'type' => 'benefit_grant.revoked',
-        'data' => [
+        'data' => polarFixture('BenefitGrantCustomWebhook', [
             'id' => 'benefit_grant_123',
             'type' => 'custom',
             'customer_id' => 'customer_123',
@@ -493,7 +494,7 @@ it('handles benefit_grant.revoked webhook', function () {
                     'billable_type' => $user->getMorphClass(),
                 ],
             ],
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -506,10 +507,10 @@ it('handles benefit_grant.revoked webhook', function () {
 it('throws exception when metadata is missing', function () {
     $payload = [
         'type' => 'order.created',
-        'data' => [
+        'data' => polarFixture('Order', [
             'id' => 'order_123',
             'status' => OrderStatus::Paid->value,
-            'amount' => 1000,
+            'net_amount' => 1000,
             'tax_amount' => 100,
             'refunded_amount' => 0,
             'refunded_tax_amount' => 0,
@@ -522,7 +523,7 @@ it('throws exception when metadata is missing', function () {
                 'id' => 'customer_123',
                 'metadata' => [],
             ],
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -553,10 +554,10 @@ it('handles order.updated when order does not exist', function () {
 
     $payload = [
         'type' => 'order.updated',
-        'data' => [
+        'data' => polarFixture('Order', [
             'id' => 'nonexistent_order',
             'status' => OrderStatus::Paid->value,
-            'amount' => 1000,
+            'net_amount' => 1000,
             'tax_amount' => 100,
             'refunded_amount' => 0,
             'refunded_tax_amount' => 0,
@@ -572,7 +573,7 @@ it('handles order.updated when order does not exist', function () {
                     'billable_type' => $user->getMorphClass(),
                 ],
             ],
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -586,13 +587,13 @@ it('handles order.updated when order does not exist', function () {
 it('handles subscription.updated when subscription does not exist', function () {
     $payload = [
         'type' => 'subscription.updated',
-        'data' => [
+        'data' => polarFixture('Subscription', [
             'id' => 'nonexistent_subscription',
             'status' => SubscriptionStatus::Active->value,
             'product_id' => 'product_123',
             'current_period_end' => now()->addDays(30)->toIso8601String(),
             'ends_at' => null,
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -606,13 +607,13 @@ it('handles subscription.updated when subscription does not exist', function () 
 it('handles checkout.created webhook', function () {
     $payload = [
         'type' => 'checkout.created',
-        'data' => [
+        'data' => polarFixture('Checkout', [
             'id' => 'checkout_123',
             'url' => 'https://polar.sh/checkout/checkout_123',
             'product_id' => 'product_123',
             'status' => 'open',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -627,13 +628,13 @@ it('handles checkout.created webhook', function () {
 it('handles checkout.updated webhook', function () {
     $payload = [
         'type' => 'checkout.updated',
-        'data' => [
+        'data' => polarFixture('Checkout', [
             'id' => 'checkout_123',
             'url' => 'https://polar.sh/checkout/checkout_123',
             'product_id' => 'product_123',
-            'status' => 'completed',
+            'status' => 'succeeded',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -648,13 +649,13 @@ it('handles checkout.updated webhook', function () {
 it('handles customer.created webhook', function () {
     $payload = [
         'type' => 'customer.created',
-        'data' => [
+        'data' => polarFixture('CustomerIndividual', [
             'id' => 'customer_123',
             'type' => 'individual',
             'email' => 'test@example.com',
             'name' => 'Test User',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -669,13 +670,13 @@ it('handles customer.created webhook', function () {
 it('handles customer.updated webhook', function () {
     $payload = [
         'type' => 'customer.updated',
-        'data' => [
+        'data' => polarFixture('CustomerIndividual', [
             'id' => 'customer_123',
             'type' => 'individual',
             'email' => 'updated@example.com',
             'name' => 'Updated User',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -690,13 +691,13 @@ it('handles customer.updated webhook', function () {
 it('handles customer.deleted webhook', function () {
     $payload = [
         'type' => 'customer.deleted',
-        'data' => [
+        'data' => polarFixture('CustomerIndividual', [
             'id' => 'customer_123',
             'type' => 'individual',
             'email' => 'test@example.com',
             'name' => 'Test User',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -711,14 +712,14 @@ it('handles customer.deleted webhook', function () {
 it('handles customer.state_changed webhook', function () {
     $payload = [
         'type' => 'customer.state_changed',
-        'data' => [
+        'data' => polarFixture('CustomerStateIndividual', [
             'id' => 'customer_123',
             'type' => 'individual',
             'email' => 'test@example.com',
             'name' => 'Test User',
             'active_subscriptions' => [],
             'granted_benefits' => [],
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -733,12 +734,12 @@ it('handles customer.state_changed webhook', function () {
 it('handles product.created webhook', function () {
     $payload = [
         'type' => 'product.created',
-        'data' => [
+        'data' => polarFixture('Product', [
             'id' => 'product_123',
             'name' => 'Test Product',
             'description' => 'A test product',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -753,12 +754,12 @@ it('handles product.created webhook', function () {
 it('handles product.updated webhook', function () {
     $payload = [
         'type' => 'product.updated',
-        'data' => [
+        'data' => polarFixture('Product', [
             'id' => 'product_123',
             'name' => 'Updated Product',
             'description' => 'An updated test product',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -773,12 +774,12 @@ it('handles product.updated webhook', function () {
 it('handles benefit.created webhook', function () {
     $payload = [
         'type' => 'benefit.created',
-        'data' => [
+        'data' => polarFixture('BenefitCustom', [
             'id' => 'benefit_123',
             'type' => 'custom',
             'description' => 'Test Benefit',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -793,12 +794,12 @@ it('handles benefit.created webhook', function () {
 it('handles benefit.updated webhook', function () {
     $payload = [
         'type' => 'benefit.updated',
-        'data' => [
+        'data' => polarFixture('BenefitCustom', [
             'id' => 'benefit_123',
             'type' => 'custom',
             'description' => 'Updated Test Benefit',
             'created_at' => now()->toIso8601String(),
-        ],
+        ]),
         'timestamp' => now()->toIso8601String(),
     ];
 
@@ -808,4 +809,173 @@ it('handles benefit.updated webhook', function () {
     Event::assertDispatched(BenefitUpdated::class);
     Event::assertDispatched(WebhookReceived::class);
     Event::assertDispatched(WebhookHandled::class);
+});
+
+/**
+ * A payload the package cannot type must never cost us the database sync.
+ *
+ * Polar can add a required field or a new enum value at any time; a package released before
+ * that change still has to keep billing state correct.
+ */
+it('records an order that has no product, which Polar allows', function () {
+    $user = User::factory()->create();
+
+    $payload = [
+        'type' => 'order.created',
+        'data' => polarFixture('Order', [
+            'id' => 'order_no_product',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'product_id' => null,
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ];
+
+    $job = createWebhookCall($payload);
+    $job->handle();
+
+    $order = Order::where('polar_id', 'order_no_product')->first();
+
+    expect($order)->not->toBeNull()
+        ->and($order->product_id)->toBeNull()
+        ->and($order->amount)->toBe(1000)
+        ->and($order->hasProduct('product_123'))->toBeFalse()
+        ->and($user->hasPurchasedProduct('product_123'))->toBeFalse();
+
+    Event::assertDispatched(OrderCreated::class);
+});
+
+describe('payloads this package cannot yet parse', function () {
+    beforeEach(function () {
+        Log::spy();
+    });
+
+    it('still syncs the order when a nested field is missing from the payload', function () {
+        $user = User::factory()->create();
+
+        $data = polarFixture('Order', [
+            'id' => 'order_unparseable',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'product_id' => 'product_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]);
+
+        // A field the schema requires but the database sync never reads — the same shape as
+        // Polar adding a required field this package predates.
+        unset($data['subtotal_amount']);
+
+        $job = createWebhookCall(['type' => 'order.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        $order = Order::where('polar_id', 'order_unparseable')->first();
+
+        expect($order)->not->toBeNull()
+            ->and($order->status)->toBe(OrderStatus::Paid)
+            ->and($order->amount)->toBe(1000)
+            ->and($order->billable_id)->toBe($user->getKey());
+    });
+
+    it('still syncs the order when a nested enum gains a value we do not know', function () {
+        $user = User::factory()->create();
+
+        $data = polarFixture('Order', [
+            'id' => 'order_future_enum',
+            'status' => OrderStatus::Paid->value,
+            'product_id' => 'product_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+            'billing_reason' => 'some_future_billing_reason',
+        ]);
+
+        $job = createWebhookCall(['type' => 'order.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        expect(Order::where('polar_id', 'order_future_enum')->exists())->toBeTrue();
+    });
+
+    it('skips the typed event rather than dispatching a half-built payload', function () {
+        $user = User::factory()->create();
+
+        $data = polarFixture('Order', [
+            'id' => 'order_unparseable',
+            'status' => OrderStatus::Paid->value,
+            'product_id' => 'product_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]);
+        unset($data['subtotal_amount']);
+
+        $job = createWebhookCall(['type' => 'order.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        Event::assertNotDispatched(OrderCreated::class);
+
+        // The generic webhook events still fire, so listeners on the raw payload are unaffected.
+        Event::assertDispatched(WebhookReceived::class);
+        Event::assertDispatched(WebhookHandled::class);
+    });
+
+    it('logs the failure with the event type so it can be diagnosed', function () {
+        $user = User::factory()->create();
+
+        $data = polarFixture('Order', [
+            'id' => 'order_unparseable',
+            'status' => OrderStatus::Paid->value,
+            'product_id' => 'product_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]);
+        unset($data['subtotal_amount']);
+
+        $job = createWebhookCall(['type' => 'order.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        Log::shouldHaveReceived('error')
+            ->once()
+            ->withArgs(function (string $message, array $context) {
+                return str_contains($message, 'could not be parsed')
+                    && $context['event_type'] === 'order.created'
+                    && isset($context['reason']);
+            });
+    });
+
+    it('does not dispatch an event when a payload-only webhook cannot be parsed', function () {
+        $data = polarFixture('Product', ['id' => 'product_123']);
+        unset($data['name']);
+
+        $job = createWebhookCall(['type' => 'product.created', 'data' => $data, 'timestamp' => now()->toIso8601String()]);
+        $job->handle();
+
+        Event::assertNotDispatched(ProductCreated::class);
+        Event::assertDispatched(WebhookHandled::class);
+    });
 });

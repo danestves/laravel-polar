@@ -1,0 +1,231 @@
+# Migrating from v2 to v3
+
+`v3.0.0` removes the `polar-sh/sdk` dependency. Polar [deprecated their PHP SDK][deprecation] in July 2026 and now recommend calling the API over plain HTTP, so this package does exactly that.
+
+Everything the SDK used to give you — typed request bodies, typed responses, typed webhook payloads — is still here. The classes moved namespace, and a few shapes changed because the package is now generated against Polar's current API version (`2026-04`) rather than whatever the last SDK release targeted.
+
+[deprecation]: https://github.com/polarsource/polar-php
+
+## The short version
+
+1. Replace `Polar\Models\Components\X` with `Danestves\LaravelPolar\Data\X`.
+2. Replace enums (`OrderStatus`, `SubscriptionStatus`, `RefundReason`, …) with `Danestves\LaravelPolar\Enums\X`.
+3. Replace `Operations\XListRequest` objects with plain arrays of query parameters.
+4. Replace `$response->listResourceX->items` with iterating the returned `Page`.
+5. Replace `LaravelPolar::sdk()` with `LaravelPolar::client()`.
+6. Catch `Danestves\LaravelPolar\Exceptions\PolarApiError` instead of `Polar\Models\Errors\APIException`.
+
+Your webhook route, your `Billable` trait usage, and your config are unchanged apart from two new optional config keys. There is one small migration to publish and run — see [Database changes](#database-changes).
+
+## Namespaces
+
+| v2 | v3 |
+| --- | --- |
+| `Polar\Models\Components\Checkout` | `Danestves\LaravelPolar\Data\Checkout` |
+| `Polar\Models\Components\Subscription` | `Danestves\LaravelPolar\Data\Subscription` |
+| `Polar\Models\Components\WebhookOrderCreatedPayload` | `Danestves\LaravelPolar\Data\WebhookOrderCreatedPayload` |
+| `Polar\Models\Components\OrderStatus` | `Danestves\LaravelPolar\Enums\OrderStatus` |
+| `Polar\Models\Components\SubscriptionStatus` | `Danestves\LaravelPolar\Enums\SubscriptionStatus` |
+| `Polar\Models\Errors\APIException` | `Danestves\LaravelPolar\Exceptions\PolarApiError` |
+
+Class names and property names are unchanged, so in most files this is a find-and-replace on the `use` statements. Properties are still camelCase (`$subscription->currentPeriodEnd`), and dates are now `Carbon\CarbonImmutable` rather than `DateTime`.
+
+## Listing endpoints
+
+The SDK returned a paginator you had to unwrap. List methods now take an array of query parameters and return a `Page`:
+
+```php
+// v2
+use Polar\Models\Operations;
+
+$response = LaravelPolar::listProducts(new Operations\ProductsListRequest(
+    organizationId: 'org_xxx',
+    limit: 50,
+));
+$products = $response->listResourceProduct->items;
+
+// v3
+$page = LaravelPolar::listProducts([
+    'organization_id' => 'org_xxx',
+    'limit' => 50,
+]);
+
+foreach ($page as $product) {
+    echo $product->name;
+}
+```
+
+`Page` is countable and iterable, and exposes `->items`, `->collect()`, `->first()`, `->pagination->totalCount`, `->pagination->maxPage`, and `->hasMorePages($currentPage)`.
+
+Query parameters use Polar's own snake_case names. Array filters are sent as repeated keys (`?id=a&id=b`), which is what the API expects.
+
+Methods affected: `listProducts`, `listBenefits`, `listBenefitGrants`, `listCustomerMeters`, `listFiles`, `listOrganizations`, `listLicenseKeys`, `listCustomFields`, `listCheckoutLinks`, `listDiscounts`, `listRefunds`.
+
+Two signatures changed beyond that:
+
+```php
+// v2
+LaravelPolar::listBenefitGrants(new Operations\BenefitsGrantsRequest(id: 'ben_xxx'));
+LaravelPolar::getMetrics(new Operations\MetricsGetRequest(...));
+
+// v3
+LaravelPolar::listBenefitGrants('ben_xxx');
+LaravelPolar::getMetrics([
+    'start_date' => '2026-01-01',
+    'end_date' => '2026-01-31',
+    'interval' => 'day',
+]);
+```
+
+## Errors
+
+Every non-2xx response throws `PolarApiError`, which carries the status and the decoded body instead of hiding them in a message:
+
+```php
+use Danestves\LaravelPolar\Exceptions\PolarApiError;
+
+try {
+    $checkout = $user->checkout(['product_xxx'])->url();
+} catch (PolarApiError $e) {
+    $e->status;   // 422
+    $e->body;     // ['detail' => [...]] — Polar's own error payload
+    $e->getMessage();
+}
+```
+
+In v2 several wrappers turned a failed call into a generic `APIException` with a fixed `500`. They now surface the real status.
+
+## Database changes
+
+One column changes. Polar allows an order to have no product — `product_id` is nullable on their side — but `polar_orders.product_id` was declared `NOT NULL`, so such an order would fail to sync with a constraint violation rather than being recorded.
+
+Publish and run the migration:
+
+```bash
+php artisan vendor:publish --tag="polar-migrations"
+php artisan migrate
+```
+
+Existing rows are untouched; the column simply starts accepting null. `$order->hasProduct()` and `$billable->hasPurchasedProduct()` already return false for an order with no product, so no application code needs to change. `$order->product_id` is now `?string`, which is worth knowing if you pass it somewhere that expects a string.
+
+## API shape changes
+
+These come from Polar's API itself, not from this package. They are the changes most likely to need a code edit.
+
+**Subscription updates are one request type.** Polar merged the product, discount, and trial update bodies into a single `SubscriptionUpdateBase`. If you called `LaravelPolar::updateSubscription()` directly:
+
+```php
+// v2
+LaravelPolar::updateSubscription('sub_xxx', new Components\SubscriptionUpdateProduct(
+    productId: 'prod_xxx',
+));
+
+// v3
+LaravelPolar::updateSubscription('sub_xxx', new Data\SubscriptionUpdateBase(
+    productId: 'prod_xxx',
+));
+```
+
+The `Subscription` model methods (`swap`, `swapAndInvoice`, `cancel`, `resume`, `applyDiscount`, `removeDiscount`, `updateTrial`) are unchanged.
+
+**Clearing a field needs an explicit null.** Polar reads an absent key as "leave unchanged" and an explicit `null` as "clear this". The client drops nulls by default; pass `keepNulls: true` when you mean to clear:
+
+```php
+LaravelPolar::updateSubscription('sub_xxx', ['discount_id' => null], keepNulls: true);
+```
+
+`$subscription->removeDiscount()` already does this for you.
+
+**Discount create variants collapsed from four to two.** `DiscountFixedOnceForeverDurationCreate` / `DiscountFixedRepeatDurationCreate` / `DiscountPercentageOnceForeverDurationCreate` / `DiscountPercentageRepeatDurationCreate` are now `DiscountFixedCreate` and `DiscountPercentageCreate`, each taking a `DiscountDuration`:
+
+```php
+new Data\DiscountPercentageCreate(
+    name: 'Black Friday 50%',
+    duration: DiscountDuration::Once,
+    basisPoints: 5000,
+    organizationId: 'org_xxx',
+);
+```
+
+**Refund reasons split in two.** Polar accepts six reasons when creating a refund but can report a seventh (`dispute_prevention`) on an existing one, so there are two enums. `Order::refund()` takes `Enums\RefundCreateReason`; a `Data\Refund` you read back exposes `Enums\RefundReason`.
+
+**`CheckoutStatus::Completed` is gone**, replaced by `Succeeded`.
+
+**Order amounts were renamed.** Polar dropped `amount` from the order resource in favour of a fuller breakdown: `subtotal_amount` (before discounts and taxes), `net_amount` (after discounts, before taxes), and `total_amount` (after discounts and taxes). The `polar_orders.amount` column keeps its meaning and is now filled from `net_amount`, which is the exact equivalent of the old field — so `$order->amount` and `$order->refund()` behave as they did. If you build order payloads yourself (replaying stored webhooks, say), both spellings are accepted.
+
+**`Order.refunded_at` is gone.** Refund timestamps now live on the refund itself. The `polar_orders.refunded_at` column is filled from the order's `modified_at` when the order is in a refunded state, which is the closest the current API gets, and stays null otherwise.
+
+**Invoices are fetched in two steps.** `$order->receiptUrl()` now asks Polar to generate the invoice and then reads the URL back, because generation is asynchronous on their side. It returns `null` while generation is still pending — call it again shortly after. Behaviour is otherwise unchanged.
+
+**License key verification uses the public routes.** `validateLicenseKey`, `activateLicenseKey`, and `deactivateLicenseKey` now call `/v1/customer-portal/license-keys/*`, which need no access token — only an organization id, exactly as documented in v2. These routes are rate limited to 3 requests per second.
+
+## Webhooks are resilient to schema drift
+
+Typed payloads are strict: they are what makes a listener safe to write. But Polar can add a required field or a new enum value at any time, and a release of this package that predates the change should not take your billing sync down with it.
+
+So the handler syncs your `polar_orders` / `polar_subscriptions` records from the raw webhook array first, and only then builds the typed payload. If that payload cannot be built, the failure is logged with the event type and the reason, and **only the typed event is skipped** — the record is already correct, and `WebhookReceived` / `WebhookHandled` still fire, so any listener working off the raw payload is unaffected.
+
+The event is not retried, because a retry cannot help. The fix is to regenerate against Polar's current schema:
+
+```bash
+composer generate-data
+```
+
+Watch your logs for `Polar webhook payload could not be parsed` — that message is the signal to do so.
+
+Two things still fail loudly on purpose, because guessing would be worse than stopping:
+
+- An unknown `OrderStatus` or `SubscriptionStatus`, since silently storing the wrong status could grant or revoke access incorrectly.
+- An order payload with no `net_amount` or `amount`, since recording an order with an unknown amount is worse than recording none.
+
+## Reaching unwrapped endpoints
+
+`LaravelPolar::sdk()` is gone. Use `LaravelPolar::client()`, which handles auth, the base URL, the pinned API version, and error mapping:
+
+```php
+// v2
+LaravelPolar::sdk()->files->create(...);
+
+// v3
+LaravelPolar::client()->post('/v1/files/', ['name' => 'guide.pdf', 'organization_id' => 'org_xxx']);
+```
+
+`get()`, `post()`, `patch()`, and `delete()` return the decoded body as an array. `page()` hydrates a paginated response into typed objects. To type a single response, pass the array to the matching data class: `Data\Organization::from($client->get('/v1/organizations/org_xxx'))`.
+
+The container binding changed to match: `Polar\Polar` / `polar.sdk` are now `Danestves\LaravelPolar\Http\PolarClient` / `polar.client`.
+
+## Testing
+
+Because the package uses Laravel's HTTP client, `Http::fake()` now works on Polar calls:
+
+```php
+use Illuminate\Support\Facades\Http;
+
+Http::fake([
+    'https://sandbox-api.polar.sh/v1/checkouts/' => Http::response(['url' => 'https://polar.sh/checkout/x'], 201),
+]);
+```
+
+The `LaravelPolar::setSdk()` / `resetSdk()` test helpers became `setClient()` / `resetClient()`, though with `Http::fake()` you rarely need them.
+
+## New config keys
+
+Two optional keys were added; the defaults are fine for most applications.
+
+```php
+// config/polar.php
+'version' => env('POLAR_API_VERSION', \Danestves\LaravelPolar\Http\PolarClient::API_VERSION),
+'timeout' => env('POLAR_TIMEOUT'),
+```
+
+`version` pins the Polar API version this package's data objects were generated against and is sent on every request, so a change to Polar's default cannot silently reshape your responses. Only change it if you regenerate the data objects (see below).
+
+## Regenerating the data objects
+
+The `Data` and `Enums` classes are generated from Polar's published OpenAPI document and committed to the repository. When Polar ships API changes:
+
+```bash
+composer generate-data
+```
+
+This reads `https://api.polar.sh/openapi.json`, rewrites `src/Data` and `src/Enums`, refreshes the test fixtures, and formats the result. Pass a path or URL as an argument to generate against a specific document.

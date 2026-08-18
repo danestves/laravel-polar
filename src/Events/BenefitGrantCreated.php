@@ -5,7 +5,7 @@ namespace Danestves\LaravelPolar\Events;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Polar\Models\Components\WebhookBenefitGrantCreatedPayload;
+use Danestves\LaravelPolar\Data\WebhookBenefitGrantCreatedPayload;
 
 class BenefitGrantCreated
 {

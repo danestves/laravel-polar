@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Polar\Models\Components\WebhookCustomerStateChangedPayload;
+use Danestves\LaravelPolar\Data\WebhookCustomerStateChangedPayload;
 
 class CustomerStateChanged extends WebhookEvent
 {

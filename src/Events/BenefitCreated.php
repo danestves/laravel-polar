@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Polar\Models\Components\WebhookBenefitCreatedPayload;
+use Danestves\LaravelPolar\Data\WebhookBenefitCreatedPayload;
 
 class BenefitCreated extends WebhookEvent
 {

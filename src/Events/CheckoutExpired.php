@@ -2,7 +2,7 @@
 
 namespace Danestves\LaravelPolar\Events;
 
-use Polar\Models\Components\WebhookCheckoutExpiredPayload;
+use Danestves\LaravelPolar\Data\WebhookCheckoutExpiredPayload;
 
 class CheckoutExpired extends WebhookEvent
 {

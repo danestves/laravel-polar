@@ -6,7 +6,7 @@ use Danestves\LaravelPolar\Subscription;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Polar\Models\Components\WebhookSubscriptionActivePayload;
+use Danestves\LaravelPolar\Data\WebhookSubscriptionActivePayload;
 
 class SubscriptionActive
 {
