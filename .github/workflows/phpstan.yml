@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "**.php"
+      - "**.php.stub"
       - "phpstan.neon.dist"
       - ".github/workflows/phpstan.yml"
 
