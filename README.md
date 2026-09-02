@@ -197,7 +197,7 @@ $subscription->currentPeriodEnd;   // Carbon\CarbonImmutable
 $subscription->customer->email;    // nested objects are typed too
 ```
 
-These classes are generated from [Polar's published OpenAPI document](https://api.polar.sh/openapi.json) and committed to the repository, so they always match the documented API. The package pins the API version it was generated against (`2026-04`) and sends it on every request, so a change to Polar's default cannot silently reshape your responses.
+These classes are generated from [Polar's published OpenAPI document](https://docs.polar.sh/openapi.json) and committed to the repository, so they always match the documented API. The package pins the API version it was generated against (`2026-04`) and sends it on every request, so a change to Polar's default cannot silently reshape your responses.
 
 When Polar ships API changes, regenerate with:
 

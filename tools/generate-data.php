@@ -12,11 +12,12 @@
  * Usage:
  *   php tools/generate-data.php [path-or-url-to-openapi.json]
  *
- * Defaults to https://api.polar.sh/openapi.json. The generated files are committed to the
- * repository; this script is a maintenance tool, never a runtime dependency.
+ * Defaults to https://docs.polar.sh/openapi.json, the document Polar publishes today. The
+ * generated files are committed to the repository; this script is a maintenance tool, never a
+ * runtime dependency.
  */
 
-const SPEC_DEFAULT = 'https://api.polar.sh/openapi.json';
+const SPEC_DEFAULT = 'https://docs.polar.sh/openapi.json';
 const DATA_NS = 'Danestves\\LaravelPolar\\Data';
 const ENUM_NS = 'Danestves\\LaravelPolar\\Enums';
 
@@ -63,10 +64,13 @@ const ROOTS = [
  * discriminator and the members are told apart by enum combinations or by a nested field.
  * These overrides supply that missing knowledge, keeping everything else spec-driven.
  *
- * - `morphKeys`  properties to tag with #[PropertyForMorph] so laravel-data hands them to morph()
- * - `morphBody`  the body of the generated morph() method
- * - `factory`    an extra static factory, for unions keyed on a nested field (morph() only sees
- *                top-level scalars, so nested discrimination needs an explicit entry point)
+ * - `morphKeys`      properties to tag with #[PropertyForMorph] so laravel-data hands them to morph()
+ * - `morphOptional`  morph keys the payload may legitimately omit; the base declares them
+ *                    nullable with a null default, since laravel-data refuses to morph at all
+ *                    when a morph key is neither present nor defaulted
+ * - `morphBody`      the body of the generated morph() method
+ * - `factory`        an extra static factory, for unions keyed on a nested field (morph() only
+ *                    sees top-level scalars, so nested discrimination needs an explicit entry point)
  */
 const UNION_OVERRIDES = [
     // `type` and `duration` are plain enums on every member; the pairing selects the class.
@@ -95,6 +99,28 @@ const UNION_OVERRIDES = [
                 return $properties['type'] === 'card'
                     ? PaymentMethodCard::class
                     : PaymentMethodGeneric::class;
+        PHP,
+    ],
+    // Polar exposes prices as `LegacyRecurringProductPrice|ProductPrice`, and both halves key on
+    // `amount_type` — so `fixed` and `custom` are ambiguous, and `seat_based`/`metered_unit` only
+    // exist on the modern half. laravel-data resolves a union property to its *first* data class
+    // and never tries the others, so whichever base wins has to answer for the whole field.
+    // Only legacy prices carry `type: "recurring"`; everything else is handed to ProductPrice.
+    'LegacyRecurringProductPrice' => [
+        'morphKeys' => ['amount_type', 'type'],
+        // Modern prices dropped `type` entirely, so the base cannot require it.
+        'morphOptional' => ['type'],
+        'uses' => [],
+        'morphBody' => <<<'PHP'
+                if ($properties['type'] !== 'recurring') {
+                    return ProductPrice::morph($properties);
+                }
+
+                return match ($properties['amountType']) {
+                    'custom' => LegacyRecurringProductPriceCustom::class,
+                    'fixed' => LegacyRecurringProductPriceFixed::class,
+                    default => null,
+                };
         PHP,
     ],
     // Benefit grants are keyed on the nested benefit's type, which morph() cannot reach.
@@ -161,6 +187,9 @@ const FIXTURE_ROOTS = [
     'CustomerIndividual', 'CustomerStateIndividual', 'BenefitCustom', 'BenefitGrantCustomWebhook',
     'CustomFieldText', 'DiscountFixedOnceForeverDuration', 'PaymentMethodCard',
     'DownloadableFileRead',
+    // Every price shape, so the `LegacyRecurringProductPrice|ProductPrice` union stays covered.
+    'ProductPriceFixed', 'ProductPriceCustom', 'ProductPriceSeatBased', 'ProductPriceMeteredUnit',
+    'LegacyRecurringProductPriceFixed', 'LegacyRecurringProductPriceCustom',
 ];
 
 $specPath = $argv[1] ?? SPEC_DEFAULT;
@@ -593,11 +622,13 @@ final class DataGenerator
 
         if ($override !== null) {
             $keys = $override['morphKeys'];
+            $optionalKeys = $override['morphOptional'] ?? [];
             $morphBody = $override['morphBody'] ?? null;
             $factory = $override['factory'] ?? null;
             $uses = [...$uses, ...$override['uses']];
         } else {
             [$keys, $mapping] = $discriminators;
+            $optionalKeys = [];
             $factory = null;
 
             $arms = [];
@@ -633,7 +664,9 @@ final class DataGenerator
             $props[] = $this->renderProperty(
                 $propName,
                 $propSchema,
-                required: true,
+                // A morph key some payloads legitimately omit has to be nullable with a default:
+                // laravel-data bails out of morphing entirely when a morph key has neither.
+                required: ! in_array($propName, $optionalKeys, true),
                 uses: $uses,
                 attributes: $isMorphKey ? ['#[PropertyForMorph]'] : [],
                 promoted: false,
