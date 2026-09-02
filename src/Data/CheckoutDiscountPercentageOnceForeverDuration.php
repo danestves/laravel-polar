@@ -8,15 +8,15 @@ namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\DiscountDuration;
 use Danestves\LaravelPolar\Enums\DiscountType;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema for a percentage discount that is applied once or forever.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CheckoutDiscountPercentageOnceForeverDuration extends Data
+class CheckoutDiscountPercentageOnceForeverDuration extends PolarData
 {
     public function __construct(
         public readonly DiscountDuration $duration,

@@ -9,12 +9,12 @@ namespace Danestves\LaravelPolar\Data;
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\RefundReason;
 use Danestves\LaravelPolar\Enums\RefundStatus;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-class Refund extends Data
+class Refund extends PolarData
 {
     public function __construct(
         /**

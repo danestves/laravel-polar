@@ -8,15 +8,15 @@ namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\PresentmentCurrency;
 use Danestves\LaravelPolar\Enums\TaxBehaviorOption;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema to create a pay-what-you-want price.
  */
 #[MapName(SnakeCaseMapper::class)]
-class ProductPriceCustomCreate extends Data
+class ProductPriceCustomCreate extends PolarData
 {
     public function __construct(
         public readonly string $amountType = 'custom',

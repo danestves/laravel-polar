@@ -6,15 +6,15 @@ declare(strict_types=1);
 
 namespace Danestves\LaravelPolar\Data;
 
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Properties for creating a benefit of type `meter_unit`.
  */
 #[MapName(SnakeCaseMapper::class)]
-class BenefitMeterCreditCreateProperties extends Data
+class BenefitMeterCreditCreateProperties extends PolarData
 {
     public function __construct(
         public readonly int $units,

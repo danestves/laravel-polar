@@ -6,15 +6,15 @@ declare(strict_types=1);
 
 namespace Danestves\LaravelPolar\Data;
 
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema to update a custom field of type date.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CustomFieldUpdateDate extends Data implements CustomFieldUpdate
+class CustomFieldUpdateDate extends PolarData implements CustomFieldUpdate
 {
     public function __construct(
         /**

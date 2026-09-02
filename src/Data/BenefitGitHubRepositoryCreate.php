@@ -7,12 +7,12 @@ declare(strict_types=1);
 namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\BenefitVisibility;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-class BenefitGitHubRepositoryCreate extends Data implements BenefitCreate
+class BenefitGitHubRepositoryCreate extends PolarData implements BenefitCreate
 {
     public function __construct(
         /**

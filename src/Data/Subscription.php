@@ -10,12 +10,12 @@ use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\CustomerCancellationReason;
 use Danestves\LaravelPolar\Enums\RecurringInterval;
 use Danestves\LaravelPolar\Enums\SubscriptionStatus;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-class Subscription extends Data
+class Subscription extends PolarData
 {
     public function __construct(
         /**

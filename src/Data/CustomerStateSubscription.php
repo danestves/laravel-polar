@@ -8,15 +8,15 @@ namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\RecurringInterval;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * An active customer subscription.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CustomerStateSubscription extends Data
+class CustomerStateSubscription extends PolarData
 {
     public function __construct(
         /**

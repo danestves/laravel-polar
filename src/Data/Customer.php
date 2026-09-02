@@ -7,14 +7,14 @@ declare(strict_types=1);
 namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Attributes\PropertyForMorph;
 use Spatie\LaravelData\Contracts\PropertyMorphableData;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-abstract class Customer extends Data implements PropertyMorphableData
+abstract class Customer extends PolarData implements PropertyMorphableData
 {
     /**
      * The ID of the customer.

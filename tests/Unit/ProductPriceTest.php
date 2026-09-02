@@ -2,6 +2,20 @@
 
 use Danestves\LaravelPolar\Data;
 
+it('hydrates Polar timestamps with microseconds', function () {
+    $product = Data\Product::from(polarFixture('Product', [
+        'created_at' => '2025-11-18T04:35:00.230607Z',
+        'modified_at' => '2026-01-14T17:04:58.235496Z',
+        'prices' => [polarFixture('ProductPriceFixed', [
+            'created_at' => '2025-12-04T12:51:41.000739Z',
+        ])],
+    ]));
+
+    expect($product->createdAt->format('Y-m-d H:i:s.u'))->toBe('2025-11-18 04:35:00.230607')
+        ->and($product->modifiedAt?->format('Y-m-d H:i:s.u'))->toBe('2026-01-14 17:04:58.235496')
+        ->and($product->prices[0]->createdAt->format('Y-m-d H:i:s.u'))->toBe('2025-12-04 12:51:41.000739');
+});
+
 /**
  * Polar returns prices as `LegacyRecurringProductPrice|ProductPrice`, and both halves of that
  * union discriminate on `amount_type`. laravel-data only ever asks the first class in a union

@@ -10,12 +10,12 @@ use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\ProductVisibility;
 use Danestves\LaravelPolar\Enums\RecurringInterval;
 use Danestves\LaravelPolar\Enums\TrialInterval;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-class OrderProduct extends Data
+class OrderProduct extends PolarData
 {
     public function __construct(
         /**

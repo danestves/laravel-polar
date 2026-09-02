@@ -7,15 +7,15 @@ declare(strict_types=1);
 namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\MeterUnit;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * A meter associated to a metered price.
  */
 #[MapName(SnakeCaseMapper::class)]
-class ProductPriceMeter extends Data
+class ProductPriceMeter extends PolarData
 {
     public function __construct(
         /**

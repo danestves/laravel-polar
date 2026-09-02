@@ -8,15 +8,15 @@ namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\PresentmentCurrency;
 use Danestves\LaravelPolar\Enums\TaxBehaviorOption;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema to create a metered price with a fixed unit price.
  */
 #[MapName(SnakeCaseMapper::class)]
-class ProductPriceMeteredUnitCreate extends Data
+class ProductPriceMeteredUnitCreate extends PolarData
 {
     public function __construct(
         /**

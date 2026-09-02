@@ -8,12 +8,12 @@ namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\SubscriptionProrationBehavior;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-class SubscriptionUpdateBase extends Data implements SubscriptionUpdate
+class SubscriptionUpdateBase extends PolarData implements SubscriptionUpdate
 {
     public function __construct(
         /**
