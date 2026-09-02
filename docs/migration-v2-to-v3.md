@@ -228,4 +228,4 @@ The `Data` and `Enums` classes are generated from Polar's published OpenAPI docu
 composer generate-data
 ```
 
-This reads `https://api.polar.sh/openapi.json`, rewrites `src/Data` and `src/Enums`, refreshes the test fixtures, and formats the result. Pass a path or URL as an argument to generate against a specific document.
+This reads `https://docs.polar.sh/openapi.json`, rewrites `src/Data` and `src/Enums`, refreshes the test fixtures, and formats the result. Pass a path or URL as an argument to generate against a specific document.

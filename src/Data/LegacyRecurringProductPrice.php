@@ -64,7 +64,8 @@ abstract class LegacyRecurringProductPrice extends Data implements PropertyMorph
      */
     public string $productId;
 
-    public string $type;
+    #[PropertyForMorph]
+    public ?string $type = null;
 
     /**
      * The recurring interval of the price.
@@ -75,6 +76,10 @@ abstract class LegacyRecurringProductPrice extends Data implements PropertyMorph
 
     public static function morph(array $properties): ?string
     {
+        if ($properties['type'] !== 'recurring') {
+            return ProductPrice::morph($properties);
+        }
+
         return match ($properties['amountType']) {
             'custom' => LegacyRecurringProductPriceCustom::class,
             'fixed' => LegacyRecurringProductPriceFixed::class,

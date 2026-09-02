@@ -17,22 +17,6 @@ class SubscriptionUpdateBase extends Data implements SubscriptionUpdate
 {
     public function __construct(
         /**
-         * Key-value object allowing you to store additional information.
-         *
-         * The key must be a string with a maximum length of **40 characters**.
-         * The value must be either:
-         *
-         * * A string with a maximum length of **500 characters**
-         * * An integer
-         * * A floating-point number
-         * * A boolean
-         *
-         * You can store up to **50 key-value pairs**.
-         *
-         * @var array<string, mixed>|null
-         */
-        public readonly ?array $metadata = null,
-        /**
          * Update subscription to another product.
          */
         public readonly ?string $productId = null,
