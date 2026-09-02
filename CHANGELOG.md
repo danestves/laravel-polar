@@ -2,6 +2,37 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v3.1.0 - 2026-09-02
+
+`v3.1.0` fixes product price hydration. On `v3.0.0`, any product or checkout carrying a price that is not a legacy recurring price failed to parse — including every seat-based product.
+
+### Fixes
+
+**Modern product prices could not be hydrated** ([#90](https://github.com/danestves/laravel-polar/issues/90)). Polar returns prices as `LegacyRecurringProductPrice|ProductPrice`, and both halves of that union discriminate on `amount_type`. spatie/laravel-data resolves a union-typed property to its *first* data class and never tries the others, so every price was handed to `LegacyRecurringProductPrice::morph()` — which only knows `custom` and `fixed`:
+
+| price | on `v3.0.0` |
+| --- | --- |
+| `seat_based` | `CannotCreateAbstractClass` |
+| `metered_unit` | `CannotCreateAbstractClass` |
+| `custom` | `TypeError` on `LegacyRecurringProductPriceCustom::$minimumAmount` |
+| `fixed` | silently hydrated as a *legacy* price, with `type`, `recurring_interval` and `legacy` left uninitialised |
+
+This hit `LaravelPolar::createCheckout()`, `Product`, `CheckoutLink`, `Subscription`, and the `checkout.created` / `checkout.updated` typed webhooks. Only legacy prices carry `type: "recurring"`, so the base class now keys on that field as well and hands everything else to `ProductPrice::morph()`. All six price shapes are covered by tests.
+
+### Changes
+
+- **`spatie/laravel-data` minimum raised to `^4.19`.** Optional morph keys need the resolver guard added in 4.19.0; on 4.18 and below a supplied discriminator gets overwritten by its default. Run `composer update spatie/laravel-data` if you are pinned lower.
+- **`composer generate-data` now reads `https://docs.polar.sh/openapi.json`.** The old `https://api.polar.sh/openapi.json` returns 404. Still API version `2026-04`.
+- **`SubscriptionUpdateBase` no longer accepts `metadata`.** Polar dropped the field from the subscription update body, so passing it did nothing. The `Subscription` model methods (`swap`, `cancel`, `applyDiscount`, `updateTrial`, …) are unaffected.
+
+### Upgrading
+
+```bash
+composer update danestves/laravel-polar
+
+```
+No migrations, no config changes. If you construct `Data\SubscriptionUpdateBase` directly with `metadata:`, drop that argument.
+
 ## v3.0.0 - 2026-08-18
 
 `v3.0.0` removes the deprecated `polar-sh/sdk` dependency. Polar [deprecated their PHP SDK](https://github.com/polarsource/polar-php) in July 2026 and now recommend calling the API directly over HTTP, so that is what this package does.
@@ -73,6 +104,7 @@ Access to XMLHttpRequest at 'https://sandbox.polar.sh/checkout/...'
 ... has been blocked by CORS policy
 
 
+
 ```
 No setup needed — works out of the box when `inertiajs/inertia-laravel` is installed. The package has zero hard dependency on Inertia (detection is gated behind `class_exists()`).
 
@@ -98,6 +130,7 @@ LaravelPolar::getOrganization('org_xxx');
 
 // Escape hatch for anything not wrapped:
 LaravelPolar::sdk()->...
+
 
 
 
@@ -128,6 +161,7 @@ LaravelPolar::resendSeatInvitation('seat_xxx');
 
 
 
+
 ```
 See [`docs/migration-v2.10-to-v2.11.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.10-to-v2.11.md).
 
@@ -144,6 +178,7 @@ Adds Cashier-style invoice/receipt access on the Order model.
 ```php
 $order->receiptUrl();       // ?string, memoized per instance
 $order->downloadInvoice();  // RedirectResponse — strict (throws on null)
+
 
 
 
@@ -178,6 +213,7 @@ $user->licenseKeys();
 
 
 
+
 ```
 New optional config: `polar.organization_id` / `POLAR_ORGANIZATION_ID` for the public-facing methods.
 
@@ -196,6 +232,7 @@ Closes the Cashier-parallel gap from the v2.5 admin Discount CRUD: the package c
 ```php
 $subscription->applyDiscount('disc_xxx');
 $subscription->removeDiscount();
+
 
 
 
@@ -235,6 +272,7 @@ $order->customFieldData();
 
 
 
+
 ```
 See [`docs/migration-v2.6-to-v2.7.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.6-to-v2.7.md).
 
@@ -257,6 +295,7 @@ LaravelPolar::updateCheckoutLink('cl_xxx', new Components\CheckoutLinkUpdate(lab
 LaravelPolar::deleteCheckoutLink('cl_xxx');
 LaravelPolar::listCheckoutLinks();
 LaravelPolar::getCheckoutLink('cl_xxx');
+
 
 
 
@@ -295,6 +334,7 @@ LaravelPolar::getDiscount('disc_xxx');
 
 
 
+
 ```
 See [`docs/migration-v2.4-to-v2.5.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.4-to-v2.5.md).
 
@@ -314,6 +354,7 @@ use Polar\Models\Components\RefundReason;
 $order->refund();                                              // refund the remaining unrefunded amount
 $order->refund(amount: 2500, reason: RefundReason::Fraudulent); // partial refund with custom reason
 $order->refunds();                                             // Collection of Refund items for this order
+
 
 
 
@@ -501,6 +542,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -527,11 +569,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
