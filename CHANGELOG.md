@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v3.1.1 - 2026-09-02
+
+### Fixed
+
+- Polar's API returns timestamps with microseconds (`2025-11-18T04:35:00.230607Z`), not the `DATE_ATOM` shape its documentation advertises. Every DTO hydration threw `Spatie\LaravelData\Exceptions\CannotCastDate`, which made v3.x unusable against the live API. DTOs now accept both formats, and the application's global `data.date_format` configuration is left untouched. Thanks @einenlum for the report and the fix. (#93, closes #92)
+
+**Full Changelog**: https://github.com/danestves/laravel-polar/compare/v3.1.0...v3.1.1
+
 ## v3.1.0 - 2026-09-02
 
 `v3.1.0` fixes product price hydration. On `v3.0.0`, any product or checkout carrying a price that is not a legacy recurring price failed to parse — including every seat-based product.
@@ -29,6 +37,7 @@ This hit `LaravelPolar::createCheckout()`, `Product`, `CheckoutLink`, `Subscript
 
 ```bash
 composer update danestves/laravel-polar
+
 
 ```
 No migrations, no config changes. If you construct `Data\SubscriptionUpdateBase` directly with `metadata:`, drop that argument.
@@ -105,6 +114,7 @@ Access to XMLHttpRequest at 'https://sandbox.polar.sh/checkout/...'
 
 
 
+
 ```
 No setup needed — works out of the box when `inertiajs/inertia-laravel` is installed. The package has zero hard dependency on Inertia (detection is gated behind `class_exists()`).
 
@@ -130,6 +140,7 @@ LaravelPolar::getOrganization('org_xxx');
 
 // Escape hatch for anything not wrapped:
 LaravelPolar::sdk()->...
+
 
 
 
@@ -162,6 +173,7 @@ LaravelPolar::resendSeatInvitation('seat_xxx');
 
 
 
+
 ```
 See [`docs/migration-v2.10-to-v2.11.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.10-to-v2.11.md).
 
@@ -178,6 +190,7 @@ Adds Cashier-style invoice/receipt access on the Order model.
 ```php
 $order->receiptUrl();       // ?string, memoized per instance
 $order->downloadInvoice();  // RedirectResponse — strict (throws on null)
+
 
 
 
@@ -214,6 +227,7 @@ $user->licenseKeys();
 
 
 
+
 ```
 New optional config: `polar.organization_id` / `POLAR_ORGANIZATION_ID` for the public-facing methods.
 
@@ -232,6 +246,7 @@ Closes the Cashier-parallel gap from the v2.5 admin Discount CRUD: the package c
 ```php
 $subscription->applyDiscount('disc_xxx');
 $subscription->removeDiscount();
+
 
 
 
@@ -273,6 +288,7 @@ $order->customFieldData();
 
 
 
+
 ```
 See [`docs/migration-v2.6-to-v2.7.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.6-to-v2.7.md).
 
@@ -295,6 +311,7 @@ LaravelPolar::updateCheckoutLink('cl_xxx', new Components\CheckoutLinkUpdate(lab
 LaravelPolar::deleteCheckoutLink('cl_xxx');
 LaravelPolar::listCheckoutLinks();
 LaravelPolar::getCheckoutLink('cl_xxx');
+
 
 
 
@@ -335,6 +352,7 @@ LaravelPolar::getDiscount('disc_xxx');
 
 
 
+
 ```
 See [`docs/migration-v2.4-to-v2.5.md`](https://github.com/danestves/laravel-polar/blob/main/docs/migration-v2.4-to-v2.5.md).
 
@@ -354,6 +372,7 @@ use Polar\Models\Components\RefundReason;
 $order->refund();                                              // refund the remaining unrefunded amount
 $order->refund(amount: 2500, reason: RefundReason::Fraudulent); // partial refund with custom reason
 $order->refunds();                                             // Collection of Refund items for this order
+
 
 
 
@@ -543,6 +562,7 @@ composer require danestves/laravel-polar:^2.0
 
 
 
+
 ```
 After installation:
 
@@ -570,11 +590,13 @@ After installation:
    
    
    
+   
    ```
 2. **Run migrations** (if any new ones exist):
    
    ```bash
    php artisan migrate
+   
    
    
    
