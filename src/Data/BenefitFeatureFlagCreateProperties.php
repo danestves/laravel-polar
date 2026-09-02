@@ -6,12 +6,12 @@ declare(strict_types=1);
 
 namespace Danestves\LaravelPolar\Data;
 
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Properties for creating a benefit of type `feature_flag`.
  */
 #[MapName(SnakeCaseMapper::class)]
-class BenefitFeatureFlagCreateProperties extends Data {}
+class BenefitFeatureFlagCreateProperties extends PolarData {}

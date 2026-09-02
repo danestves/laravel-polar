@@ -7,15 +7,15 @@ declare(strict_types=1);
 namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\MetricType;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Information about a metric.
  */
 #[MapName(SnakeCaseMapper::class)]
-class Metric extends Data
+class Metric extends PolarData
 {
     public function __construct(
         /**

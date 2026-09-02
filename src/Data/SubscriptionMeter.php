@@ -7,15 +7,15 @@ declare(strict_types=1);
 namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Current consumption and spending for a subscription meter.
  */
 #[MapName(SnakeCaseMapper::class)]
-class SubscriptionMeter extends Data
+class SubscriptionMeter extends PolarData
 {
     public function __construct(
         /**

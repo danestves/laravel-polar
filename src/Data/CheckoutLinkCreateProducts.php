@@ -7,15 +7,15 @@ declare(strict_types=1);
 namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\TrialInterval;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema to create a new checkout link.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CheckoutLinkCreateProducts extends Data implements CheckoutLinkCreate
+class CheckoutLinkCreateProducts extends PolarData implements CheckoutLinkCreate
 {
     public function __construct(
         /**

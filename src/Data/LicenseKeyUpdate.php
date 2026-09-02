@@ -8,12 +8,12 @@ namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\LicenseKeyStatus;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-class LicenseKeyUpdate extends Data
+class LicenseKeyUpdate extends PolarData
 {
     public function __construct(
         public readonly ?LicenseKeyStatus $status = null,

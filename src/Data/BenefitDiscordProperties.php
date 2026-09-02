@@ -6,15 +6,15 @@ declare(strict_types=1);
 
 namespace Danestves\LaravelPolar\Data;
 
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Properties for a benefit of type `discord`.
  */
 #[MapName(SnakeCaseMapper::class)]
-class BenefitDiscordProperties extends Data
+class BenefitDiscordProperties extends PolarData
 {
     public function __construct(
         /**

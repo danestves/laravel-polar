@@ -10,15 +10,15 @@ use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\ProductVisibility;
 use Danestves\LaravelPolar\Enums\RecurringInterval;
 use Danestves\LaravelPolar\Enums\TrialInterval;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Product data for a checkout link.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CheckoutLinkProduct extends Data
+class CheckoutLinkProduct extends PolarData
 {
     public function __construct(
         /**

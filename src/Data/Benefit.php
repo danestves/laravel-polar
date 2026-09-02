@@ -8,14 +8,14 @@ namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\BenefitVisibility;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Attributes\PropertyForMorph;
 use Spatie\LaravelData\Contracts\PropertyMorphableData;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-abstract class Benefit extends Data implements PropertyMorphableData
+abstract class Benefit extends PolarData implements PropertyMorphableData
 {
     /**
      * The ID of the benefit.

@@ -615,8 +615,8 @@ final class DataGenerator
         $shared = $this->sharedProperties($members);
 
         $uses = [
+            'Danestves\\LaravelPolar\\Support\\PolarData',
             'Spatie\\LaravelData\\Attributes\\MapName',
-            'Spatie\\LaravelData\\Data',
             'Spatie\\LaravelData\\Mappers\\SnakeCaseMapper',
         ];
 
@@ -700,7 +700,7 @@ final class DataGenerator
 
         {$usesBody}
         {$doc}#[MapName(SnakeCaseMapper::class)]
-        abstract class {$class} extends Data{$implements}
+        abstract class {$class} extends PolarData{$implements}
         {
         {$propsBody}{$methodsBody}
         }
@@ -750,8 +750,8 @@ final class DataGenerator
             $skip = array_keys($this->baseProperties($parent, $parentMembers));
             $extends = $this->className($parent);
         } else {
-            $uses[] = 'Spatie\\LaravelData\\Data';
-            $extends = 'Data';
+            $uses[] = 'Danestves\\LaravelPolar\\Support\\PolarData';
+            $extends = 'PolarData';
         }
 
         $implements = '';

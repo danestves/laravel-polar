@@ -8,8 +8,8 @@ namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\PresentmentCurrency;
 use Danestves\LaravelPolar\Enums\TrialInterval;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
@@ -20,7 +20,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
  * to the resulting order and/or subscription.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CheckoutProductsCreate extends Data
+class CheckoutProductsCreate extends PolarData
 {
     public function __construct(
         /**

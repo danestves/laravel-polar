@@ -6,15 +6,15 @@ declare(strict_types=1);
 
 namespace Danestves\LaravelPolar\Data;
 
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema to create a custom field of type checkbox.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CustomFieldCreateCheckbox extends Data implements CustomFieldCreate
+class CustomFieldCreateCheckbox extends PolarData implements CustomFieldCreate
 {
     public function __construct(
         /**

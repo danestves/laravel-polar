@@ -10,15 +10,15 @@ use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\DiscountDuration;
 use Danestves\LaravelPolar\Enums\DiscountType;
 use Danestves\LaravelPolar\Enums\PresentmentCurrency;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema to update a discount.
  */
 #[MapName(SnakeCaseMapper::class)]
-class DiscountUpdate extends Data
+class DiscountUpdate extends PolarData
 {
     public function __construct(
         /**

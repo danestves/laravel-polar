@@ -11,15 +11,15 @@ use Danestves\LaravelPolar\Enums\CheckoutStatus;
 use Danestves\LaravelPolar\Enums\PaymentProcessor;
 use Danestves\LaravelPolar\Enums\TaxBehavior;
 use Danestves\LaravelPolar\Enums\TrialInterval;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Checkout session data retrieved using an access token.
  */
 #[MapName(SnakeCaseMapper::class)]
-class Checkout extends Data
+class Checkout extends PolarData
 {
     public function __construct(
         /**

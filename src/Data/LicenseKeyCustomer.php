@@ -8,12 +8,12 @@ namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\CustomerType;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-class LicenseKeyCustomer extends Data
+class LicenseKeyCustomer extends PolarData
 {
     public function __construct(
         /**

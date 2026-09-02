@@ -6,15 +6,15 @@ declare(strict_types=1);
 
 namespace Danestves\LaravelPolar\Data;
 
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * `auto_accept_below_amount` is in Polar's settlement currency (USD).
  */
 #[MapName(SnakeCaseMapper::class)]
-class OrganizationDisputeSettings extends Data
+class OrganizationDisputeSettings extends PolarData
 {
     public function __construct(
         public readonly ?int $autoAcceptBelowAmount,

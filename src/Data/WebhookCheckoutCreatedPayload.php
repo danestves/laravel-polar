@@ -7,8 +7,8 @@ declare(strict_types=1);
 namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
@@ -17,7 +17,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
  * **Discord & Slack support:** Basic
  */
 #[MapName(SnakeCaseMapper::class)]
-class WebhookCheckoutCreatedPayload extends Data
+class WebhookCheckoutCreatedPayload extends PolarData
 {
     public function __construct(
         public readonly CarbonImmutable $timestamp,

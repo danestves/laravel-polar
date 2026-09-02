@@ -8,8 +8,8 @@ namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\DisputeStatus;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
@@ -17,7 +17,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
  * in case we prevented a dispute by issuing a refund.
  */
 #[MapName(SnakeCaseMapper::class)]
-class RefundDispute extends Data
+class RefundDispute extends PolarData
 {
     public function __construct(
         /**

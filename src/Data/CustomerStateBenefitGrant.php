@@ -8,15 +8,15 @@ namespace Danestves\LaravelPolar\Data;
 
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\BenefitType;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * An active benefit grant for a customer.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CustomerStateBenefitGrant extends Data
+class CustomerStateBenefitGrant extends PolarData
 {
     public function __construct(
         /**

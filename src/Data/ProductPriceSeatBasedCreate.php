@@ -8,15 +8,15 @@ namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\PresentmentCurrency;
 use Danestves\LaravelPolar\Enums\TaxBehaviorOption;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema to create a seat-based price with volume-based tiers.
  */
 #[MapName(SnakeCaseMapper::class)]
-class ProductPriceSeatBasedCreate extends Data
+class ProductPriceSeatBasedCreate extends PolarData
 {
     public function __construct(
         /**

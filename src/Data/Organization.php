@@ -10,12 +10,12 @@ use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\OrganizationStatus;
 use Danestves\LaravelPolar\Enums\SubscriptionProrationBehavior;
 use Danestves\LaravelPolar\Enums\TaxBehaviorOption;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
-class Organization extends Data
+class Organization extends PolarData
 {
     public function __construct(
         /**

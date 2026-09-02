@@ -6,15 +6,15 @@ declare(strict_types=1);
 
 namespace Danestves\LaravelPolar\Data;
 
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Schema of a custom field attached to a resource.
  */
 #[MapName(SnakeCaseMapper::class)]
-class AttachedCustomField extends Data
+class AttachedCustomField extends PolarData
 {
     public function __construct(
         /**

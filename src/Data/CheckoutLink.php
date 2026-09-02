@@ -9,15 +9,15 @@ namespace Danestves\LaravelPolar\Data;
 use Carbon\CarbonImmutable;
 use Danestves\LaravelPolar\Enums\PaymentProcessor;
 use Danestves\LaravelPolar\Enums\TrialInterval;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
  * Checkout link data.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CheckoutLink extends Data
+class CheckoutLink extends PolarData
 {
     public function __construct(
         /**

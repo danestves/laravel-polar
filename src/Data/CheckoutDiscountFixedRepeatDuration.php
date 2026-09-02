@@ -8,8 +8,8 @@ namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\DiscountDuration;
 use Danestves\LaravelPolar\Enums\DiscountType;
+use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
@@ -17,7 +17,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
  * for a certain number of months.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CheckoutDiscountFixedRepeatDuration extends Data
+class CheckoutDiscountFixedRepeatDuration extends PolarData
 {
     public function __construct(
         public readonly DiscountDuration $duration,
