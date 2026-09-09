@@ -34,7 +34,15 @@ abstract class CheckoutDiscount extends PolarData implements PropertyMorphableDa
 
     public static function morph(array $properties): ?string
     {
-        $repeating = $properties['duration'] === DiscountDuration::Repeating;
+        $repeating = match ($properties['duration']) {
+            DiscountDuration::Repeating => true,
+            DiscountDuration::Once, DiscountDuration::Forever => false,
+            default => null,
+        };
+
+        if ($repeating === null) {
+            return null;
+        }
 
         return match ($properties['type']) {
             DiscountType::Fixed => $repeating
