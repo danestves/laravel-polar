@@ -113,10 +113,7 @@ class Order extends PolarData
         public readonly ?string $platformFeeCurrency,
         public readonly OrderCustomer $customer,
         public readonly ?OrderProduct $product,
-        /**
-         * @var DiscountFixedOnceForeverDurationBase|DiscountFixedRepeatDurationBase|DiscountPercentageOnceForeverDurationBase|DiscountPercentageRepeatDurationBase|null
-         */
-        public readonly DiscountFixedOnceForeverDurationBase|DiscountFixedRepeatDurationBase|DiscountPercentageOnceForeverDurationBase|DiscountPercentageRepeatDurationBase|null $discount,
+        public readonly ?DiscountBase $discount,
         public readonly ?OrderSubscription $subscription,
         /**
          * Line items composing the order.

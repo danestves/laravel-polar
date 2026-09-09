@@ -248,10 +248,7 @@ class Checkout extends PolarData
          * @var array<string, mixed>|null
          */
         public readonly ?array $prices,
-        /**
-         * @var CheckoutDiscountFixedOnceForeverDuration|CheckoutDiscountFixedRepeatDuration|CheckoutDiscountPercentageOnceForeverDuration|CheckoutDiscountPercentageRepeatDuration|null
-         */
-        public readonly CheckoutDiscountFixedOnceForeverDuration|CheckoutDiscountFixedRepeatDuration|CheckoutDiscountPercentageOnceForeverDuration|CheckoutDiscountPercentageRepeatDuration|null $discount,
+        public readonly ?CheckoutDiscount $discount,
         public readonly ?string $subscriptionId,
         /**
          * @var list<AttachedCustomField>|null

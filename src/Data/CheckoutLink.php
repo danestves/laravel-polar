@@ -95,10 +95,7 @@ class CheckoutLink extends PolarData
          * @var list<CheckoutLinkProduct>
          */
         public readonly array $products,
-        /**
-         * @var DiscountFixedOnceForeverDurationBase|DiscountFixedRepeatDurationBase|DiscountPercentageOnceForeverDurationBase|DiscountPercentageRepeatDurationBase|null
-         */
-        public readonly DiscountFixedOnceForeverDurationBase|DiscountFixedRepeatDurationBase|DiscountPercentageOnceForeverDurationBase|DiscountPercentageRepeatDurationBase|null $discount,
+        public readonly ?DiscountBase $discount,
         public readonly string $url,
     ) {}
 }

@@ -73,3 +73,46 @@ it('lists discounts', function () {
     expect(LaravelPolar::listDiscounts()->collect()->pluck('id')->all())
         ->toBe(['disc_1', 'disc_2']);
 });
+
+it('hydrates a non-null nested discount on Checkout, CheckoutLink, Order and Subscription', function () {
+    $checkoutDiscount = [
+        'id' => 'disc_1',
+        'name' => '10% off',
+        'code' => 'SAVE10',
+        'type' => 'percentage',
+        'duration' => 'once',
+        'basis_points' => 1000,
+    ];
+
+    $checkout = Data\Checkout::from(polarFixture('Checkout', ['discount' => $checkoutDiscount]));
+
+    expect($checkout->discount)->toBeInstanceOf(Data\CheckoutDiscountPercentageOnceForeverDuration::class)
+        ->and($checkout->discount->basisPoints)->toBe(1000);
+
+    $baseDiscount = $checkoutDiscount + [
+        'created_at' => '2026-01-01T00:00:00Z',
+        'modified_at' => null,
+        'metadata' => [],
+        'starts_at' => null,
+        'ends_at' => null,
+        'max_redemptions' => null,
+        'max_redemptions_per_customer' => null,
+        'redemptions_count' => 0,
+        'organization_id' => 'org_1',
+    ];
+
+    $order = Data\Order::from(polarFixture('Order', ['discount' => $baseDiscount]));
+    $subscription = Data\Subscription::from(polarFixture('Subscription', ['discount' => $baseDiscount]));
+    $checkoutLink = Data\CheckoutLink::from(polarFixture('CheckoutLink', ['discount' => $baseDiscount]));
+
+    expect($order->discount)->toBeInstanceOf(Data\DiscountPercentageOnceForeverDurationBase::class)
+        ->and($subscription->discount)->toBeInstanceOf(Data\DiscountPercentageOnceForeverDurationBase::class)
+        ->and($checkoutLink->discount)->toBeInstanceOf(Data\DiscountPercentageOnceForeverDurationBase::class);
+});
+
+it('hydrates a null nested discount on Checkout, CheckoutLink, Order and Subscription', function () {
+    expect(Data\Checkout::from(polarFixture('Checkout', ['discount' => null]))->discount)->toBeNull()
+        ->and(Data\Order::from(polarFixture('Order', ['discount' => null]))->discount)->toBeNull()
+        ->and(Data\Subscription::from(polarFixture('Subscription', ['discount' => null]))->discount)->toBeNull()
+        ->and(Data\CheckoutLink::from(polarFixture('CheckoutLink', ['discount' => null]))->discount)->toBeNull();
+});
