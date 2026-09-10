@@ -123,6 +123,64 @@ const UNION_OVERRIDES = [
                 };
         PHP,
     ],
+    // Checkout.discount: same `type`+`duration` discriminator as `Discount`, but the spec
+    // declares the oneOf inline on the property (no named component schema for the union
+    // itself), so it never went through this table until promoteInlineUnions() registered it
+    // under this synthetic name — see INLINE_UNION_SIGNATURES.
+    'CheckoutDiscount' => [
+        'morphKeys' => ['type', 'duration'],
+        'uses' => [ENUM_NS . '\\DiscountDuration', ENUM_NS . '\\DiscountType'],
+        'morphBody' => <<<'PHP'
+                $repeating = match ($properties['duration']) {
+                    DiscountDuration::Repeating => true,
+                    DiscountDuration::Once, DiscountDuration::Forever => false,
+                    default => null,
+                };
+
+                if ($repeating === null) {
+                    return null;
+                }
+
+                return match ($properties['type']) {
+                    DiscountType::Fixed => $repeating
+                        ? CheckoutDiscountFixedRepeatDuration::class
+                        : CheckoutDiscountFixedOnceForeverDuration::class,
+                    DiscountType::Percentage => $repeating
+                        ? CheckoutDiscountPercentageRepeatDuration::class
+                        : CheckoutDiscountPercentageOnceForeverDuration::class,
+                    default => null,
+                };
+        PHP,
+    ],
+    // CheckoutLink.discount / Order.discount / Subscription.discount: the spec repeats the same
+    // inline oneOf of `*Base` discount classes at all three call sites, each with a different
+    // (or absent) `title` — promoteInlineUnions() dedupes them by member signature instead of
+    // by title, so they all resolve to this one synthetic union.
+    'DiscountBase' => [
+        'morphKeys' => ['type', 'duration'],
+        'uses' => [ENUM_NS . '\\DiscountDuration', ENUM_NS . '\\DiscountType'],
+        'morphBody' => <<<'PHP'
+                $repeating = match ($properties['duration']) {
+                    DiscountDuration::Repeating => true,
+                    DiscountDuration::Once, DiscountDuration::Forever => false,
+                    default => null,
+                };
+
+                if ($repeating === null) {
+                    return null;
+                }
+
+                return match ($properties['type']) {
+                    DiscountType::Fixed => $repeating
+                        ? DiscountFixedRepeatDurationBase::class
+                        : DiscountFixedOnceForeverDurationBase::class,
+                    DiscountType::Percentage => $repeating
+                        ? DiscountPercentageRepeatDurationBase::class
+                        : DiscountPercentageOnceForeverDurationBase::class,
+                    default => null,
+                };
+        PHP,
+    ],
     // Benefit grants are keyed on the nested benefit's type, which morph() cannot reach.
     'BenefitGrantWebhook' => [
         'morphKeys' => [],
@@ -172,6 +230,26 @@ const INLINE_ENUMS = [
     // Deliberately not the `RefundReason` response enum: that one also carries
     // `dispute_prevention`, which Polar will not accept when creating a refund.
     'RefundCreate.reason' => 'RefundCreateReason',
+];
+
+/**
+ * Some Polar schemas declare a `oneOf`/`anyOf` union directly on a property instead of via a
+ * `$ref` to a named component schema (Checkout/CheckoutLink/Order/Subscription's `discount`
+ * field, for instance). `phpType()` never runs those through `renderUnion()`, so no abstract
+ * base or `morph()` gets generated and Spatie Data has nothing to hydrate the array into.
+ *
+ * `promoteInlineUnions()` finds these inline unions, computes a signature from the sorted set of
+ * referenced schema names, and — when the signature matches an entry here — synthesizes a named
+ * union schema the rest of the generator treats like any other (registered in UNION_OVERRIDES
+ * below). Signatures are the key, not the property's own `title`: Polar gives the identical
+ * `*Base` discount union a different title on CheckoutLink, Order and Subscription, and naming
+ * from that would fork one set of concrete classes into three incompatible abstract bases.
+ *
+ * Keyed by "sorted, `|`-joined list of referenced schema names" => synthetic union schema name.
+ */
+const INLINE_UNION_SIGNATURES = [
+    'CheckoutDiscountFixedOnceForeverDuration|CheckoutDiscountFixedRepeatDuration|CheckoutDiscountPercentageOnceForeverDuration|CheckoutDiscountPercentageRepeatDuration' => 'CheckoutDiscount',
+    'DiscountFixedOnceForeverDurationBase|DiscountFixedRepeatDurationBase|DiscountPercentageOnceForeverDurationBase|DiscountPercentageRepeatDurationBase' => 'DiscountBase',
 ];
 
 /**
@@ -232,6 +310,7 @@ final class DataGenerator
         }
 
         $this->promoteInlineEnums();
+        $this->promoteInlineUnions();
 
         $dataDir = $root . '/src/Data';
         $enumDir = $root . '/src/Enums';
@@ -507,6 +586,109 @@ final class DataGenerator
 
             $this->closure[$enumName] = true;
         }
+    }
+
+    /**
+     * Finds inline `oneOf`/`anyOf` unions of raw `$ref`s (Checkout/CheckoutLink/Order/
+     * Subscription's `discount` property) and rewrites them to a `$ref` to a synthetic union
+     * schema, registered once per signature and added to the closure so it renders like any
+     * other named union. See INLINE_UNION_SIGNATURES for why this dedupes by member signature
+     * rather than by the property's own `title`.
+     */
+    private function promoteInlineUnions(): void
+    {
+        $created = [];
+
+        foreach (array_keys($this->closure) as $schemaName) {
+            $schema = $this->schemas[$schemaName] ?? null;
+
+            if ($schema === null || ! isset($schema['properties'])) {
+                continue;
+            }
+
+            foreach ($schema['properties'] as $propName => $propSchema) {
+                $rewritten = $this->rewriteInlineRefUnion($propSchema, $created);
+
+                if ($rewritten !== null) {
+                    $this->schemas[$schemaName]['properties'][$propName] = $rewritten;
+                }
+            }
+        }
+    }
+
+    /**
+     * Recursively looks for a `oneOf`/`anyOf` node whose members are all raw `$ref`s (optionally
+     * alongside a `{"type": "null"}` member) matching a known signature, and rewrites it in
+     * place to a `$ref` to the synthetic union schema — creating that schema on first use.
+     * Recurses into members first in case the union sits one level down, which is how Polar
+     * expresses a nullable inline union: `anyOf: [{oneOf: [...refs]}, {type: null}]`.
+     *
+     * @param  array<string, true>  $created  synthetic union names already registered, by reference
+     * @return array<string, mixed>|null  the replacement node, or null if nothing changed
+     */
+    private function rewriteInlineRefUnion(mixed $node, array &$created): ?array
+    {
+        if (! is_array($node)) {
+            return null;
+        }
+
+        $key = match (true) {
+            isset($node['oneOf']) => 'oneOf',
+            isset($node['anyOf']) => 'anyOf',
+            default => null,
+        };
+
+        if ($key === null) {
+            return null;
+        }
+
+        $members = $node[$key];
+        $nullMember = null;
+        $refs = [];
+
+        foreach ($members as $member) {
+            if (($member['type'] ?? null) === 'null') {
+                $nullMember = $member;
+            } elseif (isset($member['$ref'])) {
+                $refs[] = $this->refName($member['$ref']);
+            } else {
+                $refs = null;
+
+                break;
+            }
+        }
+
+        if ($refs !== null && count($refs) >= 2) {
+            $sorted = $refs;
+            sort($sorted);
+            $unionName = INLINE_UNION_SIGNATURES[implode('|', $sorted)] ?? null;
+
+            if ($unionName !== null) {
+                if (! isset($created[$unionName])) {
+                    $this->schemas[$unionName] = [
+                        'oneOf' => array_map(fn($n) => ['$ref' => "#/components/schemas/{$n}"], $refs),
+                    ];
+                    $this->closure[$unionName] = true;
+                    $created[$unionName] = true;
+                }
+
+                $ref = ['$ref' => "#/components/schemas/{$unionName}"];
+
+                return $nullMember !== null ? ['anyOf' => [$ref, $nullMember]] : $ref;
+            }
+        }
+
+        $changed = false;
+        foreach ($members as $i => $member) {
+            $rewritten = $this->rewriteInlineRefUnion($member, $created);
+
+            if ($rewritten !== null) {
+                $members[$i] = $rewritten;
+                $changed = true;
+            }
+        }
+
+        return $changed ? [$key => $members] : null;
     }
 
     // -- collection ---------------------------------------------------------

@@ -131,10 +131,7 @@ class Subscription extends PolarData
         public readonly array $metadata,
         public readonly SubscriptionCustomer $customer,
         public readonly Product $product,
-        /**
-         * @var DiscountFixedOnceForeverDurationBase|DiscountFixedRepeatDurationBase|DiscountPercentageOnceForeverDurationBase|DiscountPercentageRepeatDurationBase|null
-         */
-        public readonly DiscountFixedOnceForeverDurationBase|DiscountFixedRepeatDurationBase|DiscountPercentageOnceForeverDurationBase|DiscountPercentageRepeatDurationBase|null $discount,
+        public readonly ?DiscountBase $discount,
         /**
          * List of enabled prices for the subscription.
          *

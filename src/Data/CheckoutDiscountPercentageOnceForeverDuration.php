@@ -6,9 +6,6 @@ declare(strict_types=1);
 
 namespace Danestves\LaravelPolar\Data;
 
-use Danestves\LaravelPolar\Enums\DiscountDuration;
-use Danestves\LaravelPolar\Enums\DiscountType;
-use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
@@ -16,21 +13,11 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
  * Schema for a percentage discount that is applied once or forever.
  */
 #[MapName(SnakeCaseMapper::class)]
-class CheckoutDiscountPercentageOnceForeverDuration extends PolarData
+class CheckoutDiscountPercentageOnceForeverDuration extends CheckoutDiscount
 {
-    public function __construct(
-        public readonly DiscountDuration $duration,
-        public readonly DiscountType $type,
-        /**
-         * Discount percentage in basis points. A basis point is 1/100th of a percent. For example,
-         * 1000 basis points equals a 10% discount.
-         */
-        public readonly int $basisPoints,
-        /**
-         * The ID of the object.
-         */
-        public readonly string $id,
-        public readonly string $name,
-        public readonly ?string $code,
-    ) {}
+    /**
+     * Discount percentage in basis points. A basis point is 1/100th of a percent. For example,
+     * 1000 basis points equals a 10% discount.
+     */
+    public int $basisPoints;
 }
