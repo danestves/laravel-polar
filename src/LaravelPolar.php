@@ -10,7 +10,7 @@ use Spatie\LaravelData\Data as SpatieData;
 
 class LaravelPolar
 {
-    public const string VERSION = '3.1.1';
+    public const string VERSION = '3.2.0';
 
     /**
      * The cached HTTP client.
