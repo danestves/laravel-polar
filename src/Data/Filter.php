@@ -7,8 +7,10 @@ declare(strict_types=1);
 namespace Danestves\LaravelPolar\Data;
 
 use Danestves\LaravelPolar\Enums\FilterConjunction;
+use Danestves\LaravelPolar\Support\FilterClausesCast;
 use Danestves\LaravelPolar\Support\PolarData;
 use Spatie\LaravelData\Attributes\MapName;
+use Spatie\LaravelData\Attributes\WithCast;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 #[MapName(SnakeCaseMapper::class)]
@@ -19,6 +21,7 @@ class Filter extends PolarData
         /**
          * @var list<FilterClause|Filter>
          */
+        #[WithCast(FilterClausesCast::class)]
         public readonly array $clauses,
     ) {}
 }

@@ -20,6 +20,7 @@
 const SPEC_DEFAULT = 'https://docs.polar.sh/openapi.json';
 const DATA_NS = 'Danestves\\LaravelPolar\\Data';
 const ENUM_NS = 'Danestves\\LaravelPolar\\Enums';
+const SUPPORT_NS = 'Danestves\\LaravelPolar\\Support';
 
 /**
  * Schemas the package actually surfaces. Everything else is pulled in transitively, so this
@@ -230,6 +231,20 @@ const INLINE_ENUMS = [
     // Deliberately not the `RefundReason` response enum: that one also carries
     // `dispute_prevention`, which Polar will not accept when creating a refund.
     'RefundCreate.reason' => 'RefundCreateReason',
+];
+
+/**
+ * Properties whose union cannot be resolved by laravel-data and is not worth a synthetic morph
+ * base: the members share no discriminator and are told apart by shape alone. A hand-written
+ * cast owns the hydration instead.
+ *
+ * Keyed by "Schema.property" => cast class, resolved against the package's Support namespace.
+ */
+const PROPERTY_CASTS = [
+    // `clauses` holds a recursive `FilterClause|Filter` anyOf. laravel-data resolves a union to
+    // its first data class and never tries the others, so a nested group would be handed to
+    // FilterClause and blow up on its required constructor arguments.
+    'Filter.clauses' => 'FilterClausesCast',
 ];
 
 /**
@@ -965,11 +980,19 @@ final class DataGenerator
 
         $props = [];
         foreach ($ordered as $propName => $propSchema) {
+            $cast = PROPERTY_CASTS[$name . '.' . $propName] ?? null;
+
+            if ($cast !== null) {
+                $uses[] = 'Spatie\\LaravelData\\Attributes\\WithCast';
+                $uses[] = SUPPORT_NS . '\\' . $cast;
+            }
+
             $props[] = $this->renderProperty(
                 $propName,
                 $propSchema,
                 required: in_array($propName, $required, true),
                 uses: $uses,
+                attributes: $cast === null ? [] : ["#[WithCast({$cast}::class)]"],
                 promoted: $parent === null,
             );
         }
