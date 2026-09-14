@@ -127,3 +127,31 @@ it('raises on a failed ingest', function () {
     expect(fn() => LaravelPolar::ingestEvents(['events' => []]))
         ->toThrow(\Danestves\LaravelPolar\Exceptions\PolarApiError::class);
 });
+
+it('hydrates a meter filter that nests a clause group', function () {
+    fakePolarList('v1/customer-meters/*', [polarFixture('CustomerMeter', [
+        'meter' => [
+            'filter' => [
+                'conjunction' => 'and',
+                'clauses' => [
+                    [
+                        'conjunction' => 'or',
+                        'clauses' => [
+                            ['property' => 'name', 'operator' => 'eq', 'value' => 'api.call'],
+                        ],
+                    ],
+                    ['property' => 'source', 'operator' => 'eq', 'value' => 'web'],
+                ],
+            ],
+        ],
+    ])]);
+
+    $filter = meteredUser()->listCustomerMeters()->first()->meter->filter;
+
+    expect($filter->clauses[0])->toBeInstanceOf(Data\Filter::class)
+        ->and($filter->clauses[0]->clauses[0])->toBeInstanceOf(Data\FilterClause::class)
+        ->and($filter->clauses[0]->clauses[0]->property)->toBe('name')
+        ->and($filter->clauses[1])->toBeInstanceOf(Data\FilterClause::class)
+        ->and($filter->clauses[1]->value)->toBe('web')
+        ->and($filter->toArray()['clauses'][0]['clauses'][0]['property'])->toBe('name');
+});
