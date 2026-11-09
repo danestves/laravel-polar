@@ -7,6 +7,7 @@ use Danestves\LaravelPolar\Customer;
 use Danestves\LaravelPolar\Tests\Fixtures\User;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Mockery;
 
 beforeEach(function () {
@@ -202,4 +203,48 @@ it('can handle null parameters in charge method', function () {
     $amountProperty->setAccessible(true);
 
     expect($amountProperty->getValue($checkout))->toBe(5000);
+});
+
+it('links an existing Polar customer to the checkout', function () {
+    fakePolar('v1/checkouts/', polarFixture('Checkout', ['url' => 'https://polar.sh/checkout/test']), 201);
+
+    $user = User::factory()->create();
+    Customer::factory()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'cus_existing',
+    ]);
+
+    $user->refresh()->checkout(['product_123'])->url();
+
+    Http::assertSent(fn($request) => $request['customer_id'] === 'cus_existing'
+        && ! array_key_exists('external_customer_id', $request->data()));
+});
+
+it('uses the stored external id for a linked customer that has one', function () {
+    fakePolar('v1/checkouts/', polarFixture('Checkout', ['url' => 'https://polar.sh/checkout/test']), 201);
+
+    $user = User::factory()->create();
+    Customer::factory()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'cus_existing',
+        'external_id' => 'users:1',
+    ]);
+
+    $user->refresh()->checkout(['product_123'])->url();
+
+    Http::assertSent(fn($request) => $request['external_customer_id'] === 'users:1'
+        && ! array_key_exists('customer_id', $request->data()));
+});
+
+it('gives Polar a stable external id when no customer exists yet', function () {
+    fakePolar('v1/checkouts/', polarFixture('Checkout', ['url' => 'https://polar.sh/checkout/test']), 201);
+
+    $user = User::factory()->create();
+
+    $user->checkout(['product_123'])->url();
+
+    Http::assertSent(fn($request) => $request['external_customer_id'] === $user->getMorphClass() . ':' . $user->getKey()
+        && ! array_key_exists('customer_id', $request->data()));
 });

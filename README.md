@@ -508,6 +508,8 @@ public function polarName(): ?string; // default: $model->name
 public function polarEmail(): ?string; // default: $model->email
 ```
 
+Checkouts automatically link the Polar customer: a stored `external_id` is preferred, then `customer_id` for older linked customers, otherwise a stable `external_customer_id` shaped as `morphClass:key`. When checkout sends `external_customer_id` (an unlinked billable or a stored external id), `withCustomerExternalId()` replaces it. When checkout sends `customer_id` (an older linked customer with no stored external id), that id takes precedence; use `withCustomerId()` or run `syncWithPolar()` to change the link.
+
 ### Redirects After Purchase
 
 You can redirect the user to a custom page after the purchase using the `withSuccessUrl` method:
@@ -879,6 +881,22 @@ Route::get('/orders/{order}/invoice', function (Order $order) {
     return $order->downloadInvoice(); // throws RuntimeException if no URL is available
 });
 ```
+
+#### Disputes
+
+List and manage card-network disputes through the facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+
+$disputes = LaravelPolar::listDisputes(['status' => 'needs_response']); // Page<Data\Dispute>
+$dispute  = LaravelPolar::getDispute('dsp_xxx');                        // Data\Dispute
+
+// Acknowledge a dispute without submitting evidence:
+LaravelPolar::acceptDispute('dsp_xxx');
+```
+
+`Data\Dispute` exposes `status` (a `DisputeStatus` enum), `amount`, `currency`, `reason`, `evidenceDueBy`, `pastDue`, `orderId`, `customer`, and the resolution flags.
 
 ### Subscriptions
 
@@ -1361,6 +1379,25 @@ LaravelPolar::updateMeter('meter_xxx', ['name' => 'API calls']);
 > [!NOTE]
 > Usage events are sent to Polar for processing. They are not stored locally in your database. Use Polar's dashboard or API to view processed usage data.
 
+#### Wallets
+
+Customers can carry a prepaid wallet balance that usage-based billing draws from:
+
+```php
+$wallets = $user->wallets();       // Collection<int, Data\CustomerWallet>
+$wallet  = $user->wallet('wal_xxx');
+
+echo $wallet->balance;             // in cents
+echo $wallet->currency;
+```
+
+The facade equivalents are available when you already hold a customer session token:
+
+```php
+LaravelPolar::listCustomerWallets('cst_token');       // Page<Data\CustomerWallet>
+LaravelPolar::getCustomerWallet('cst_token', 'wal_xxx');
+```
+
 ### License Keys
 
 Polar supports issuing license keys as a benefit type — useful for desktop apps, SDKs, paid CLIs, and anything else that needs an offline-checkable credential. The package wraps three concentric surfaces: admin management, public verification (from end-user machines), and a Cashier-style accessor on the billable model.
@@ -1465,9 +1502,40 @@ $orgs = LaravelPolar::listOrganizations();
 $org  = LaravelPolar::getOrganization('org_xxx'); // Data\Organization
 ```
 
+#### Webhook endpoints
+
+Manage the webhook endpoints Polar delivers events to:
+
+```php
+use Danestves\LaravelPolar\Data;
+use Danestves\LaravelPolar\Enums\WebhookFormat;
+use Danestves\LaravelPolar\LaravelPolar;
+
+$endpoints = LaravelPolar::listWebhooks(); // Page<Data\WebhookEndpoint>
+
+$endpoint = LaravelPolar::createWebhook(new Data\WebhookEndpointCreate(
+    url: 'https://example.com/polar/webhook',
+    format: WebhookFormat::Raw,
+    events: ['order.created', 'subscription.created'],
+));
+
+LaravelPolar::updateWebhook($endpoint->id, new Data\WebhookEndpointUpdate(
+    enabled: false,
+));
+
+$newSecret = LaravelPolar::rotateWebhookSecret($endpoint->id)->secret;
+
+$deliveries = LaravelPolar::listWebhookDeliveries(['endpoint_id' => $endpoint->id]);
+LaravelPolar::redeliverWebhookEvent('evt_xxx');
+LaravelPolar::deleteWebhook($endpoint->id);
+```
+
+> [!WARNING]
+> Rotating a webhook secret immediately invalidates the old one. Update `POLAR_WEBHOOK_SECRET` before the next delivery.
+
 ### Calling an unwrapped endpoint
 
-The package wraps the common Polar operations with Laravel-idiomatic helpers, but it does **not** wrap every endpoint. For anything not covered above — Wallets, Files create/update/delete, OAuth2 flows, Metrics dashboards, Organizations create/update, and so on — use the HTTP client directly. It handles authentication, the base URL, the API version header, and error mapping for you:
+The package wraps the common Polar operations with Laravel-idiomatic helpers, but it does **not** wrap every endpoint. For anything not covered above — Files create/update/delete, OAuth2 flows, Metrics dashboards, Organizations create/update, and so on — use the HTTP client directly. It handles authentication, the base URL, the API version header, and error mapping for you:
 
 ```php
 use Danestves\LaravelPolar\LaravelPolar;

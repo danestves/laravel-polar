@@ -586,10 +586,13 @@ class ProcessWebhook extends ProcessWebhookJob
             throw new InvalidMetadataPayload();
         }
 
+        $externalId = $payload['customer']['external_id'] ?? null;
+
         return $this->findOrCreateCustomer(
             $customerMetadata['billable_id'],
             (string) $customerMetadata['billable_type'],
             (string) $payload['customer_id'],
+            is_string($externalId) ? $externalId : null,
         );
     }
 
@@ -598,14 +601,30 @@ class ProcessWebhook extends ProcessWebhookJob
      *
      * @return \Danestves\LaravelPolar\Billable
      */
-    private function findOrCreateCustomer(int|string $billableId, string $billableType, string $customerId) // @phpstan-ignore-line return.trait - Billable is used in the user final code
+    private function findOrCreateCustomer(int|string $billableId, string $billableType, string $customerId, ?string $externalId = null) // @phpstan-ignore-line return.trait - Billable is used in the user final code
     {
-        return LaravelPolar::$customerModel::firstOrCreate([
+        $customer = LaravelPolar::$customerModel::firstOrCreate([
             'billable_id' => $billableId,
             'billable_type' => $billableType,
         ], [
             'polar_id' => $customerId,
-        ])->billable;
+        ]);
+
+        $updates = [];
+
+        if ($customer->polar_id === null) {
+            $updates['polar_id'] = $customerId;
+        }
+
+        if ($externalId !== null && $externalId !== '') {
+            $updates['external_id'] = $externalId;
+        }
+
+        if ($updates !== []) {
+            $customer->update($updates);
+        }
+
+        return $customer->billable;
     }
 
     private function findSubscription(string $subscriptionId): ?EloquentSubscription

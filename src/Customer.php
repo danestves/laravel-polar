@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property int $billable_id
  * @property string $billable_type
  * @property string|null $polar_id
+ * @property string|null $external_id
  * @property \Carbon\CarbonInterface|null $created_at
  * @property \Carbon\CarbonInterface|null $updated_at
  * @property \Carbon\CarbonInterface|null $trial_ends_at

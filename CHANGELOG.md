@@ -2,6 +2,24 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v3.4.0 - 2026-11-09
+
+### Added
+
+- **Disputes.** `LaravelPolar::listDisputes()`, `getDispute()`, and `acceptDispute()` with a typed `Data\Dispute` and `DisputeStatus` enum.
+- **Customer wallets.** `$user->wallets()` / `$user->wallet($id)` and the facade equivalents `listCustomerWallets()` / `getCustomerWallet()`, backed by `Data\CustomerWallet`.
+- **Webhook endpoint administration.** `listWebhooks()`, `createWebhook()`, `getWebhook()`, `updateWebhook()`, `deleteWebhook()`, `rotateWebhookSecret()`, `listWebhookDeliveries()`, and `redeliverWebhookEvent()`, with typed endpoint/delivery/event DTOs and `WebhookFormat` / `WebhookEventType` enums.
+- **Stable checkout customer identity.** Checkouts prefer a stored `external_customer_id`, then `customer_id` for older linked customers, and otherwise send a stable `external_customer_id` (`morphClass:key`). Webhook-created customers now backfill the external id too.
+
+### Changed
+
+- The new `unique_polar_orders_polar_id` migration adds a unique index to orders. If duplicate `polar_id` rows already exist, it aborts with a clear error instead of deleting order history; de-duplicate and re-run `php artisan migrate`. `store_external_id_on_polar_customers` adds the column used to remember a billable's external id.
+- `CustomerWallet`, `Dispute`, and webhook endpoint schemas are registered with the data generator so future `composer generate-data` runs refresh them.
+
+### Upgrading
+
+Publish and run the new migrations. See [docs/migration-v3.3-to-v3.4.md](docs/migration-v3.3-to-v3.4.md).
+
 ## v3.3.0 - 2026-11-09
 
 ### Added

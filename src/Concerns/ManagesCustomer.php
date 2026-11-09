@@ -48,15 +48,24 @@ trait ManagesCustomer // @phpstan-ignore-line trait.unused - ManagesCustomer is 
             ...$this->polarReservedMetadata(),
         ];
 
+        $externalId = is_string($attributes['external_id'] ?? null)
+            ? $attributes['external_id']
+            : $this->polarExternalId();
+
+        unset($attributes['external_id']);
+
         $created = LaravelPolar::createCustomer([
             'email' => $this->polarEmail(),
             'name' => $this->polarName(),
-            'external_id' => $this->polarExternalId(),
+            'external_id' => $externalId,
             'metadata' => $metadata,
             ...$attributes,
         ]);
 
-        $local = $this->customer()->updateOrCreate([], ['polar_id' => $created->id]);
+        $local = $this->customer()->updateOrCreate([], [
+            'polar_id' => $created->id,
+            'external_id' => $externalId,
+        ]);
         $this->setRelation('customer', $local);
 
         return $created;
@@ -82,8 +91,10 @@ trait ManagesCustomer // @phpstan-ignore-line trait.unused - ManagesCustomer is 
             }
         }
 
+        $externalId = $this->customer?->external_id ?: $this->polarExternalId();
+
         try {
-            $customer = LaravelPolar::getCustomerByExternalId($this->polarExternalId());
+            $customer = LaravelPolar::getCustomerByExternalId($externalId);
         } catch (NotFoundException) {
             return $this->createAsPolarCustomer();
         }
@@ -120,7 +131,14 @@ trait ManagesCustomer // @phpstan-ignore-line trait.unused - ManagesCustomer is 
      */
     private function rememberPolarCustomer(Data\Customer $customer): Data\Customer
     {
-        $local = $this->customer()->updateOrCreate([], ['polar_id' => $customer->id]);
+        $attributes = ['polar_id' => $customer->id];
+        $externalId = $customer->toArray()['external_id'] ?? null;
+
+        if (is_string($externalId) && $externalId !== '') {
+            $attributes['external_id'] = $externalId;
+        }
+
+        $local = $this->customer()->updateOrCreate([], $attributes);
         $this->setRelation('customer', $local);
 
         return $customer;

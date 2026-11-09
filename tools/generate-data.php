@@ -34,7 +34,9 @@ const ROOTS = [
     'MetricsResponse', 'FileRead', 'Organization', 'SeatsList', 'CustomerSeat',
     'LicenseKeyRead', 'LicenseKeyWithActivations', 'ValidatedLicenseKey',
     'LicenseKeyActivationRead', 'CustomField', 'Discount', 'Refund', 'CustomerPaymentMethod',
-    'CustomerOrderInvoice', 'Customer', 'CustomerState', 'Pagination',
+    'CustomerOrderInvoice', 'Customer', 'CustomerState', 'CustomerWallet',
+    'Dispute', 'DisputeCustomer', 'WebhookEndpoint', 'WebhookEndpointCreate', 'WebhookEndpointUpdate',
+    'WebhookDelivery', 'WebhookEvent', 'Pagination',
     // Requests.
     'CheckoutCreate', 'SubscriptionUpdate', 'CustomerSessionCustomerIDCreate',
     'CustomerSessionCustomerExternalIDCreate', 'BenefitCreate', 'EventsIngest',
@@ -69,8 +71,10 @@ const ROOTS = [
     'WebhookMemberUpdatedPayload', 'WebhookMemberDeletedPayload',
     'WebhookCustomerSeatAssignedPayload', 'WebhookCustomerSeatClaimedPayload',
     'WebhookCustomerSeatRevokedPayload',
-    // Query-parameter enums the package exposes.
-    'ProductSortProperty', 'TimeInterval',
+    // Query-parameter and webhook enums the package exposes.
+    'ProductSortProperty', 'TimeInterval', 'DisputeStatus', 'WebhookFormat',
+    // WebhookEventType is hand-written: the spec omits the subscription.migrated case.
+    // 'WebhookEventType',
 ];
 
 /**
@@ -292,7 +296,8 @@ const FIXTURE_ROOTS = [
     'Refund', 'Pagination', 'CustomerOrderInvoice', 'EventsIngestResponse', 'MetricsResponse',
     'CustomerIndividual', 'CustomerStateIndividual', 'BenefitCustom', 'BenefitGrantCustomWebhook',
     'CustomFieldText', 'DiscountFixedOnceForeverDuration', 'PaymentMethodCard',
-    'DownloadableFileRead',
+    'DownloadableFileRead', 'Dispute', 'CustomerWallet', 'WebhookEndpoint',
+    'WebhookDelivery', 'WebhookEvent',
     // Every price shape, so the `LegacyRecurringProductPrice|ProductPrice` union stays covered.
     'ProductPriceFixed', 'ProductPriceCustom', 'ProductPriceSeatBased', 'ProductPriceMeteredUnit',
     'LegacyRecurringProductPriceFixed', 'LegacyRecurringProductPriceCustom',

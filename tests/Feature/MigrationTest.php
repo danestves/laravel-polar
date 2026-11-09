@@ -52,3 +52,71 @@ it('upgrades a legacy subscriptions table in place', function () {
         ->and(Schema::hasColumn('polar_subscriptions', 'polar_updated_at_us'))->toBeTrue()
         ->and(Schema::hasColumn('polar_orders', 'polar_updated_at_us'))->toBeTrue();
 });
+
+it('adds a unique index to polar_orders.polar_id', function () {
+    $migration = require __DIR__ . '/../../database/migrations/unique_polar_orders_polar_id.php.stub';
+    $migration->up();
+
+    $indexes = collect(Schema::getIndexes('polar_orders'));
+    $unique = $indexes->first(fn($index) => str_contains($index['name'], 'polar_id') && $index['unique']);
+
+    expect($unique)->not->toBeNull();
+
+    $migration->down();
+
+    $afterDown = collect(Schema::getIndexes('polar_orders'));
+
+    expect($afterDown->first(fn($index) => str_contains($index['name'], 'polar_id') && $index['unique']))->toBeNull();
+});
+
+it('aborts the unique order index when duplicates already exist', function () {
+    $row = [
+        'billable_type' => 'users',
+        'billable_id' => 1,
+        'polar_id' => 'duplicate_order',
+        'status' => 'paid',
+        'amount' => 100,
+        'tax_amount' => 0,
+        'refunded_amount' => 0,
+        'refunded_tax_amount' => 0,
+        'currency' => 'USD',
+        'billing_reason' => 'purchase',
+        'customer_id' => 'customer_123',
+        'product_id' => 'product_123',
+        'ordered_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ];
+
+    \Illuminate\Support\Facades\DB::table('polar_orders')->insert([$row, $row]);
+
+    $migration = require __DIR__ . '/../../database/migrations/unique_polar_orders_polar_id.php.stub';
+
+    expect(fn() => $migration->up())->toThrow(\RuntimeException::class, 'duplicate polar_id values');
+
+    $indexes = collect(Schema::getIndexes('polar_orders'));
+    $unique = $indexes->first(fn($index) => str_contains($index['name'], 'polar_id') && $index['unique']);
+
+    expect($unique)->toBeNull();
+});
+
+it('adds external_id to a legacy polar_customers table and reverses it', function () {
+    Schema::dropIfExists('polar_customers');
+
+    Schema::create('polar_customers', function (Blueprint $table) {
+        $table->id();
+        $table->morphs('billable');
+        $table->string('polar_id')->nullable()->unique();
+        $table->timestamp('trial_ends_at')->nullable();
+        $table->timestamps();
+    });
+
+    $migration = require __DIR__ . '/../../database/migrations/store_external_id_on_polar_customers.php.stub';
+    $migration->up();
+
+    expect(Schema::hasColumn('polar_customers', 'external_id'))->toBeTrue();
+
+    $migration->down();
+
+    expect(Schema::hasColumn('polar_customers', 'external_id'))->toBeFalse();
+});
