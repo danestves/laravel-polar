@@ -4,7 +4,11 @@ namespace Tests\Feature;
 
 use Danestves\LaravelPolar\Data;
 use Danestves\LaravelPolar\Enums\SubscriptionStatus;
+use Danestves\LaravelPolar\Exceptions\AuthenticationException;
+use Danestves\LaravelPolar\Exceptions\NotFoundException;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Danestves\LaravelPolar\Exceptions\RateLimitException;
+use Danestves\LaravelPolar\Exceptions\ValidationException;
 use Danestves\LaravelPolar\Http\PolarClient;
 use Danestves\LaravelPolar\LaravelPolar;
 use Illuminate\Support\Facades\Config;
@@ -152,9 +156,158 @@ it('flattens FastAPI validation errors into the message', function () {
     }
 });
 
+it('maps error statuses to typed exceptions', function (int $status, string $expected) {
+    fakePolar('v1/benefits/*', ['detail' => 'Nope'], $status);
+
+    $client = new PolarClient(accessToken: 'polar_oat_test', baseUrl: PolarClient::SANDBOX_URL);
+
+    $caught = null;
+
+    try {
+        $client->get('/v1/benefits/ben_123');
+    } catch (PolarApiError $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf($expected)
+        ->and($caught)->toBeInstanceOf(PolarApiError::class)
+        ->and($caught->status)->toBe($status)
+        ->and($caught->body)->toBe(['detail' => 'Nope']);
+})->with([
+    [401, AuthenticationException::class],
+    [403, AuthenticationException::class],
+    [404, NotFoundException::class],
+    [422, ValidationException::class],
+]);
+
+it('exposes Retry-After on a 429 as retryAfter', function () {
+    Http::fake([
+        polarUrl('v1/products/*') => Http::response(['detail' => 'slow down'], 429, ['Retry-After' => '7']),
+    ]);
+
+    $client = new PolarClient(accessToken: 'polar_oat_test', baseUrl: PolarClient::SANDBOX_URL);
+
+    $caught = null;
+
+    try {
+        $client->get('/v1/products/');
+    } catch (RateLimitException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(RateLimitException::class)
+        ->and($caught->retryAfter)->toBe(7)
+        ->and($caught->status)->toBe(429);
+});
+
+it('leaves retryAfter null when no Retry-After header is sent', function () {
+    fakePolar('v1/products/*', ['detail' => 'slow down'], 429);
+
+    $client = new PolarClient(accessToken: 'polar_oat_test', baseUrl: PolarClient::SANDBOX_URL);
+
+    $caught = null;
+
+    try {
+        $client->get('/v1/products/');
+    } catch (RateLimitException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(RateLimitException::class)
+        ->and($caught->retryAfter)->toBeNull();
+});
+
+it('retries 5xx responses and succeeds on a later attempt', function () {
+    Http::fake([
+        polarUrl('v1/products/*') => Http::sequence()
+            ->push(['detail' => 'boom'], 500)
+            ->push(['items' => [], 'pagination' => ['total_count' => 0, 'max_page' => 1]], 200),
+    ]);
+
+    $client = new PolarClient(
+        accessToken: 'polar_oat_test',
+        baseUrl: PolarClient::SANDBOX_URL,
+        retryTimes: 2,
+        retrySleep: 0,
+    );
+
+    expect($client->get('/v1/products/'))
+        ->toBe(['items' => [], 'pagination' => ['total_count' => 0, 'max_page' => 1]]);
+
+    Http::assertSentCount(2);
+});
+
+it('retries 429 responses', function () {
+    Http::fake([
+        polarUrl('v1/products/*') => Http::sequence()
+            ->push(['detail' => 'slow down'], 429)
+            ->push(['items' => [], 'pagination' => ['total_count' => 0, 'max_page' => 1]], 200),
+    ]);
+
+    $client = new PolarClient(
+        accessToken: 'polar_oat_test',
+        baseUrl: PolarClient::SANDBOX_URL,
+        retryTimes: 2,
+        retrySleep: 0,
+    );
+
+    expect($client->get('/v1/products/'))->toBeArray();
+    Http::assertSentCount(2);
+});
+
+it('does not retry other 4xx responses', function () {
+    Http::fake([
+        polarUrl('v1/benefits/*') => Http::sequence()
+            ->push(['detail' => 'Nope'], 404)
+            ->push(['items' => [], 'pagination' => ['total_count' => 0, 'max_page' => 1]], 200),
+    ]);
+
+    $client = new PolarClient(
+        accessToken: 'polar_oat_test',
+        baseUrl: PolarClient::SANDBOX_URL,
+        retryTimes: 2,
+        retrySleep: 0,
+    );
+
+    expect(fn() => $client->get('/v1/benefits/ben_123'))->toThrow(NotFoundException::class);
+    Http::assertSentCount(1);
+});
+
 it('throws when no access token is configured', function () {
     Config::set('polar.access_token', null);
     LaravelPolar::resetClient();
 
     expect(fn() => LaravelPolar::listProducts())->toThrow(\Exception::class, 'Polar API key not set.');
+});
+
+it('wires the retry config into the cached client', function () {
+    Config::set('polar.retry.times', 2);
+    Config::set('polar.retry.sleep', 0);
+    LaravelPolar::resetClient();
+
+    Http::fake([
+        polarUrl('v1/products/*') => Http::sequence()
+            ->push(['detail' => 'boom'], 500)
+            ->push(['items' => [], 'pagination' => ['total_count' => 0, 'max_page' => 1]], 200),
+    ]);
+
+    LaravelPolar::listProducts();
+
+    Http::assertSentCount(2);
+});
+
+it('treats polar.retry.times as retries after the first attempt', function () {
+    Config::set('polar.retry.times', 1);
+    Config::set('polar.retry.sleep', 0);
+    LaravelPolar::resetClient();
+
+    Http::fake([
+        polarUrl('v1/products/*') => Http::sequence()
+            ->push(['detail' => 'boom'], 500)
+            ->push(['items' => [], 'pagination' => ['total_count' => 0, 'max_page' => 1]], 200),
+    ]);
+
+    LaravelPolar::listProducts();
+
+    Http::assertSentCount(2);
 });

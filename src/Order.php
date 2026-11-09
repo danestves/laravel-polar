@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string|null $product_id
  * @property \Carbon\CarbonInterface|null $refunded_at
  * @property \Carbon\CarbonInterface $ordered_at
+ * @property int|null $polar_updated_at_us
  * @property \Carbon\CarbonInterface|null $created_at
  * @property \Carbon\CarbonInterface|null $updated_at
  * @property \Danestves\LaravelPolar\Billable $billable
@@ -266,11 +267,22 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
     /**
      * Sync the order with the given attributes.
      *
+     * `$eventTimestamp` is the webhook envelope timestamp. Polar only sets `modified_at` on
+     * updates, so it is null on `*.created` events; the envelope timestamp keeps those events
+     * ordered against the updates that follow them.
+     *
      * @param  array<string, mixed>  $attributes
      */
-    public function sync(array $attributes): self
+    public function sync(array $attributes, ?\DateTimeInterface $eventTimestamp = null): self
     {
-        $this->update([
+        $modifiedAt = isset($attributes['modified_at']) ? Carbon::make($attributes['modified_at']) : null;
+        $watermark = $this->orderingWatermark($modifiedAt, $eventTimestamp);
+
+        if ($this->isStale($watermark)) {
+            return $this;
+        }
+
+        $values = [
             'polar_id' => $attributes['id'],
             'status' => \is_string($attributes['status']) ? OrderStatus::from($attributes['status']) : $attributes['status'],
             'amount' => static::netAmount($attributes),
@@ -283,9 +295,56 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
             'product_id' => $attributes['product_id'],
             'refunded_at' => static::refundedAt($attributes),
             'ordered_at' => $attributes['created_at'],
-        ]);
+        ];
+
+        if ($watermark !== null) {
+            $values['polar_updated_at_us'] = $watermark;
+        }
+
+        $this->update($values);
 
         return $this;
+    }
+
+    /**
+     * Pick the newest timestamp we can trust for ordering this delivery.
+     *
+     * Both timestamps come from Polar's clock: `modified_at` is the resource update time and
+     * the envelope timestamp is when the event was emitted. Taking the later of the two keeps
+     * a newer update from looking stale just because one of the fields is missing. The result
+     * is stored as UTC microseconds so it survives timezone and sub-second resolution.
+     */
+    private function orderingWatermark(?\DateTimeInterface $modifiedAt, ?\DateTimeInterface $eventTimestamp): ?int
+    {
+        $modifiedMicros = $this->watermarkMicros($modifiedAt);
+        $eventMicros = $this->watermarkMicros($eventTimestamp);
+
+        if ($modifiedMicros === null) {
+            return $eventMicros;
+        }
+
+        return $eventMicros !== null && $eventMicros > $modifiedMicros ? $eventMicros : $modifiedMicros;
+    }
+
+    /**
+     * Convert an instant to UTC microseconds since the epoch.
+     */
+    private function watermarkMicros(?\DateTimeInterface $timestamp): ?int
+    {
+        return $timestamp === null ? null : (int) Carbon::make($timestamp)->getPreciseTimestamp(6);
+    }
+
+    /**
+     * Determine whether an incoming webhook describes an older state than the one we hold.
+     *
+     * Polar does not guarantee webhook delivery order, so a delayed event must not roll the
+     * local order back to a state it has already moved past.
+     */
+    public function isStale(?int $incomingWatermarkUs): bool
+    {
+        return $incomingWatermarkUs !== null
+            && $this->polar_updated_at_us !== null
+            && $incomingWatermarkUs < $this->polar_updated_at_us;
     }
 
     /**
@@ -344,6 +403,7 @@ class Order extends Model // @phpstan-ignore-line propertyTag.trait - Billable i
             'status' => OrderStatus::class,
             'ordered_at' => 'datetime',
             'refunded_at' => 'datetime',
+            'polar_updated_at_us' => 'integer',
         ];
     }
 

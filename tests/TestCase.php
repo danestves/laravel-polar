@@ -46,6 +46,7 @@ class TestCase extends Orchestra
             // Auto-discovered in a real application; testbench needs it spelled out.
             \Spatie\LaravelData\LaravelDataServiceProvider::class,
             LaravelPolarServiceProvider::class,
+            \Spatie\WebhookClient\WebhookClientServiceProvider::class,
             \Inertia\ServiceProvider::class,
         ];
     }

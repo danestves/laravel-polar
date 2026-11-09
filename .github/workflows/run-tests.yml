@@ -47,6 +47,13 @@ jobs:
           echo "::add-matcher::${{ runner.tool_cache }}/php.json"
           echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
+      # Composer 2.11 blocks every Laravel 11.x release for known advisories, before
+      # dependencies can even be resolved. Laravel 11 is still in this package's
+      # support matrix, so keep the branch testable and drop this when 11.* is removed.
+      - name: Allow advisory-flagged Laravel 11 dependencies
+        if: matrix.laravel == '11.*'
+        run: composer config --global policy.advisories.block false
+
       - name: Install dependencies
         run: |
           composer require "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${{ matrix.testbench }}" "nesbot/carbon:${{ matrix.os == 'windows-latest' && '^^^' || '' }}${{ matrix.carbon }}" --no-interaction --no-update

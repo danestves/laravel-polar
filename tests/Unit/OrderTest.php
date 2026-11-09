@@ -120,6 +120,119 @@ it('can access billable relationship', function () {
     expect($order->billable->getKey())->toBe($user->getKey());
 });
 
+it('ignores a webhook that is older than the state it already holds', function () {
+    $order = Order::factory()->paid()->create([
+        'polar_id' => 'order_stale',
+        'product_id' => 'prod_new',
+        'polar_updated_at_us' => (int) now()->getPreciseTimestamp(6),
+    ]);
+
+    $order->sync([
+        'id' => 'order_stale',
+        'status' => OrderStatus::Refunded->value,
+        'net_amount' => 1000,
+        'tax_amount' => 100,
+        'refunded_amount' => 1000,
+        'refunded_tax_amount' => 100,
+        'currency' => 'USD',
+        'billing_reason' => 'purchase',
+        'customer_id' => 'customer_123',
+        'product_id' => 'prod_old',
+        'created_at' => now()->toIso8601String(),
+        'modified_at' => now()->subDay()->toIso8601String(),
+    ]);
+
+    $order->refresh();
+
+    expect($order->status)->toBe(OrderStatus::Paid);
+    expect($order->product_id)->toBe('prod_new');
+});
+
+it('compares ordering watermarks in UTC when the app timezone is not UTC', function () {
+    $original = date_default_timezone_get();
+    date_default_timezone_set('America/New_York');
+
+    try {
+        $order = Order::factory()->paid()->create([
+            'polar_id' => 'order_tz',
+            'polar_updated_at_us' => null,
+        ]);
+
+        $order->sync([
+            'id' => 'order_tz',
+            'status' => OrderStatus::Pending->value,
+            'net_amount' => 1000,
+            'tax_amount' => 100,
+            'refunded_amount' => 0,
+            'refunded_tax_amount' => 0,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => '2026-01-01T11:00:00Z',
+            'modified_at' => null,
+        ], new \DateTimeImmutable('2026-01-01T12:00:00Z'));
+
+        $order->sync([
+            'id' => 'order_tz',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'tax_amount' => 100,
+            'refunded_amount' => 0,
+            'refunded_tax_amount' => 0,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => '2026-01-01T11:00:00Z',
+            'modified_at' => '2026-01-01T12:00:30Z',
+        ]);
+
+        expect($order->fresh()->status)->toBe(OrderStatus::Paid);
+    } finally {
+        date_default_timezone_set($original);
+    }
+});
+
+it('rejects a delayed created event within the same second', function () {
+    $order = Order::factory()->paid()->create([
+        'polar_id' => 'order_microseconds',
+        'polar_updated_at_us' => null,
+    ]);
+
+    $order->sync([
+        'id' => 'order_microseconds',
+        'status' => OrderStatus::Paid->value,
+        'net_amount' => 1000,
+        'tax_amount' => 100,
+        'refunded_amount' => 0,
+        'refunded_tax_amount' => 0,
+        'currency' => 'USD',
+        'billing_reason' => 'purchase',
+        'customer_id' => 'customer_123',
+        'product_id' => 'product_123',
+        'created_at' => '2026-01-01T11:00:00Z',
+        'modified_at' => null,
+    ], new \DateTimeImmutable('2026-01-01T12:00:00.900000Z'));
+
+    $order->sync([
+        'id' => 'order_microseconds',
+        'status' => OrderStatus::Pending->value,
+        'net_amount' => 1000,
+        'tax_amount' => 100,
+        'refunded_amount' => 0,
+        'refunded_tax_amount' => 0,
+        'currency' => 'USD',
+        'billing_reason' => 'purchase',
+        'customer_id' => 'customer_123',
+        'product_id' => 'product_123',
+        'created_at' => '2026-01-01T11:00:00Z',
+        'modified_at' => null,
+    ], new \DateTimeImmutable('2026-01-01T12:00:00.100000Z'));
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Paid);
+});
+
 class Order extends PolarOrder
 {
     /**

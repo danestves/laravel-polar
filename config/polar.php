@@ -71,6 +71,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Request Retries
+    |--------------------------------------------------------------------------
+    |
+    | Optional. How many times to retry a failed Polar API request, and how
+    | long to wait between attempts (in milliseconds). Retries only cover
+    | 429 rate limits and 5xx server errors; other 4xx responses fail at once.
+    | Set times to 0 to disable retries.
+    |
+    */
+    'retry' => [
+        'times' => (int) env('POLAR_RETRY_TIMES', 0),
+        'sleep' => (int) env('POLAR_RETRY_SLEEP', 100),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Polar Webhook Secret
     |--------------------------------------------------------------------------
     |

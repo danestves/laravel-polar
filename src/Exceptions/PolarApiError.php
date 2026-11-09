@@ -42,13 +42,27 @@ class PolarApiError extends Exception
             // Not a JSON body (a gateway error page, say) — the status still tells the story.
         }
 
-        return new self(
-            self::describe($body, $response->status(), $method, $url),
-            $response->status(),
-            $body,
-            $method,
-            $url,
-        );
+        $status = $response->status();
+        $message = self::describe($body, $status, $method, $url);
+
+        return match ($status) {
+            401, 403 => new AuthenticationException($message, $status, $body, $method, $url),
+            404 => new NotFoundException($message, $status, $body, $method, $url),
+            422 => new ValidationException($message, $status, $body, $method, $url),
+            429 => new RateLimitException($message, $status, $body, $method, $url, self::retryAfter($response)),
+            default => new self($message, $status, $body, $method, $url),
+        };
+    }
+
+    /**
+     * Read `Retry-After` as whole seconds. Polar uses the delay-seconds form; anything absent
+     * or non-numeric (an HTTP-date, say) is reported as null.
+     */
+    private static function retryAfter(Response $response): ?int
+    {
+        $header = trim((string) $response->header('Retry-After'));
+
+        return $header !== '' && ctype_digit($header) ? (int) $header : null;
     }
 
     /**

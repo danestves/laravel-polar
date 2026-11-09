@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('product_id')->nullable()->index();
             $table->timestamp('refunded_at')->nullable();
             $table->timestamp('ordered_at');
+            $table->unsignedBigInteger('polar_updated_at_us')->nullable();
             $table->timestamps();
         });
     }

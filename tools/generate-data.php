@@ -46,16 +46,29 @@ const ROOTS = [
     'BenefitFeatureFlagUpdate', 'BenefitSlackSharedChannelUpdate',
     // Webhook payloads, one per event the package dispatches.
     'WebhookOrderCreatedPayload', 'WebhookOrderUpdatedPayload',
+    'WebhookOrderPaidPayload', 'WebhookOrderRefundedPayload',
     'WebhookSubscriptionCreatedPayload', 'WebhookSubscriptionUpdatedPayload',
     'WebhookSubscriptionActivePayload', 'WebhookSubscriptionCanceledPayload',
+    'WebhookSubscriptionUncanceledPayload', 'WebhookSubscriptionCycledPayload',
+    'WebhookSubscriptionPastDuePayload', 'WebhookSubscriptionPausedPayload',
+    'WebhookSubscriptionResumedPayload',
+    // WebhookSubscriptionMigratedPayload is hand-written: the published spec omits the
+    // envelope-level provider / provider_subscription_id fields the event carries.
     'WebhookSubscriptionRevokedPayload', 'WebhookBenefitGrantCreatedPayload',
-    'WebhookBenefitGrantUpdatedPayload', 'WebhookBenefitGrantRevokedPayload',
+    'WebhookBenefitGrantUpdatedPayload', 'WebhookBenefitGrantCycledPayload',
+    'WebhookBenefitGrantRevokedPayload',
     'WebhookCheckoutCreatedPayload', 'WebhookCheckoutUpdatedPayload',
     'WebhookCheckoutExpiredPayload', 'WebhookCustomerCreatedPayload',
     'WebhookCustomerUpdatedPayload', 'WebhookCustomerDeletedPayload',
     'WebhookCustomerStateChangedPayload', 'WebhookProductCreatedPayload',
     'WebhookProductUpdatedPayload', 'WebhookBenefitCreatedPayload',
-    'WebhookBenefitUpdatedPayload',
+    'WebhookBenefitUpdatedPayload', 'WebhookRefundCreatedPayload',
+    'WebhookRefundUpdatedPayload', 'WebhookDiscountCreatedPayload',
+    'WebhookDiscountUpdatedPayload', 'WebhookDiscountDeletedPayload',
+    'WebhookOrganizationUpdatedPayload', 'WebhookMemberCreatedPayload',
+    'WebhookMemberUpdatedPayload', 'WebhookMemberDeletedPayload',
+    'WebhookCustomerSeatAssignedPayload', 'WebhookCustomerSeatClaimedPayload',
+    'WebhookCustomerSeatRevokedPayload',
     // Query-parameter enums the package exposes.
     'ProductSortProperty', 'TimeInterval',
 ];
