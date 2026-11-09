@@ -59,6 +59,19 @@ trait ManagesCheckouts // @phpstan-ignore-line trait.unused - ManagesCheckouts i
             ->withCustomerMetadata($customerMetadata)
             ->withMetadata($metadata);
 
+        // Prefer the external id when we know it: Polar links the customer if it still exists
+        // and creates one on confirm otherwise. Fall back to the stored id for older customers
+        // that were created before external ids were persisted locally.
+        $externalId = $this->customer?->external_id;
+
+        if (is_string($externalId) && $externalId !== '') {
+            $checkout->withCustomerExternalId($externalId);
+        } elseif ($this->hasPolarCustomer()) {
+            $checkout->withCustomerId((string) $this->customer->polar_id);
+        } else {
+            $checkout->withCustomerExternalId($this->polarExternalId());
+        }
+
         if (isset($options['tax_id'])) {
             $checkout->withCustomerTaxId((string) $options['tax_id']);
         }

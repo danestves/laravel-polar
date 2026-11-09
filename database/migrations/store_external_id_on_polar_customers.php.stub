@@ -1,0 +1,37 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Store the external id used when the billable was created in Polar, so checkout can
+     * attach to it without trusting a stale customer id.
+     */
+    public function up(): void
+    {
+        if (! Schema::hasTable('polar_customers') || Schema::hasColumn('polar_customers', 'external_id')) {
+            return;
+        }
+
+        Schema::table('polar_customers', function (Blueprint $table) {
+            $table->string('external_id')->nullable()->after('polar_id');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        if (! Schema::hasTable('polar_customers') || ! Schema::hasColumn('polar_customers', 'external_id')) {
+            return;
+        }
+
+        Schema::table('polar_customers', function (Blueprint $table) {
+            $table->dropColumn('external_id');
+        });
+    }
+};

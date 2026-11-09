@@ -1629,3 +1629,36 @@ it('handles customer seat webhooks', function (string $type, string $event) {
     ['customer_seat.claimed', \Danestves\LaravelPolar\Events\CustomerSeatClaimed::class],
     ['customer_seat.revoked', \Danestves\LaravelPolar\Events\CustomerSeatRevoked::class],
 ]);
+
+it('stores the customer external id from a webhook when the local row is created', function () {
+    $user = User::factory()->create();
+
+    $job = createWebhookCall([
+        'type' => 'order.created',
+        'data' => polarFixture('Order', [
+            'id' => 'order_external_id',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'tax_amount' => 100,
+            'refunded_amount' => 0,
+            'refunded_tax_amount' => 0,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => now()->toIso8601String(),
+            'customer' => [
+                'id' => 'customer_123',
+                'external_id' => 'users:42',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    expect(Customer::where('billable_id', $user->getKey())->first()->external_id)->toBe('users:42');
+});

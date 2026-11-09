@@ -10,7 +10,7 @@ use Spatie\LaravelData\Data as SpatieData;
 
 class LaravelPolar
 {
-    public const string VERSION = '3.3.0';
+    public const string VERSION = '3.4.0';
 
     /**
      * The cached HTTP client.
@@ -896,6 +896,173 @@ class LaravelPolar
     public static function updateMeter(string $meterId, array $request): Data\Meter
     {
         return Data\Meter::from(self::client()->patch('/v1/meters/' . rawurlencode($meterId), $request));
+    }
+
+    // -- disputes -----------------------------------------------------------
+
+    /**
+     * List disputes.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Dispute>
+     *
+     * @throws PolarApiError
+     */
+    public static function listDisputes(array $query = []): Page
+    {
+        return self::client()->page('/v1/disputes/', Data\Dispute::class, $query);
+    }
+
+    /**
+     * Get a specific dispute by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getDispute(string $disputeId): Data\Dispute
+    {
+        return Data\Dispute::from(self::client()->get('/v1/disputes/' . rawurlencode($disputeId)));
+    }
+
+    /**
+     * Accept a dispute, acknowledging it without submitting evidence.
+     *
+     * @throws PolarApiError
+     */
+    public static function acceptDispute(string $disputeId): Data\Dispute
+    {
+        return Data\Dispute::from(
+            self::client()->post('/v1/disputes/' . rawurlencode($disputeId) . '/accept'),
+        );
+    }
+
+    // -- customer wallets ---------------------------------------------------
+
+    /**
+     * List the wallets belonging to the authenticated customer session.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\CustomerWallet>
+     *
+     * @throws PolarApiError
+     */
+    public static function listCustomerWallets(string $customerSessionToken, array $query = []): Page
+    {
+        return self::client()->page(
+            '/v1/customer-portal/wallets/',
+            Data\CustomerWallet::class,
+            $query,
+            $customerSessionToken,
+        );
+    }
+
+    /**
+     * Get one of the authenticated customer's wallets.
+     *
+     * @throws PolarApiError
+     */
+    public static function getCustomerWallet(string $customerSessionToken, string $walletId): Data\CustomerWallet
+    {
+        return Data\CustomerWallet::from(
+            self::client()->get('/v1/customer-portal/wallets/' . rawurlencode($walletId), token: $customerSessionToken),
+        );
+    }
+
+    // -- webhook endpoints --------------------------------------------------
+
+    /**
+     * List webhook endpoints.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\WebhookEndpoint>
+     *
+     * @throws PolarApiError
+     */
+    public static function listWebhooks(array $query = []): Page
+    {
+        return self::client()->page('/v1/webhooks/endpoints', Data\WebhookEndpoint::class, $query);
+    }
+
+    /**
+     * Create a webhook endpoint.
+     *
+     * @param  Data\WebhookEndpointCreate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function createWebhook(Data\WebhookEndpointCreate|array $request): Data\WebhookEndpoint
+    {
+        return Data\WebhookEndpoint::from(self::client()->post('/v1/webhooks/endpoints', $request));
+    }
+
+    /**
+     * Get a specific webhook endpoint.
+     *
+     * @throws PolarApiError
+     */
+    public static function getWebhook(string $webhookId): Data\WebhookEndpoint
+    {
+        return Data\WebhookEndpoint::from(
+            self::client()->get('/v1/webhooks/endpoints/' . rawurlencode($webhookId)),
+        );
+    }
+
+    /**
+     * Update a webhook endpoint.
+     *
+     * @param  Data\WebhookEndpointUpdate|array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function updateWebhook(string $webhookId, Data\WebhookEndpointUpdate|array $request): Data\WebhookEndpoint
+    {
+        return Data\WebhookEndpoint::from(
+            self::client()->patch('/v1/webhooks/endpoints/' . rawurlencode($webhookId), $request),
+        );
+    }
+
+    /**
+     * Delete a webhook endpoint.
+     *
+     * @throws PolarApiError
+     */
+    public static function deleteWebhook(string $webhookId): void
+    {
+        self::client()->delete('/v1/webhooks/endpoints/' . rawurlencode($webhookId));
+    }
+
+    /**
+     * Rotate a webhook endpoint's signing secret.
+     *
+     * @throws PolarApiError
+     */
+    public static function rotateWebhookSecret(string $webhookId): Data\WebhookEndpoint
+    {
+        return Data\WebhookEndpoint::from(
+            self::client()->patch('/v1/webhooks/endpoints/' . rawurlencode($webhookId) . '/secret'),
+        );
+    }
+
+    /**
+     * List webhook deliveries.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\WebhookDelivery>
+     *
+     * @throws PolarApiError
+     */
+    public static function listWebhookDeliveries(array $query = []): Page
+    {
+        return self::client()->page('/v1/webhooks/deliveries', Data\WebhookDelivery::class, $query);
+    }
+
+    /**
+     * Ask Polar to deliver a webhook event again.
+     *
+     * @throws PolarApiError
+     */
+    public static function redeliverWebhookEvent(string $eventId): void
+    {
+        self::client()->post('/v1/webhooks/events/' . rawurlencode($eventId) . '/redeliver');
     }
 
     // -- configuration ------------------------------------------------------

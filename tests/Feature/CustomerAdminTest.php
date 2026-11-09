@@ -272,3 +272,12 @@ it('keeps the reserved billable metadata over caller overrides', function () {
             && $request['metadata']['billable_type'] === $user->getMorphClass();
     });
 });
+
+it('stores the external id used when creating a Polar customer', function () {
+    fakePolar('v1/customers/', polarFixture('CustomerIndividual', ['id' => 'cus_new']), 201);
+
+    $user = User::factory()->create();
+    $user->createAsPolarCustomer();
+
+    expect($user->customer->external_id)->toBe($user->polarExternalId());
+});

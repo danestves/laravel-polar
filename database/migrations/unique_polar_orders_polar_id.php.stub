@@ -1,0 +1,56 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Add a unique index so a webhook replay cannot create a second local order.
+     *
+     * Older releases could leave duplicate rows behind. The migration aborts rather than
+     * deleting a customer's order history behind their back, so a de-duplicated re-run can add
+     * the index later.
+     */
+    public function up(): void
+    {
+        if (! Schema::hasTable('polar_orders') || ! Schema::hasColumn('polar_orders', 'polar_id')) {
+            return;
+        }
+
+        $hasDuplicates = DB::table('polar_orders')
+            ->select('polar_id')
+            ->whereNotNull('polar_id')
+            ->groupBy('polar_id')
+            ->havingRaw('COUNT(*) > 1')
+            ->limit(1)
+            ->exists();
+
+        if ($hasDuplicates) {
+            throw new \RuntimeException(
+                'Cannot add the unique polar_orders.polar_id index: duplicate polar_id values exist. '
+                . 'De-duplicate those rows, then run `php artisan migrate` again.',
+            );
+        }
+
+        Schema::table('polar_orders', function (Blueprint $table) {
+            $table->unique('polar_id');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        try {
+            Schema::table('polar_orders', function (Blueprint $table) {
+                $table->dropUnique('polar_orders_polar_id_unique');
+            });
+        } catch (\Throwable) {
+            // The index was skipped or already removed; there is nothing to undo.
+        }
+    }
+};
