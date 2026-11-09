@@ -127,6 +127,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Retry Policy
+    |--------------------------------------------------------------------------
+    |
+    | Optional. Retry requests that Polar answers with 429 (rate limited) or a
+    | 5xx server error. `sleep` is the delay between attempts in milliseconds.
+    | Leave `times` at 0 to disable retries entirely.
+    |
+    */
+    'retry' => [
+        'times' => (int) env('POLAR_RETRY_TIMES', 0),
+        'sleep' => (int) env('POLAR_RETRY_SLEEP', 100),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Polar Webhook Secret
     |--------------------------------------------------------------------------
     |
@@ -225,6 +240,16 @@ Some endpoints (notably the public-facing License Key methods — `validateLicen
 POLAR_ORGANIZATION_ID="<your_organization_id>"
 ```
 
+### Retries and timeouts (optional)
+
+```bash
+POLAR_TIMEOUT=10        # seconds
+POLAR_RETRY_TIMES=3     # additional attempts after the first, for 429/5xx
+POLAR_RETRY_SLEEP=100   # milliseconds between attempts
+```
+
+Retries are off by default (`POLAR_RETRY_TIMES=0`). They apply to every request, including POST.
+
 ### Webhook Secret
 
 Configure your webhook secret. Create a new webhook in the Polar Dashboard > Settings > Webhooks.
@@ -236,14 +261,35 @@ Configure the webhook for the following events that this package supports:
 
 - `order.created`
 - `order.updated`
+- `order.paid`
+- `order.refunded`
 - `subscription.created`
 - `subscription.updated`
 - `subscription.active`
 - `subscription.canceled`
+- `subscription.uncanceled`
+- `subscription.cycled`
+- `subscription.past_due`
+- `subscription.paused`
+- `subscription.resumed`
+- `subscription.migrated`
 - `subscription.revoked`
+- `refund.created`
+- `refund.updated`
+- `discount.created`
+- `discount.updated`
+- `discount.deleted`
+- `organization.updated`
 - `benefit_grant.created`
 - `benefit_grant.updated`
+- `benefit_grant.cycled`
 - `benefit_grant.revoked`
+- `member.created`
+- `member.updated`
+- `member.deleted`
+- `customer_seat.assigned`
+- `customer_seat.claimed`
+- `customer_seat.revoked`
 - `checkout.created`
 - `checkout.updated`
 - `checkout.expired`
@@ -314,6 +360,8 @@ This package includes a list of commands that you can use to retrieve informatio
 | `php artisan polar:products` | List all available products with their ids |
 | `php artisan polar:products --id=123` | List a specific product by id |
 | `php artisan polar:products --id=123 --id=321` | List a specific products by ids |
+| `php artisan polar:sync` | Backfill local orders and subscriptions from Polar |
+| `php artisan polar:sync --resource=orders --dry-run` | Preview an orders backfill without writing |
 
 ### Checkouts
 
@@ -630,6 +678,41 @@ Optionally, you can obtain the signed customer portal URL directly:
 $url = $user->customerPortalUrl();
 ```
 
+#### Creating and syncing customers
+
+`createAsCustomer()` only writes the local `polar_customers` row. To create the matching customer in Polar immediately, use `createAsPolarCustomer()`:
+
+```php
+$customer = $user->createAsPolarCustomer(); // Danestves\LaravelPolar\Data\Customer
+```
+
+`syncWithPolar()` creates the Polar customer if needed and refreshes the local `polar_id` from Polar:
+
+```php
+$customer = $user->syncWithPolar();
+```
+
+You can check whether the link exists and inspect the customer's live state:
+
+```php
+$user->hasPolarCustomer();
+$state = $user->customerState(); // active subscriptions and grants
+```
+
+The admin/read surface is also available on the facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+
+LaravelPolar::createCustomer(['email' => 'jane@example.com', 'name' => 'Jane']);
+LaravelPolar::getCustomer('cust_xxx');
+LaravelPolar::getCustomerByExternalId('123');
+LaravelPolar::listCustomers(['limit' => 50]);       // Page<Data\Customer>
+LaravelPolar::updateCustomer('cust_xxx', ['name' => 'Jane Doe']);
+LaravelPolar::getCustomerState('cust_xxx');
+LaravelPolar::deleteCustomer('cust_xxx');
+```
+
 #### Payment Methods
 
 List a customer's saved payment methods:
@@ -675,6 +758,14 @@ You can retrieve orders by using the `orders` relationship on the billable model
         <!-- Add more columns as needed -->
     @endforeach
 </table>
+```
+
+The relationship only reads orders already synced by webhooks. To list orders straight from Polar (for an admin screen or a backfill), use the facade:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+
+$orders = LaravelPolar::listOrders(['limit' => 50]); // Page<Data\Order>
 ```
 
 #### Check order status
@@ -807,6 +898,15 @@ When a customer completes their checkout, the incoming `SubscriptionCreated` eve
 
 ```php
 $subscription = $user->subscription();
+```
+
+You can also read subscriptions directly from Polar:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+
+$subscription = LaravelPolar::getSubscription('sub_xxx'); // Data\Subscription
+$subscriptions = LaravelPolar::listSubscriptions(['limit' => 50]); // Page<Data\Subscription>
 ```
 
 #### Checking Subscription Status
@@ -974,13 +1074,54 @@ if ($user->subscription()->onGracePeriod()) {
 }
 ```
 
-Polar does not offer immediate cancellation.  To resume a subscription while it is still in its grace period, use the resume method.
+To resume a subscription while it is still in its grace period, use the resume method.
 
 ```php
 $user->subscription()->resume();
 ```
 
 When a cancelled subscription approaches the end of its grace period, it becomes expired and cannot be resumed.
+
+#### Immediate Cancellation
+
+If you need to cancel and revoke access right away instead of waiting for the end of the period, use `cancelNow()` (or its alias `revoke()`):
+
+```php
+use Danestves\LaravelPolar\Enums\CustomerCancellationReason;
+
+$user->subscription()->cancelNow(
+    reason: CustomerCancellationReason::TooExpensive,
+    comment: 'Customer asked to stop immediately',
+);
+```
+
+`ends_at` is updated from the revoked subscription, so `onGracePeriod()` will not report a grace period after an immediate cancellation.
+
+#### Pausing Subscriptions
+
+Polar can pause an active subscription at the end of the current period and optionally resume it automatically on a date:
+
+```php
+// Pause at period end and resume automatically in 30 days:
+$user->subscription()->pause(now()->addDays(30));
+
+// Pause at period end, resume manually later:
+$user->subscription()->pause();
+
+// Cancel a pause that has not taken effect yet:
+$user->subscription()->unpause();
+
+// Resume a subscription that is already paused (starts a new billing period and charges now):
+$user->subscription()->resumePaused();
+```
+
+You can inspect pause state locally:
+
+```php
+$user->subscription()->paused();            // status === paused
+$user->subscription()->onPauseGracePeriod(); // pause scheduled, period not over yet
+Subscription::query()->paused()->get();
+```
 
 #### Subscription Trials
 
@@ -1196,6 +1337,27 @@ use Danestves\LaravelPolar\LaravelPolar;
 $meter = LaravelPolar::getCustomerMeter('meter-id-123');
 ```
 
+#### Managing Meters
+
+Meters define how usage events are aggregated into billable units. The facade exposes their admin surface:
+
+```php
+use Danestves\LaravelPolar\LaravelPolar;
+
+$meters = LaravelPolar::listMeters();               // Page<Data\Meter>
+$meter  = LaravelPolar::getMeter('meter_xxx');       // Data\Meter
+
+$meter = LaravelPolar::createMeter([
+    'name' => 'API requests',
+    'unit' => 'scalar',
+    'organization_id' => 'org_xxx',
+    'filter' => ['conjunction' => 'and', 'clauses' => []],
+    'aggregation' => ['func' => 'count'],
+]);
+
+LaravelPolar::updateMeter('meter_xxx', ['name' => 'API calls']);
+```
+
 > [!NOTE]
 > Usage events are sent to Polar for processing. They are not stored locally in your database. Use Polar's dashboard or API to view processed usage data.
 
@@ -1347,18 +1509,49 @@ The package dispatches the following webhook events:
 **Order Events:**
 - `Danestves\LaravelPolar\Events\OrderCreated`
 - `Danestves\LaravelPolar\Events\OrderUpdated`
+- `Danestves\LaravelPolar\Events\OrderPaid`
+- `Danestves\LaravelPolar\Events\OrderRefunded`
 
 **Subscription Events:**
 - `Danestves\LaravelPolar\Events\SubscriptionCreated`
 - `Danestves\LaravelPolar\Events\SubscriptionUpdated`
 - `Danestves\LaravelPolar\Events\SubscriptionActive`
 - `Danestves\LaravelPolar\Events\SubscriptionCanceled`
+- `Danestves\LaravelPolar\Events\SubscriptionUncanceled`
+- `Danestves\LaravelPolar\Events\SubscriptionCycled`
+- `Danestves\LaravelPolar\Events\SubscriptionPastDue`
+- `Danestves\LaravelPolar\Events\SubscriptionPaused`
+- `Danestves\LaravelPolar\Events\SubscriptionResumed`
+- `Danestves\LaravelPolar\Events\SubscriptionMigrated`
 - `Danestves\LaravelPolar\Events\SubscriptionRevoked`
+
+**Refund Events:**
+- `Danestves\LaravelPolar\Events\RefundCreated`
+- `Danestves\LaravelPolar\Events\RefundUpdated`
+
+**Discount Events:**
+- `Danestves\LaravelPolar\Events\DiscountCreated`
+- `Danestves\LaravelPolar\Events\DiscountUpdated`
+- `Danestves\LaravelPolar\Events\DiscountDeleted`
+
+**Organization Events:**
+- `Danestves\LaravelPolar\Events\OrganizationUpdated`
 
 **Benefit Grant Events:**
 - `Danestves\LaravelPolar\Events\BenefitGrantCreated`
 - `Danestves\LaravelPolar\Events\BenefitGrantUpdated`
+- `Danestves\LaravelPolar\Events\BenefitGrantCycled`
 - `Danestves\LaravelPolar\Events\BenefitGrantRevoked`
+
+**Member Events:**
+- `Danestves\LaravelPolar\Events\MemberCreated`
+- `Danestves\LaravelPolar\Events\MemberUpdated`
+- `Danestves\LaravelPolar\Events\MemberDeleted`
+
+**Customer Seat Events:**
+- `Danestves\LaravelPolar\Events\CustomerSeatAssigned`
+- `Danestves\LaravelPolar\Events\CustomerSeatClaimed`
+- `Danestves\LaravelPolar\Events\CustomerSeatRevoked`
 
 **Checkout Events:**
 - `Danestves\LaravelPolar\Events\CheckoutCreated`
@@ -1385,18 +1578,23 @@ Each of these events has a `$payload` property containing the webhook payload. S
 
 | Event | Convenience Properties |
 |-------|----------------------|
-| `OrderCreated`, `OrderUpdated` | `$billable`, `$order` |
-| `SubscriptionCreated`, `SubscriptionUpdated`, `SubscriptionActive`, `SubscriptionCanceled`, `SubscriptionRevoked` | `$billable`, `$subscription` |
-| `BenefitGrantCreated`, `BenefitGrantUpdated`, `BenefitGrantRevoked` | `$billable` |
+| `OrderCreated`, `OrderUpdated`, `OrderPaid`, `OrderRefunded` | `$billable`, `$order` |
+| `SubscriptionCreated`, `SubscriptionUpdated`, `SubscriptionActive`, `SubscriptionCanceled`, `SubscriptionUncanceled`, `SubscriptionCycled`, `SubscriptionPastDue`, `SubscriptionPaused`, `SubscriptionResumed`, `SubscriptionMigrated`, `SubscriptionRevoked` | `$billable`, `$subscription` |
+| `BenefitGrantCreated`, `BenefitGrantUpdated`, `BenefitGrantCycled`, `BenefitGrantRevoked` | `$billable` |
 
 **Events with Only `$payload`:**
 
 | Event | Access Pattern |
 |-------|----------------|
-| `CheckoutCreated`, `CheckoutUpdated`, `CheckoutExpired` | `$event->payload->checkout` |
-| `CustomerCreated`, `CustomerUpdated`, `CustomerDeleted`, `CustomerStateChanged` | `$event->payload->customer` |
-| `ProductCreated`, `ProductUpdated` | `$event->payload->product` |
-| `BenefitCreated`, `BenefitUpdated` | `$event->payload->benefit` |
+| `CheckoutCreated`, `CheckoutUpdated`, `CheckoutExpired` | `$event->payload->data` |
+| `CustomerCreated`, `CustomerUpdated`, `CustomerDeleted`, `CustomerStateChanged` | `$event->payload->data` |
+| `ProductCreated`, `ProductUpdated` | `$event->payload->data` |
+| `BenefitCreated`, `BenefitUpdated` | `$event->payload->data` |
+| `RefundCreated`, `RefundUpdated` | `$event->payload->data` |
+| `DiscountCreated`, `DiscountUpdated`, `DiscountDeleted` | `$event->payload->data` |
+| `MemberCreated`, `MemberUpdated`, `MemberDeleted` | `$event->payload->data` |
+| `CustomerSeatAssigned`, `CustomerSeatClaimed`, `CustomerSeatRevoked` | `$event->payload->data` |
+| `OrganizationUpdated` | `$event->payload->data` |
 
 **Example Usage:**
 
@@ -1411,7 +1609,7 @@ public function handle(OrderCreated $event): void
 // Events with only payload
 public function handle(CheckoutCreated $event): void
 {
-    $checkout = $event->payload->checkout; // Access via payload
+    $checkout = $event->payload->data; // Access via payload
 }
 ```
 
@@ -1432,7 +1630,7 @@ class HandleCheckoutCreated
 {
     public function handle(CheckoutCreated $event): void
     {
-        $checkout = $event->payload->checkout;
+        $checkout = $event->payload->data;
         // Handle checkout creation...
     }
 }
@@ -1486,7 +1684,7 @@ class PolarEventListener
      */
     public function handleCheckoutCreated(CheckoutCreated $event): void
     {
-        $checkout = $event->payload->checkout;
+        $checkout = $event->payload->data;
         // Handle checkout creation...
     }
 
@@ -1582,7 +1780,50 @@ Laravel v11 and v12 will automatically discover listeners and subscribers if the
 composer test
 ```
 
-Because the package uses Laravel's HTTP client, you can fake Polar in your own application's tests:
+Because the package uses Laravel's HTTP client, you can fake Polar in your own application's tests.
+
+#### The Polar fake
+
+`LaravelPolar::fake()` registers an `Http::fake()` callback and returns a recorder you can assert against:
+
+```php
+$fake = LaravelPolar::fake([
+    'GET /v1/products/' => [
+        'items' => [],
+        'pagination' => ['total_count' => 0, 'max_page' => 1],
+    ],
+]);
+
+$products = LaravelPolar::listProducts(); // Page<Data\Product>
+
+$fake->assertSent('GET', '/v1/products/');
+$fake->assertSentCount(1);
+```
+
+For endpoints that hydrate a full DTO (a checkout, order, subscription), register a payload that matches Polar's resource shape — the same shape as the typed objects under `Danestves\LaravelPolar\Data`.
+
+Paths may contain `*` wildcards. Unregistered requests return a 404 with a clear `detail` message so a missing fake fails loudly.
+
+#### Fake webhooks
+
+`LaravelPolar::fakeWebhook()` builds the payload and the `webhook-id` / `webhook-timestamp` / `webhook-signature` headers for you, signed with your configured secret:
+
+```php
+$webhook = LaravelPolar::fakeWebhook('subscription.created', $data);
+
+$this->postJson('/polar/webhook', $webhook['payload'], $webhook['headers'])
+    ->assertOk();
+```
+
+You can pass an explicit secret, timestamp, or message id as the remaining arguments when you need to test replay or signature failures:
+
+```php
+$webhook = LaravelPolar::fakeWebhook('order.paid', $data, secret: 'whsec_test', timestamp: time(), id: 'msg_test');
+```
+
+#### Raw HTTP fakes
+
+You can always use `Http::fake()` directly:
 
 ```php
 use Illuminate\Support\Facades\Http;

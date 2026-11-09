@@ -4,6 +4,7 @@ namespace Danestves\LaravelPolar;
 
 use Danestves\LaravelPolar\Database\Factories\SubscriptionFactory;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
+use Danestves\LaravelPolar\Enums\CustomerCancellationReason;
 use Danestves\LaravelPolar\Enums\SubscriptionProrationBehavior;
 use Danestves\LaravelPolar\Enums\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,9 +22,19 @@ use Illuminate\Support\Carbon;
  * @property string $polar_id
  * @property SubscriptionStatus $status
  * @property string $product_id
+ * @property string|null $discount_id
+ * @property \Carbon\CarbonInterface|null $current_period_start
  * @property \Carbon\CarbonInterface|null $current_period_end
  * @property \Carbon\CarbonInterface|null $trial_ends_at
+ * @property bool $cancel_at_period_end
+ * @property \Carbon\CarbonInterface|null $canceled_at
  * @property \Carbon\CarbonInterface|null $ends_at
+ * @property bool $pause_at_period_end
+ * @property \Carbon\CarbonInterface|null $paused_at
+ * @property \Carbon\CarbonInterface|null $resumes_at
+ * @property \Carbon\CarbonInterface|null $started_at
+ * @property \Carbon\CarbonInterface|null $past_due_at
+ * @property int|null $polar_updated_at_us
  * @property \Carbon\CarbonInterface|null $created_at
  * @property \Carbon\CarbonInterface|null $updated_at
  * @property \Danestves\LaravelPolar\Billable $billable
@@ -226,6 +237,32 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     }
 
     /**
+     * Determine if the subscription is paused.
+     */
+    public function paused(): bool
+    {
+        return $this->status === SubscriptionStatus::Paused;
+    }
+
+    /**
+     * Filter query by paused.
+     *
+     * @param  Builder<Subscription>  $query
+     */
+    public function scopePaused(Builder $query): void
+    {
+        $query->where('status', SubscriptionStatus::Paused);
+    }
+
+    /**
+     * Determine if the subscription is scheduled to pause at the end of the period.
+     */
+    public function onPauseGracePeriod(): bool
+    {
+        return $this->pause_at_period_end && $this->current_period_end?->isFuture();
+    }
+
+    /**
      * Determine if the subscription is on a specific product.
      */
     public function hasProduct(string $productId): bool
@@ -253,7 +290,7 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     }
 
     /**
-     * Cancel the subscription.
+     * Cancel the subscription at the end of the current period.
      */
     public function cancel(): self
     {
@@ -261,7 +298,30 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     }
 
     /**
-     * Resume the subscription.
+     * Cancel and revoke the subscription immediately.
+     */
+    public function cancelNow(
+        ?CustomerCancellationReason $reason = null,
+        ?string $comment = null,
+    ): self {
+        return $this->revoke($reason, $comment);
+    }
+
+    /**
+     * Revoke the subscription immediately, ending billing and access now.
+     */
+    public function revoke(
+        ?CustomerCancellationReason $reason = null,
+        ?string $comment = null,
+    ): self {
+        return $this->updateAndSync(new Data\SubscriptionRevoke(
+            customerCancellationReason: $reason,
+            customerCancellationComment: $comment,
+        ));
+    }
+
+    /**
+     * Resume a subscription that was cancelled at the end of the period.
      */
     public function resume(): self
     {
@@ -270,6 +330,41 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
         }
 
         return $this->updateAndSync(new Data\SubscriptionCancel(cancelAtPeriodEnd: false));
+    }
+
+    /**
+     * Resume a subscription that has already been paused.
+     *
+     * This starts a new billing period and charges the customer immediately, unlike
+     * {@see resume()}, which only undoes a scheduled cancellation.
+     */
+    public function resumePaused(): self
+    {
+        return $this->updateAndSync(new Data\SubscriptionResume());
+    }
+
+    /**
+     * Schedule a pause at the end of the current period, or cancel a scheduled pause
+     * when the subscription has not paused yet.
+     */
+    public function pause(?\DateTimeInterface $resumesAt = null): self
+    {
+        $resumesAt = $resumesAt === null
+            ? null
+            : ($resumesAt instanceof CarbonImmutable ? $resumesAt : CarbonImmutable::instance($resumesAt));
+
+        return $this->updateAndSync(new Data\SubscriptionPause(
+            pauseAtPeriodEnd: true,
+            resumesAt: $resumesAt,
+        ));
+    }
+
+    /**
+     * Cancel a scheduled pause before it takes effect.
+     */
+    public function unpause(): self
+    {
+        return $this->updateAndSync(new Data\SubscriptionPause(pauseAtPeriodEnd: false));
     }
 
     /**
@@ -352,13 +447,34 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
      */
     private function syncFromResource(Data\Subscription $subscription): self
     {
-        $this->update([
+        if ($this->isStale($this->watermarkMicros($subscription->modifiedAt))) {
+            return $this;
+        }
+
+        $values = [
             'status' => $subscription->status,
             'product_id' => $subscription->productId,
+            'discount_id' => $subscription->discountId,
+            'current_period_start' => Carbon::make($subscription->currentPeriodStart),
             'current_period_end' => Carbon::make($subscription->currentPeriodEnd),
             'trial_ends_at' => $subscription->trialEnd !== null ? Carbon::make($subscription->trialEnd) : null,
-            'ends_at' => $subscription->endedAt !== null ? Carbon::make($subscription->endedAt) : null,
-        ]);
+            'cancel_at_period_end' => $subscription->cancelAtPeriodEnd,
+            'canceled_at' => $subscription->canceledAt !== null ? Carbon::make($subscription->canceledAt) : null,
+            'ends_at' => $subscription->endsAt !== null
+                ? Carbon::make($subscription->endsAt)
+                : ($subscription->endedAt !== null ? Carbon::make($subscription->endedAt) : null),
+            'pause_at_period_end' => $subscription->pauseAtPeriodEnd,
+            'paused_at' => $subscription->pausedAt !== null ? Carbon::make($subscription->pausedAt) : null,
+            'resumes_at' => $subscription->resumesAt !== null ? Carbon::make($subscription->resumesAt) : null,
+            'started_at' => $subscription->startedAt !== null ? Carbon::make($subscription->startedAt) : null,
+            'past_due_at' => $subscription->pastDueAt !== null ? Carbon::make($subscription->pastDueAt) : null,
+        ];
+
+        if ($subscription->modifiedAt !== null) {
+            $values['polar_updated_at_us'] = $this->watermarkMicros($subscription->modifiedAt);
+        }
+
+        $this->update($values);
 
         return $this;
     }
@@ -366,19 +482,86 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     /**
      * Sync the subscription with the given attributes.
      *
+     * `$eventTimestamp` is the webhook envelope timestamp. Polar only sets `modified_at` on
+     * updates, so it is null on `*.created` events; the envelope timestamp keeps those events
+     * ordered against the updates that follow them.
+     *
      * @param  array<string, mixed>  $attributes
      */
-    public function sync(array $attributes): self
+    public function sync(array $attributes, ?\DateTimeInterface $eventTimestamp = null): self
     {
-        $this->update([
+        $modifiedAt = isset($attributes['modified_at']) ? Carbon::make($attributes['modified_at']) : null;
+        $watermark = $this->orderingWatermark($modifiedAt, $eventTimestamp);
+
+        if ($this->isStale($watermark)) {
+            return $this;
+        }
+
+        $values = [
             'status' => \is_string($attributes['status']) ? SubscriptionStatus::from($attributes['status']) : $attributes['status'],
             'product_id' => $attributes['product_id'],
+            'discount_id' => $attributes['discount_id'] ?? null,
+            'current_period_start' => isset($attributes['current_period_start']) ? Carbon::make($attributes['current_period_start']) : null,
             'current_period_end' => isset($attributes['current_period_end']) ? Carbon::make($attributes['current_period_end']) : null,
             'trial_ends_at' => isset($attributes['trial_end']) ? Carbon::make($attributes['trial_end']) : null,
+            'cancel_at_period_end' => (bool) ($attributes['cancel_at_period_end'] ?? false),
+            'canceled_at' => isset($attributes['canceled_at']) ? Carbon::make($attributes['canceled_at']) : null,
             'ends_at' => isset($attributes['ends_at']) ? Carbon::make($attributes['ends_at']) : null,
-        ]);
+            'pause_at_period_end' => (bool) ($attributes['pause_at_period_end'] ?? false),
+            'paused_at' => isset($attributes['paused_at']) ? Carbon::make($attributes['paused_at']) : null,
+            'resumes_at' => isset($attributes['resumes_at']) ? Carbon::make($attributes['resumes_at']) : null,
+            'started_at' => isset($attributes['started_at']) ? Carbon::make($attributes['started_at']) : null,
+            'past_due_at' => isset($attributes['past_due_at']) ? Carbon::make($attributes['past_due_at']) : null,
+        ];
+
+        if ($watermark !== null) {
+            $values['polar_updated_at_us'] = $watermark;
+        }
+
+        $this->update($values);
 
         return $this;
+    }
+
+    /**
+     * Pick the newest timestamp we can trust for ordering this delivery.
+     *
+     * Both timestamps come from Polar's clock: `modified_at` is the resource update time and
+     * the envelope timestamp is when the event was emitted. Taking the later of the two keeps
+     * a newer update from looking stale just because one of the fields is missing. The result
+     * is stored as UTC microseconds so it survives timezone and sub-second resolution.
+     */
+    private function orderingWatermark(?\DateTimeInterface $modifiedAt, ?\DateTimeInterface $eventTimestamp): ?int
+    {
+        $modifiedMicros = $this->watermarkMicros($modifiedAt);
+        $eventMicros = $this->watermarkMicros($eventTimestamp);
+
+        if ($modifiedMicros === null) {
+            return $eventMicros;
+        }
+
+        return $eventMicros !== null && $eventMicros > $modifiedMicros ? $eventMicros : $modifiedMicros;
+    }
+
+    /**
+     * Convert an instant to UTC microseconds since the epoch.
+     */
+    private function watermarkMicros(?\DateTimeInterface $timestamp): ?int
+    {
+        return $timestamp === null ? null : (int) Carbon::make($timestamp)->getPreciseTimestamp(6);
+    }
+
+    /**
+     * Determine whether an incoming webhook describes an older state than the one we hold.
+     *
+     * Polar does not guarantee webhook delivery order, so a delayed event must not roll the
+     * local subscription back to a state the customer has already left.
+     */
+    public function isStale(?int $incomingWatermarkUs): bool
+    {
+        return $incomingWatermarkUs !== null
+            && $this->polar_updated_at_us !== null
+            && $incomingWatermarkUs < $this->polar_updated_at_us;
     }
 
 
@@ -389,9 +572,18 @@ class Subscription extends Model // @phpstan-ignore-line propertyTag.trait - Bil
     {
         return [
             'status' => SubscriptionStatus::class,
+            'current_period_start' => 'datetime',
             'current_period_end' => 'datetime',
             'trial_ends_at' => 'datetime',
+            'cancel_at_period_end' => 'boolean',
+            'canceled_at' => 'datetime',
             'ends_at' => 'datetime',
+            'pause_at_period_end' => 'boolean',
+            'paused_at' => 'datetime',
+            'resumes_at' => 'datetime',
+            'started_at' => 'datetime',
+            'past_due_at' => 'datetime',
+            'polar_updated_at_us' => 'integer',
         ];
     }
 

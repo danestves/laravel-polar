@@ -1,0 +1,82 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * Adds the subscription lifecycle columns introduced in v3.3. Fresh installs already get
+     * these from the create migration, so each column is guarded to keep the two paths safe.
+     */
+    public function up(): void
+    {
+        if (Schema::hasTable('polar_subscriptions')) {
+            Schema::table('polar_subscriptions', function (Blueprint $table) {
+                if (! Schema::hasColumn('polar_subscriptions', 'discount_id')) {
+                    $table->string('discount_id')->nullable()->after('product_id');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'current_period_start')) {
+                    $table->timestamp('current_period_start')->nullable()->after('discount_id');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'cancel_at_period_end')) {
+                    $table->boolean('cancel_at_period_end')->default(false)->after('trial_ends_at');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'canceled_at')) {
+                    $table->timestamp('canceled_at')->nullable()->after('cancel_at_period_end');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'pause_at_period_end')) {
+                    $table->boolean('pause_at_period_end')->default(false)->after('ends_at');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'paused_at')) {
+                    $table->timestamp('paused_at')->nullable()->after('pause_at_period_end');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'resumes_at')) {
+                    $table->timestamp('resumes_at')->nullable()->after('paused_at');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'started_at')) {
+                    $table->timestamp('started_at')->nullable()->after('resumes_at');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'past_due_at')) {
+                    $table->timestamp('past_due_at')->nullable()->after('started_at');
+                }
+
+                if (! Schema::hasColumn('polar_subscriptions', 'polar_updated_at_us')) {
+                    $table->unsignedBigInteger('polar_updated_at_us')->nullable()->after('past_due_at');
+                }
+            });
+        }
+
+        if (Schema::hasTable('polar_orders')) {
+            Schema::table('polar_orders', function (Blueprint $table) {
+                if (! Schema::hasColumn('polar_orders', 'polar_updated_at_us')) {
+                    $table->unsignedBigInteger('polar_updated_at_us')->nullable()->after('ordered_at');
+                }
+            });
+        }
+    }
+
+    /**
+     * This is a widening migration.
+     *
+     * A fresh install already gets every column from the create migration, so there is no way
+     * to tell here whether dropping them would break the schema the create migration expects.
+     * Leaving the columns in place is the safe rollback, matching how the package treats its
+     * other schema-widening migration.
+     */
+    public function down(): void
+    {
+        //
+    }
+};

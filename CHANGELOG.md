@@ -2,6 +2,30 @@
 
 All notable changes to `laravel-polar` will be documented in this file.
 
+## v3.3.0 - 2026-11-09
+
+### Added
+
+- **Subscription lifecycle management.** `Subscription::cancelNow()` / `revoke()` for immediate cancellation, `pause()` / `unpause()` for scheduled pauses, and `resumePaused()` for resuming a paused subscription. New `paused()` helper and `paused()` query scope.
+- **Full subscription state is persisted locally.** The `polar_subscriptions` table now stores `discount_id`, `current_period_start`, `cancel_at_period_end`, `canceled_at`, `pause_at_period_end`, `paused_at`, `resumes_at`, `started_at`, `past_due_at`, and `polar_updated_at_us`. Orders gain `polar_updated_at_us`.
+- **Complete webhook catalogue.** New handlers and Laravel events for `order.paid`, `order.refunded`, `subscription.uncanceled`, `subscription.cycled`, `subscription.past_due`, `subscription.paused`, `subscription.resumed`, `subscription.migrated`, `benefit_grant.cycled`, `refund.created`, `refund.updated`, `discount.created`, `discount.updated`, `discount.deleted`, `member.created`, `member.updated`, `member.deleted`, `customer_seat.assigned`, `customer_seat.claimed`, `customer_seat.revoked`, and `organization.updated`.
+- **Idempotent, order-safe webhook syncing.** Re-delivered `order.created` events update the existing order instead of duplicating it, and stale events are ignored using Polar's `modified_at` timestamp.
+- **Customer admin and sync APIs.** `LaravelPolar::createCustomer()`, `getCustomer()`, `getCustomerByExternalId()`, `listCustomers()`, `updateCustomer()`, `deleteCustomer()`, `getCustomerState()`, plus the billable helpers `createAsPolarCustomer()`, `syncWithPolar()`, `customerState()`, and `hasPolarCustomer()`.
+- **More read endpoints.** `LaravelPolar::getSubscription()`, `listSubscriptions()`, `listOrders()`, `getProduct()`, and meter management via `listMeters()`, `getMeter()`, `createMeter()`, `updateMeter()`.
+- **Testing helpers.** `LaravelPolar::fake()` records requests and exposes `assertSent()` / `assertNotSent()` / `assertSentCount()`; `LaravelPolar::fakeWebhook()` builds a correctly signed webhook payload.
+- **`php artisan polar:sync`** backfills local orders and subscriptions from Polar, with `--resource`, `--limit`, and `--dry-run` options.
+- **HTTP resilience.** Optional retry with backoff for `429` and `5xx` responses (`POLAR_RETRY_TIMES` / `POLAR_RETRY_SLEEP`), and typed exceptions for authentication, validation, not-found, and rate-limit failures.
+- **Lazy pagination.** `Page::all()` and `Page::lazy()` walk every page of a list response.
+
+### Changed
+
+- `Subscription::sync()` and `Order::sync()` now persist and compare `polar_updated_at_us` to drop out-of-order webhook deliveries. When Polar omits `modified_at` (created events), the webhook envelope timestamp is used instead, so a later paid/active event is not mistaken for stale.
+- `Subscription::syncFromResource()` reads `ends_at` from the subscription's `ends_at` field (falling back to `ended_at`), matching the webhook path.
+
+### Upgrading
+
+Publish and run the new migration, and optionally enable the new webhook events. See [docs/migration-v3.2-to-v3.3.md](docs/migration-v3.2-to-v3.3.md).
+
 ## v3.2.1 - 2026-09-14
 
 ### What's Changed

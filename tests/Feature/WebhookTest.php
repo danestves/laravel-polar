@@ -16,14 +16,28 @@ use Danestves\LaravelPolar\Events\CustomerCreated;
 use Danestves\LaravelPolar\Events\CustomerDeleted;
 use Danestves\LaravelPolar\Events\CustomerStateChanged;
 use Danestves\LaravelPolar\Events\CustomerUpdated;
+use Danestves\LaravelPolar\Events\DiscountCreated;
+use Danestves\LaravelPolar\Events\DiscountDeleted;
+use Danestves\LaravelPolar\Events\DiscountUpdated;
 use Danestves\LaravelPolar\Events\OrderCreated;
+use Danestves\LaravelPolar\Events\OrderPaid;
+use Danestves\LaravelPolar\Events\OrderRefunded;
 use Danestves\LaravelPolar\Events\OrderUpdated;
+use Danestves\LaravelPolar\Events\OrganizationUpdated;
 use Danestves\LaravelPolar\Events\ProductCreated;
 use Danestves\LaravelPolar\Events\ProductUpdated;
+use Danestves\LaravelPolar\Events\RefundCreated;
+use Danestves\LaravelPolar\Events\RefundUpdated;
 use Danestves\LaravelPolar\Events\SubscriptionActive;
 use Danestves\LaravelPolar\Events\SubscriptionCanceled;
 use Danestves\LaravelPolar\Events\SubscriptionCreated;
+use Danestves\LaravelPolar\Events\SubscriptionCycled;
+use Danestves\LaravelPolar\Events\SubscriptionMigrated;
+use Danestves\LaravelPolar\Events\SubscriptionPaused;
+use Danestves\LaravelPolar\Events\SubscriptionPastDue;
+use Danestves\LaravelPolar\Events\SubscriptionResumed;
 use Danestves\LaravelPolar\Events\SubscriptionRevoked;
+use Danestves\LaravelPolar\Events\SubscriptionUncanceled;
 use Danestves\LaravelPolar\Events\SubscriptionUpdated;
 use Danestves\LaravelPolar\Events\WebhookHandled;
 use Danestves\LaravelPolar\Events\WebhookReceived;
@@ -61,14 +75,29 @@ class TestProcessWebhook extends ProcessWebhook
         match ($type) {
             'order.created' => $reflection->getMethod('handleOrderCreated')->invoke($this, $data, $timestamp, $type),
             'order.updated' => $reflection->getMethod('handleOrderUpdated')->invoke($this, $data, $timestamp, $type),
+            'order.paid' => $reflection->getMethod('handleOrderPaid')->invoke($this, $data, $timestamp, $type),
+            'order.refunded' => $reflection->getMethod('handleOrderRefunded')->invoke($this, $data, $timestamp, $type),
             'subscription.created' => $reflection->getMethod('handleSubscriptionCreated')->invoke($this, $data, $timestamp, $type),
             'subscription.updated' => $reflection->getMethod('handleSubscriptionUpdated')->invoke($this, $data, $timestamp, $type),
             'subscription.active' => $reflection->getMethod('handleSubscriptionActive')->invoke($this, $data, $timestamp, $type),
             'subscription.canceled' => $reflection->getMethod('handleSubscriptionCanceled')->invoke($this, $data, $timestamp, $type),
             'subscription.revoked' => $reflection->getMethod('handleSubscriptionRevoked')->invoke($this, $data, $timestamp, $type),
+            'subscription.uncanceled' => $reflection->getMethod('handleSubscriptionUncanceled')->invoke($this, $data, $timestamp, $type),
+            'subscription.cycled' => $reflection->getMethod('handleSubscriptionCycled')->invoke($this, $data, $timestamp, $type),
+            'subscription.past_due' => $reflection->getMethod('handleSubscriptionPastDue')->invoke($this, $data, $timestamp, $type),
+            'subscription.paused' => $reflection->getMethod('handleSubscriptionPaused')->invoke($this, $data, $timestamp, $type),
+            'subscription.resumed' => $reflection->getMethod('handleSubscriptionResumed')->invoke($this, $data, $timestamp, $type),
+            'subscription.migrated' => $reflection->getMethod('handleSubscriptionMigrated')->invoke($this, $data, $timestamp, $type, $payload),
             'benefit_grant.created' => $reflection->getMethod('handleBenefitGrantCreated')->invoke($this, $data, $timestamp, $type),
             'benefit_grant.updated' => $reflection->getMethod('handleBenefitGrantUpdated')->invoke($this, $data, $timestamp, $type),
+            'benefit_grant.cycled' => $reflection->getMethod('handleBenefitGrantCycled')->invoke($this, $data, $timestamp, $type),
             'benefit_grant.revoked' => $reflection->getMethod('handleBenefitGrantRevoked')->invoke($this, $data, $timestamp, $type),
+            'member.created' => $reflection->getMethod('handleMemberEvent')->invoke($this, $data, $timestamp, $type, \Danestves\LaravelPolar\Data\WebhookMemberCreatedPayload::class, \Danestves\LaravelPolar\Events\MemberCreated::class),
+            'member.updated' => $reflection->getMethod('handleMemberEvent')->invoke($this, $data, $timestamp, $type, \Danestves\LaravelPolar\Data\WebhookMemberUpdatedPayload::class, \Danestves\LaravelPolar\Events\MemberUpdated::class),
+            'member.deleted' => $reflection->getMethod('handleMemberEvent')->invoke($this, $data, $timestamp, $type, \Danestves\LaravelPolar\Data\WebhookMemberDeletedPayload::class, \Danestves\LaravelPolar\Events\MemberDeleted::class),
+            'customer_seat.assigned' => $reflection->getMethod('handleCustomerSeatEvent')->invoke($this, $data, $timestamp, $type, \Danestves\LaravelPolar\Data\WebhookCustomerSeatAssignedPayload::class, \Danestves\LaravelPolar\Events\CustomerSeatAssigned::class),
+            'customer_seat.claimed' => $reflection->getMethod('handleCustomerSeatEvent')->invoke($this, $data, $timestamp, $type, \Danestves\LaravelPolar\Data\WebhookCustomerSeatClaimedPayload::class, \Danestves\LaravelPolar\Events\CustomerSeatClaimed::class),
+            'customer_seat.revoked' => $reflection->getMethod('handleCustomerSeatEvent')->invoke($this, $data, $timestamp, $type, \Danestves\LaravelPolar\Data\WebhookCustomerSeatRevokedPayload::class, \Danestves\LaravelPolar\Events\CustomerSeatRevoked::class),
             'checkout.created' => $reflection->getMethod('handleCheckoutCreated')->invoke($this, $data, $timestamp, $type),
             'checkout.updated' => $reflection->getMethod('handleCheckoutUpdated')->invoke($this, $data, $timestamp, $type),
             'customer.created' => $reflection->getMethod('handleCustomerCreated')->invoke($this, $data, $timestamp, $type),
@@ -79,6 +108,12 @@ class TestProcessWebhook extends ProcessWebhook
             'product.updated' => $reflection->getMethod('handleProductUpdated')->invoke($this, $data, $timestamp, $type),
             'benefit.created' => $reflection->getMethod('handleBenefitCreated')->invoke($this, $data, $timestamp, $type),
             'benefit.updated' => $reflection->getMethod('handleBenefitUpdated')->invoke($this, $data, $timestamp, $type),
+            'refund.created' => $reflection->getMethod('handleRefundCreated')->invoke($this, $data, $timestamp, $type),
+            'refund.updated' => $reflection->getMethod('handleRefundUpdated')->invoke($this, $data, $timestamp, $type),
+            'discount.created' => $reflection->getMethod('handleDiscountCreated')->invoke($this, $data, $timestamp, $type),
+            'discount.updated' => $reflection->getMethod('handleDiscountUpdated')->invoke($this, $data, $timestamp, $type),
+            'discount.deleted' => $reflection->getMethod('handleDiscountDeleted')->invoke($this, $data, $timestamp, $type),
+            'organization.updated' => $reflection->getMethod('handleOrganizationUpdated')->invoke($this, $data, $timestamp, $type),
             default => \Illuminate\Support\Facades\Log::info("Unknown event type: $type"),
         };
 
@@ -979,3 +1014,618 @@ describe('payloads this package cannot yet parse', function () {
         Event::assertDispatched(WebhookHandled::class);
     });
 });
+
+it('handles subscription.uncanceled webhook', function () {
+    $user = User::factory()->create();
+    $subscription = Subscription::factory()->cancelled()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'subscription_uncanceled',
+    ]);
+
+    $job = createWebhookCall([
+        'type' => 'subscription.uncanceled',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_uncanceled',
+            'status' => SubscriptionStatus::Active->value,
+            'product_id' => 'product_123',
+            'current_period_end' => now()->addDays(30)->toIso8601String(),
+            'cancel_at_period_end' => false,
+            'canceled_at' => null,
+            'ends_at' => null,
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $subscription->refresh();
+    expect($subscription->status)->toBe(SubscriptionStatus::Active)
+        ->and($subscription->cancel_at_period_end)->toBeFalse()
+        ->and($subscription->canceled_at)->toBeNull();
+
+    Event::assertDispatched(SubscriptionUncanceled::class);
+});
+
+it('handles subscription.cycled webhook', function () {
+    $user = User::factory()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'subscription_cycled',
+    ]);
+    $periodEnd = now()->addDays(30);
+
+    $job = createWebhookCall([
+        'type' => 'subscription.cycled',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_cycled',
+            'status' => SubscriptionStatus::Active->value,
+            'product_id' => 'product_123',
+            'current_period_start' => now()->toIso8601String(),
+            'current_period_end' => $periodEnd->toIso8601String(),
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $subscription->refresh();
+    expect($subscription->current_period_end->toIso8601String())->toBe($periodEnd->toIso8601String());
+
+    Event::assertDispatched(SubscriptionCycled::class);
+});
+
+it('handles subscription.past_due webhook', function () {
+    $user = User::factory()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'subscription_past_due',
+    ]);
+
+    $job = createWebhookCall([
+        'type' => 'subscription.past_due',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_past_due',
+            'status' => SubscriptionStatus::PastDue->value,
+            'product_id' => 'product_123',
+            'past_due_at' => now()->toIso8601String(),
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $subscription->refresh();
+    expect($subscription->status)->toBe(SubscriptionStatus::PastDue)
+        ->and($subscription->past_due_at)->not->toBeNull();
+
+    Event::assertDispatched(SubscriptionPastDue::class);
+});
+
+it('handles subscription.paused webhook', function () {
+    $user = User::factory()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'subscription_paused',
+    ]);
+
+    $job = createWebhookCall([
+        'type' => 'subscription.paused',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_paused',
+            'status' => SubscriptionStatus::Paused->value,
+            'product_id' => 'product_123',
+            'paused_at' => now()->toIso8601String(),
+            'resumes_at' => now()->addDays(30)->toIso8601String(),
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $subscription->refresh();
+    expect($subscription->status)->toBe(SubscriptionStatus::Paused)
+        ->and($subscription->paused_at)->not->toBeNull()
+        ->and($subscription->resumes_at)->not->toBeNull();
+
+    Event::assertDispatched(SubscriptionPaused::class);
+});
+
+it('handles subscription.resumed webhook', function () {
+    $user = User::factory()->create();
+    $subscription = Subscription::factory()->paused()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'subscription_resumed',
+    ]);
+
+    $job = createWebhookCall([
+        'type' => 'subscription.resumed',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_resumed',
+            'status' => SubscriptionStatus::Active->value,
+            'product_id' => 'product_123',
+            'paused_at' => null,
+            'resumes_at' => null,
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $subscription->refresh();
+    expect($subscription->status)->toBe(SubscriptionStatus::Active)
+        ->and($subscription->paused_at)->toBeNull();
+
+    Event::assertDispatched(SubscriptionResumed::class);
+});
+
+it('handles subscription.migrated webhook', function () {
+    $user = User::factory()->create();
+    $subscription = Subscription::factory()->active()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'subscription_migrated',
+        'product_id' => 'product_123',
+    ]);
+
+    $job = createWebhookCall([
+        'type' => 'subscription.migrated',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_migrated',
+            'status' => SubscriptionStatus::Active->value,
+            'product_id' => 'product_456',
+        ]),
+        'provider' => 'stripe',
+        'provider_subscription_id' => 'sub_1Sabc2Def3Ghi',
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $subscription->refresh();
+    expect($subscription->product_id)->toBe('product_456');
+
+    Event::assertDispatched(SubscriptionMigrated::class, function (SubscriptionMigrated $event) {
+        return $event->payload->provider === 'stripe'
+            && $event->payload->providerSubscriptionId === 'sub_1Sabc2Def3Ghi';
+    });
+});
+
+it('handles order.paid webhook and creates a missing order', function () {
+    $user = User::factory()->create();
+
+    $job = createWebhookCall([
+        'type' => 'order.paid',
+        'data' => polarFixture('Order', [
+            'id' => 'order_paid',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'tax_amount' => 100,
+            'refunded_amount' => 0,
+            'refunded_tax_amount' => 0,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => now()->toIso8601String(),
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $order = Order::where('polar_id', 'order_paid')->first();
+    expect($order)->not->toBeNull()
+        ->and($order->status)->toBe(OrderStatus::Paid)
+        ->and($order->billable_id)->toBe($user->getKey());
+
+    Event::assertDispatched(OrderPaid::class);
+});
+
+it('handles order.refunded webhook', function () {
+    $user = User::factory()->create();
+    $order = Order::factory()->paid()->create([
+        'billable_id' => $user->getKey(),
+        'billable_type' => $user->getMorphClass(),
+        'polar_id' => 'order_refunded',
+    ]);
+
+    $job = createWebhookCall([
+        'type' => 'order.refunded',
+        'data' => polarFixture('Order', [
+            'id' => 'order_refunded',
+            'status' => OrderStatus::Refunded->value,
+            'net_amount' => 1000,
+            'tax_amount' => 100,
+            'refunded_amount' => 1000,
+            'refunded_tax_amount' => 100,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => now()->toIso8601String(),
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $order->refresh();
+    expect($order->status)->toBe(OrderStatus::Refunded)
+        ->and($order->refunded_amount)->toBe(1000);
+
+    Event::assertDispatched(OrderRefunded::class);
+});
+
+it('handles order.refunded webhook when order does not exist', function () {
+    $job = createWebhookCall([
+        'type' => 'order.refunded',
+        'data' => polarFixture('Order', [
+            'id' => 'missing_order',
+            'status' => OrderStatus::Refunded->value,
+            'net_amount' => 1000,
+            'refunded_amount' => 1000,
+            'refunded_tax_amount' => 0,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => now()->toIso8601String(),
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    expect(Order::where('polar_id', 'missing_order')->exists())->toBeFalse();
+    Event::assertNotDispatched(OrderRefunded::class);
+});
+
+it('handles refund.created webhook', function () {
+    $job = createWebhookCall([
+        'type' => 'refund.created',
+        'data' => polarFixture('Refund', [
+            'id' => 'refund_created',
+            'status' => 'pending',
+            'reason' => 'customer_request',
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched(RefundCreated::class);
+});
+
+it('handles refund.updated webhook', function () {
+    $job = createWebhookCall([
+        'type' => 'refund.updated',
+        'data' => polarFixture('Refund', [
+            'id' => 'refund_updated',
+            'status' => 'succeeded',
+            'reason' => 'customer_request',
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched(RefundUpdated::class);
+});
+
+it('handles discount.created webhook', function () {
+    $job = createWebhookCall([
+        'type' => 'discount.created',
+        'data' => polarFixture('DiscountFixedOnceForeverDuration', ['id' => 'discount_created']),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched(DiscountCreated::class);
+});
+
+it('handles discount.updated webhook', function () {
+    $job = createWebhookCall([
+        'type' => 'discount.updated',
+        'data' => polarFixture('DiscountFixedOnceForeverDuration', ['id' => 'discount_updated']),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched(DiscountUpdated::class);
+});
+
+it('handles discount.deleted webhook', function () {
+    $job = createWebhookCall([
+        'type' => 'discount.deleted',
+        'data' => polarFixture('DiscountFixedOnceForeverDuration', ['id' => 'discount_deleted']),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched(DiscountDeleted::class);
+});
+
+it('handles organization.updated webhook', function () {
+    $job = createWebhookCall([
+        'type' => 'organization.updated',
+        'data' => polarFixture('Organization', [
+            'id' => 'organization_123',
+            'name' => 'Acme',
+            'slug' => 'acme',
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched(OrganizationUpdated::class);
+});
+
+it('does not create a duplicate order when order.created is re-delivered', function () {
+    $user = User::factory()->create();
+
+    $job = createWebhookCall([
+        'type' => 'order.created',
+        'data' => polarFixture('Order', [
+            'id' => 'order_duplicate',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'tax_amount' => 100,
+            'refunded_amount' => 0,
+            'refunded_tax_amount' => 0,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => now()->toIso8601String(),
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+
+    $job->handle();
+    $job->handle();
+
+    expect(Order::where('polar_id', 'order_duplicate')->count())->toBe(1);
+});
+
+it('does not create a duplicate subscription when subscription.created is re-delivered', function () {
+    $user = User::factory()->create();
+
+    $job = createWebhookCall([
+        'type' => 'subscription.created',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_duplicate',
+            'status' => SubscriptionStatus::Active->value,
+            'product_id' => 'product_123',
+            'customer_id' => 'customer_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+            'current_period_end' => now()->addDays(30)->toIso8601String(),
+            'ends_at' => null,
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+
+    $job->handle();
+    $job->handle();
+
+    expect(Subscription::where('polar_id', 'subscription_duplicate')->count())->toBe(1);
+});
+
+it('persists the full lifecycle state on a newly created subscription', function () {
+    $user = User::factory()->create();
+    $periodStart = now()->subDays(1);
+
+    $job = createWebhookCall([
+        'type' => 'subscription.created',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_created_lifecycle',
+            'status' => SubscriptionStatus::Active->value,
+            'product_id' => 'product_123',
+            'customer_id' => 'customer_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+            'discount_id' => 'discount_123',
+            'current_period_start' => $periodStart->toIso8601String(),
+            'current_period_end' => now()->addDays(30)->toIso8601String(),
+            'cancel_at_period_end' => true,
+            'canceled_at' => now()->toIso8601String(),
+            'ends_at' => now()->addDays(30)->toIso8601String(),
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $subscription = Subscription::where('polar_id', 'subscription_created_lifecycle')->first();
+
+    expect($subscription)->not->toBeNull()
+        ->and($subscription->discount_id)->toBe('discount_123')
+        ->and($subscription->cancel_at_period_end)->toBeTrue()
+        ->and($subscription->canceled_at)->not->toBeNull()
+        ->and($subscription->current_period_start->toIso8601String())->toBe($periodStart->toIso8601String())
+        ->and($subscription->polar_updated_at_us)->not->toBeNull();
+});
+
+it('does not use local time as the ordering watermark when modified_at is missing', function () {
+    $order = Order::factory()->paid()->create([
+        'polar_id' => 'order_no_modified_at',
+        'polar_updated_at_us' => null,
+    ]);
+
+    $order->sync([
+        'id' => 'order_no_modified_at',
+        'status' => OrderStatus::Paid->value,
+        'net_amount' => 1000,
+        'tax_amount' => 100,
+        'refunded_amount' => 0,
+        'refunded_tax_amount' => 0,
+        'currency' => 'USD',
+        'billing_reason' => 'purchase',
+        'customer_id' => 'customer_123',
+        'product_id' => 'product_123',
+        'created_at' => now()->toIso8601String(),
+        'modified_at' => null,
+    ]);
+
+    expect($order->fresh()->polar_updated_at_us)->toBeNull();
+});
+
+it('does not drop a later event when created events have no modified_at', function () {
+    $user = User::factory()->create();
+
+    $created = createWebhookCall([
+        'type' => 'order.created',
+        'data' => polarFixture('Order', [
+            'id' => 'order_ordering',
+            'status' => OrderStatus::Pending->value,
+            'net_amount' => 1000,
+            'tax_amount' => 100,
+            'refunded_amount' => 0,
+            'refunded_tax_amount' => 0,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => now()->subSeconds(10)->toIso8601String(),
+            'modified_at' => null,
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $created->handle();
+
+    $paid = createWebhookCall([
+        'type' => 'order.paid',
+        'data' => polarFixture('Order', [
+            'id' => 'order_ordering',
+            'status' => OrderStatus::Paid->value,
+            'net_amount' => 1000,
+            'tax_amount' => 100,
+            'refunded_amount' => 0,
+            'refunded_tax_amount' => 0,
+            'currency' => 'USD',
+            'billing_reason' => 'purchase',
+            'customer_id' => 'customer_123',
+            'product_id' => 'product_123',
+            'created_at' => now()->subSeconds(10)->toIso8601String(),
+            'modified_at' => now()->subSecond()->toIso8601String(),
+        ]),
+        'timestamp' => now()->addSeconds(5)->toIso8601String(),
+    ]);
+    $paid->handle();
+
+    expect(Order::where('polar_id', 'order_ordering')->first()->status)->toBe(OrderStatus::Paid);
+});
+
+it('creates a migrated subscription that never had a subscription.created event', function () {
+    $user = User::factory()->create();
+
+    $job = createWebhookCall([
+        'type' => 'subscription.migrated',
+        'data' => polarFixture('Subscription', [
+            'id' => 'subscription_migrated_new',
+            'status' => SubscriptionStatus::Active->value,
+            'product_id' => 'product_456',
+            'customer_id' => 'customer_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                    'subscription_type' => 'premium',
+                ],
+            ],
+        ]),
+        'provider' => 'stripe',
+        'provider_subscription_id' => 'sub_migrated',
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    $subscription = Subscription::where('polar_id', 'subscription_migrated_new')->first();
+
+    expect($subscription)->not->toBeNull()
+        ->and($subscription->billable_id)->toBe($user->getKey())
+        ->and($subscription->type)->toBe('premium')
+        ->and($subscription->product_id)->toBe('product_456');
+
+    Event::assertDispatched(SubscriptionMigrated::class);
+});
+
+it('handles benefit_grant.cycled webhook', function () {
+    $user = User::factory()->create();
+
+    $job = createWebhookCall([
+        'type' => 'benefit_grant.cycled',
+        'data' => polarFixture('BenefitGrantCustomWebhook', [
+            'id' => 'benefit_grant_cycled',
+            'type' => 'custom',
+            'customer_id' => 'customer_123',
+            'customer' => [
+                'id' => 'customer_123',
+                'type' => 'individual',
+                'metadata' => [
+                    'billable_id' => (string) $user->getKey(),
+                    'billable_type' => $user->getMorphClass(),
+                ],
+            ],
+        ]),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched(\Danestves\LaravelPolar\Events\BenefitGrantCycled::class);
+});
+
+it('handles member webhooks', function (string $type, string $event) {
+    $job = createWebhookCall([
+        'type' => $type,
+        'data' => polarFixture('Member', ['id' => 'member_123']),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched($event);
+})->with([
+    ['member.created', \Danestves\LaravelPolar\Events\MemberCreated::class],
+    ['member.updated', \Danestves\LaravelPolar\Events\MemberUpdated::class],
+    ['member.deleted', \Danestves\LaravelPolar\Events\MemberDeleted::class],
+]);
+
+it('handles customer seat webhooks', function (string $type, string $event) {
+    $job = createWebhookCall([
+        'type' => $type,
+        'data' => polarFixture('CustomerSeat', ['id' => 'seat_123']),
+        'timestamp' => now()->toIso8601String(),
+    ]);
+    $job->handle();
+
+    Event::assertDispatched($event);
+})->with([
+    ['customer_seat.assigned', \Danestves\LaravelPolar\Events\CustomerSeatAssigned::class],
+    ['customer_seat.claimed', \Danestves\LaravelPolar\Events\CustomerSeatClaimed::class],
+    ['customer_seat.revoked', \Danestves\LaravelPolar\Events\CustomerSeatRevoked::class],
+]);

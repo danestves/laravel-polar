@@ -436,6 +436,16 @@ final class PolarFixtures
                 'available_seats' => 0,
                 'total_seats' => 0,
             ],
+            'Member' => [
+                'id' => '00000000-0000-0000-0000-000000000000',
+                'created_at' => '2026-01-01T00:00:00Z',
+                'modified_at' => null,
+                'customer_id' => '00000000-0000-0000-0000-000000000000',
+                'email' => 'member@example.com',
+                'name' => null,
+                'external_id' => null,
+                'role' => 'member',
+            ],
             'CustomerSeat' => [
                 'created_at' => '2026-01-01T00:00:00Z',
                 'modified_at' => null,

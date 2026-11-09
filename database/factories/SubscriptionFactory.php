@@ -110,6 +110,17 @@ class SubscriptionFactory extends Factory
     }
 
     /**
+     * Mark the subscription as paused.
+     */
+    public function paused(): self
+    {
+        return $this->state([
+            'status' => SubscriptionStatus::Paused,
+            'paused_at' => now()->subDay(),
+        ]);
+    }
+
+    /**
      * Mark the subscription as incomplete.
      */
     public function incomplete(): self

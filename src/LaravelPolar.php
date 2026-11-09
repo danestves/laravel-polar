@@ -10,7 +10,7 @@ use Spatie\LaravelData\Data as SpatieData;
 
 class LaravelPolar
 {
-    public const string VERSION = '3.2.1';
+    public const string VERSION = '3.3.0';
 
     /**
      * The cached HTTP client.
@@ -61,7 +61,7 @@ class LaravelPolar
     public static function updateSubscription(string $subscriptionId, Data\SubscriptionUpdate|array $request, bool $keepNulls = false): Data\Subscription
     {
         return Data\Subscription::from(self::client()->patch(
-            '/v1/subscriptions/' . urlencode($subscriptionId),
+            '/v1/subscriptions/' . rawurlencode($subscriptionId),
             $request,
             keepNulls: $keepNulls,
         ));
@@ -120,7 +120,7 @@ class LaravelPolar
      */
     public static function updateBenefit(string $benefitId, SpatieData|array $request): Data\Benefit
     {
-        return Data\Benefit::from(self::client()->patch('/v1/benefits/' . urlencode($benefitId), $request));
+        return Data\Benefit::from(self::client()->patch('/v1/benefits/' . rawurlencode($benefitId), $request));
     }
 
     /**
@@ -130,7 +130,7 @@ class LaravelPolar
      */
     public static function deleteBenefit(string $benefitId): void
     {
-        self::client()->delete('/v1/benefits/' . urlencode($benefitId));
+        self::client()->delete('/v1/benefits/' . rawurlencode($benefitId));
     }
 
     /**
@@ -153,7 +153,7 @@ class LaravelPolar
      */
     public static function getBenefit(string $benefitId): Data\Benefit
     {
-        return Data\Benefit::from(self::client()->get('/v1/benefits/' . urlencode($benefitId)));
+        return Data\Benefit::from(self::client()->get('/v1/benefits/' . rawurlencode($benefitId)));
     }
 
     /**
@@ -167,7 +167,7 @@ class LaravelPolar
     public static function listBenefitGrants(string $benefitId, array $query = []): Page
     {
         return self::client()->page(
-            '/v1/benefits/' . urlencode($benefitId) . '/grants',
+            '/v1/benefits/' . rawurlencode($benefitId) . '/grants',
             Data\BenefitGrant::class,
             $query,
         );
@@ -207,7 +207,7 @@ class LaravelPolar
      */
     public static function getCustomerMeter(string $meterId): Data\CustomerMeter
     {
-        return Data\CustomerMeter::from(self::client()->get('/v1/customer-meters/' . urlencode($meterId)));
+        return Data\CustomerMeter::from(self::client()->get('/v1/customer-meters/' . rawurlencode($meterId)));
     }
 
     // -- analytics ----------------------------------------------------------
@@ -261,7 +261,7 @@ class LaravelPolar
      */
     public static function getOrganization(string $organizationId): Data\Organization
     {
-        return Data\Organization::from(self::client()->get('/v1/organizations/' . urlencode($organizationId)));
+        return Data\Organization::from(self::client()->get('/v1/organizations/' . rawurlencode($organizationId)));
     }
 
     // -- seats --------------------------------------------------------------
@@ -298,7 +298,7 @@ class LaravelPolar
      */
     public static function revokeSeat(string $seatId): Data\CustomerSeat
     {
-        return Data\CustomerSeat::from(self::client()->delete('/v1/customer-seats/' . urlencode($seatId)));
+        return Data\CustomerSeat::from(self::client()->delete('/v1/customer-seats/' . rawurlencode($seatId)));
     }
 
     /**
@@ -308,7 +308,7 @@ class LaravelPolar
      */
     public static function resendSeatInvitation(string $seatId): Data\CustomerSeat
     {
-        return Data\CustomerSeat::from(self::client()->post('/v1/customer-seats/' . urlencode($seatId) . '/resend'));
+        return Data\CustomerSeat::from(self::client()->post('/v1/customer-seats/' . rawurlencode($seatId) . '/resend'));
     }
 
     // -- license keys -------------------------------------------------------
@@ -334,7 +334,7 @@ class LaravelPolar
     public static function getLicenseKey(string $licenseKeyId): Data\LicenseKeyWithActivations
     {
         return Data\LicenseKeyWithActivations::from(
-            self::client()->get('/v1/license-keys/' . urlencode($licenseKeyId)),
+            self::client()->get('/v1/license-keys/' . rawurlencode($licenseKeyId)),
         );
     }
 
@@ -348,7 +348,7 @@ class LaravelPolar
     public static function updateLicenseKey(string $licenseKeyId, Data\LicenseKeyUpdate|array $request): Data\LicenseKeyRead
     {
         return Data\LicenseKeyRead::from(
-            self::client()->patch('/v1/license-keys/' . urlencode($licenseKeyId), $request),
+            self::client()->patch('/v1/license-keys/' . rawurlencode($licenseKeyId), $request),
         );
     }
 
@@ -444,7 +444,7 @@ class LaravelPolar
     public static function updateCustomField(string $customFieldId, Data\CustomFieldUpdate|array $request): Data\CustomField
     {
         return Data\CustomField::from(
-            self::client()->patch('/v1/custom-fields/' . urlencode($customFieldId), $request),
+            self::client()->patch('/v1/custom-fields/' . rawurlencode($customFieldId), $request),
         );
     }
 
@@ -455,7 +455,7 @@ class LaravelPolar
      */
     public static function deleteCustomField(string $customFieldId): void
     {
-        self::client()->delete('/v1/custom-fields/' . urlencode($customFieldId));
+        self::client()->delete('/v1/custom-fields/' . rawurlencode($customFieldId));
     }
 
     /**
@@ -478,7 +478,7 @@ class LaravelPolar
      */
     public static function getCustomField(string $customFieldId): Data\CustomField
     {
-        return Data\CustomField::from(self::client()->get('/v1/custom-fields/' . urlencode($customFieldId)));
+        return Data\CustomField::from(self::client()->get('/v1/custom-fields/' . rawurlencode($customFieldId)));
     }
 
     // -- checkout links -----------------------------------------------------
@@ -505,7 +505,7 @@ class LaravelPolar
     public static function updateCheckoutLink(string $checkoutLinkId, Data\CheckoutLinkUpdate|array $request): Data\CheckoutLink
     {
         return Data\CheckoutLink::from(
-            self::client()->patch('/v1/checkout-links/' . urlencode($checkoutLinkId), $request),
+            self::client()->patch('/v1/checkout-links/' . rawurlencode($checkoutLinkId), $request),
         );
     }
 
@@ -516,7 +516,7 @@ class LaravelPolar
      */
     public static function deleteCheckoutLink(string $checkoutLinkId): void
     {
-        self::client()->delete('/v1/checkout-links/' . urlencode($checkoutLinkId));
+        self::client()->delete('/v1/checkout-links/' . rawurlencode($checkoutLinkId));
     }
 
     /**
@@ -539,7 +539,7 @@ class LaravelPolar
      */
     public static function getCheckoutLink(string $checkoutLinkId): Data\CheckoutLink
     {
-        return Data\CheckoutLink::from(self::client()->get('/v1/checkout-links/' . urlencode($checkoutLinkId)));
+        return Data\CheckoutLink::from(self::client()->get('/v1/checkout-links/' . rawurlencode($checkoutLinkId)));
     }
 
     // -- discounts ----------------------------------------------------------
@@ -565,7 +565,7 @@ class LaravelPolar
      */
     public static function updateDiscount(string $discountId, Data\DiscountUpdate|array $request): Data\Discount
     {
-        return Data\Discount::from(self::client()->patch('/v1/discounts/' . urlencode($discountId), $request));
+        return Data\Discount::from(self::client()->patch('/v1/discounts/' . rawurlencode($discountId), $request));
     }
 
     /**
@@ -575,7 +575,7 @@ class LaravelPolar
      */
     public static function deleteDiscount(string $discountId): void
     {
-        self::client()->delete('/v1/discounts/' . urlencode($discountId));
+        self::client()->delete('/v1/discounts/' . rawurlencode($discountId));
     }
 
     /**
@@ -598,7 +598,7 @@ class LaravelPolar
      */
     public static function getDiscount(string $discountId): Data\Discount
     {
-        return Data\Discount::from(self::client()->get('/v1/discounts/' . urlencode($discountId)));
+        return Data\Discount::from(self::client()->get('/v1/discounts/' . rawurlencode($discountId)));
     }
 
     // -- orders & refunds ---------------------------------------------------
@@ -610,7 +610,7 @@ class LaravelPolar
      */
     public static function getOrder(string $orderId): Data\Order
     {
-        return Data\Order::from(self::client()->get('/v1/orders/' . urlencode($orderId)));
+        return Data\Order::from(self::client()->get('/v1/orders/' . rawurlencode($orderId)));
     }
 
     /**
@@ -665,7 +665,7 @@ class LaravelPolar
     public static function deleteCustomerPaymentMethod(string $customerSessionToken, string $paymentMethodId): void
     {
         self::client()->delete(
-            '/v1/customer-portal/customers/me/payment-methods/' . urlencode($paymentMethodId),
+            '/v1/customer-portal/customers/me/payment-methods/' . rawurlencode($paymentMethodId),
             token: $customerSessionToken,
         );
     }
@@ -698,7 +698,7 @@ class LaravelPolar
      */
     public static function getOrderInvoiceUrl(string $customerSessionToken, string $orderId): ?string
     {
-        $path = '/v1/customer-portal/orders/' . urlencode($orderId) . '/invoice';
+        $path = '/v1/customer-portal/orders/' . rawurlencode($orderId) . '/invoice';
 
         try {
             self::client()->post($path, token: $customerSessionToken);
@@ -712,6 +712,190 @@ class LaravelPolar
         $invoice = self::client()->get($path, token: $customerSessionToken);
 
         return is_string($invoice['url'] ?? null) ? $invoice['url'] : null;
+    }
+
+    // -- customers ----------------------------------------------------------
+
+    /**
+     * Create a customer.
+     *
+     * @param  array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function createCustomer(array $request): Data\Customer
+    {
+        return Data\Customer::from(self::client()->post('/v1/customers/', $request));
+    }
+
+    /**
+     * Get a specific customer by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getCustomer(string $customerId): Data\Customer
+    {
+        return Data\Customer::from(self::client()->get('/v1/customers/' . rawurlencode($customerId)));
+    }
+
+    /**
+     * Get a specific customer by its external ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getCustomerByExternalId(string $externalId): Data\Customer
+    {
+        return Data\Customer::from(
+            self::client()->get('/v1/customers/external/' . rawurlencode($externalId)),
+        );
+    }
+
+    /**
+     * List customers.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Customer>
+     *
+     * @throws PolarApiError
+     */
+    public static function listCustomers(array $query = []): Page
+    {
+        return self::client()->page('/v1/customers/', Data\Customer::class, $query);
+    }
+
+    /**
+     * Update a customer.
+     *
+     * @param  array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function updateCustomer(string $customerId, array $request): Data\Customer
+    {
+        return Data\Customer::from(
+            self::client()->patch('/v1/customers/' . rawurlencode($customerId), $request),
+        );
+    }
+
+    /**
+     * Delete a customer.
+     *
+     * Polar answers a successful delete with 204 No Content, so there is no resource to return.
+     *
+     * @throws PolarApiError
+     */
+    public static function deleteCustomer(string $customerId): void
+    {
+        self::client()->delete('/v1/customers/' . rawurlencode($customerId));
+    }
+
+    /**
+     * Get a customer's state, including its subscriptions, benefits and meters.
+     *
+     * @throws PolarApiError
+     */
+    public static function getCustomerState(string $customerId): Data\CustomerState
+    {
+        return Data\CustomerState::from(
+            self::client()->get('/v1/customers/' . rawurlencode($customerId) . '/state'),
+        );
+    }
+
+    // -- billing reads ------------------------------------------------------
+
+    /**
+     * Get a specific subscription by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getSubscription(string $subscriptionId): Data\Subscription
+    {
+        return Data\Subscription::from(self::client()->get('/v1/subscriptions/' . rawurlencode($subscriptionId)));
+    }
+
+    /**
+     * List subscriptions.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Subscription>
+     *
+     * @throws PolarApiError
+     */
+    public static function listSubscriptions(array $query = []): Page
+    {
+        return self::client()->page('/v1/subscriptions/', Data\Subscription::class, $query);
+    }
+
+    /**
+     * List orders.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Order>
+     *
+     * @throws PolarApiError
+     */
+    public static function listOrders(array $query = []): Page
+    {
+        return self::client()->page('/v1/orders/', Data\Order::class, $query);
+    }
+
+    /**
+     * Get a specific product by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getProduct(string $productId): Data\Product
+    {
+        return Data\Product::from(self::client()->get('/v1/products/' . rawurlencode($productId)));
+    }
+
+    // -- meters -------------------------------------------------------------
+
+    /**
+     * List meters.
+     *
+     * @param  array<string, mixed>  $query
+     * @return Page<Data\Meter>
+     *
+     * @throws PolarApiError
+     */
+    public static function listMeters(array $query = []): Page
+    {
+        return self::client()->page('/v1/meters/', Data\Meter::class, $query);
+    }
+
+    /**
+     * Get a specific meter by ID.
+     *
+     * @throws PolarApiError
+     */
+    public static function getMeter(string $meterId): Data\Meter
+    {
+        return Data\Meter::from(self::client()->get('/v1/meters/' . rawurlencode($meterId)));
+    }
+
+    /**
+     * Create a meter.
+     *
+     * @param  array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function createMeter(array $request): Data\Meter
+    {
+        return Data\Meter::from(self::client()->post('/v1/meters/', $request));
+    }
+
+    /**
+     * Update a meter.
+     *
+     * @param  array<string, mixed>  $request
+     *
+     * @throws PolarApiError
+     */
+    public static function updateMeter(string $meterId, array $request): Data\Meter
+    {
+        return Data\Meter::from(self::client()->patch('/v1/meters/' . rawurlencode($meterId), $request));
     }
 
     // -- configuration ------------------------------------------------------
@@ -747,6 +931,32 @@ class LaravelPolar
     }
 
     /**
+     * Register a fake for the Polar API and return its recorder.
+     *
+     * @param  array<string, array<string, mixed>|list<mixed>>  $responses
+     */
+    public static function fake(array $responses = []): \Danestves\LaravelPolar\Testing\PolarFake
+    {
+        return new \Danestves\LaravelPolar\Testing\PolarFake($responses);
+    }
+
+    /**
+     * Build a correctly signed Polar webhook payload for application tests.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{payload: array<string, mixed>, headers: array<string, string>, body: string}
+     */
+    public static function fakeWebhook(
+        string $type,
+        array $data,
+        ?string $secret = null,
+        ?int $timestamp = null,
+        ?string $id = null,
+    ): array {
+        return \Danestves\LaravelPolar\Testing\WebhookFactory::make($type, $data, $secret, $timestamp, $id);
+    }
+
+    /**
      * Get or create the cached HTTP client.
      *
      * @throws Exception
@@ -764,12 +974,18 @@ class LaravelPolar
         }
 
         $timeout = config('polar.timeout');
+        $retryTimes = config('polar.retry.times');
+        $retrySleep = config('polar.retry.sleep');
 
         return self::$client = new PolarClient(
             accessToken: $accessToken,
             baseUrl: PolarClient::resolveBaseUrl(config('polar.server')),
             version: (string) config('polar.version', PolarClient::API_VERSION),
             timeout: is_numeric($timeout) ? (int) $timeout : null,
+            // `polar.retry.times` counts retries after the first attempt, while Laravel's
+            // HTTP client takes the total number of attempts.
+            retryTimes: is_numeric($retryTimes) && (int) $retryTimes > 0 ? (int) $retryTimes + 1 : 0,
+            retrySleep: is_numeric($retrySleep) ? (int) $retrySleep : 0,
         );
     }
 

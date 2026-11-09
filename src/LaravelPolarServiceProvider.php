@@ -3,6 +3,7 @@
 namespace Danestves\LaravelPolar;
 
 use Danestves\LaravelPolar\Commands\ListProductsCommand;
+use Danestves\LaravelPolar\Commands\SyncCommand;
 use Danestves\LaravelPolar\Http\PolarClient;
 use Danestves\LaravelPolar\View\Components\Button;
 use Illuminate\Support\Facades\Blade;
@@ -24,6 +25,7 @@ class LaravelPolarServiceProvider extends PackageServiceProvider
             ->hasRoute("web")
             ->hasCommands(
                 ListProductsCommand::class,
+                SyncCommand::class,
             )
             ->hasInstallCommand(function (InstallCommand $command) {
                 $command

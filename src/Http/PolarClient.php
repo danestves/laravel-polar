@@ -5,6 +5,7 @@ namespace Danestves\LaravelPolar\Http;
 use Danestves\LaravelPolar\Data\Pagination;
 use Danestves\LaravelPolar\Exceptions\PolarApiError;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Spatie\LaravelData\Data;
@@ -34,6 +35,8 @@ class PolarClient
         private readonly string $baseUrl = self::PRODUCTION_URL,
         private readonly string $version = self::API_VERSION,
         private readonly ?int $timeout = null,
+        private readonly int $retryTimes = 0,
+        private readonly int $retrySleep = 0,
     ) {}
 
     /**
@@ -151,6 +154,15 @@ class PolarClient
 
         $request = $this->request($token);
 
+        if ($this->retryTimes > 0) {
+            $request = $request->retry(
+                $this->retryTimes,
+                $this->retrySleep,
+                $this->shouldRetry(...),
+                throw: false,
+            );
+        }
+
         $response = match ($method) {
             'GET' => $request->get($url),
             'DELETE' => $request->delete($url),
@@ -176,6 +188,26 @@ class PolarClient
             ->asJson();
 
         return $this->timeout !== null ? $request->timeout($this->timeout) : $request;
+    }
+
+    /**
+     * Only ever retry rate limits and server-side failures.
+     *
+     * Client errors other than 429 mean the request itself is wrong, so replaying it would
+     * just waste a round-trip. Connection failures have no response to inspect and are left
+     * to the caller as well.
+     */
+    protected function shouldRetry(\Throwable $exception): bool
+    {
+        $response = $exception instanceof RequestException ? $exception->response : null;
+
+        if ($response === null) {
+            return false;
+        }
+
+        $status = $response->status();
+
+        return $status === 429 || $status >= 500;
     }
 
     /**
